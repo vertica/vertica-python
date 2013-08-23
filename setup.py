@@ -29,5 +29,14 @@ setup(
     packages=['vertica_python'],
     license="MIT",
     install_requires=install_requires,
-    dependency_links=dependency_links
+    dependency_links=dependency_links,
+    classifiers = [
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python",
+        "Topic :: Database",
+        "Topic :: Database :: Database Engines/Servers",
+        "Operating System :: OS Independent"
+    ]
 )

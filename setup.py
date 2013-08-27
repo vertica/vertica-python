@@ -27,6 +27,9 @@ setup(
     url='https://github.com/uber/vertica-python/',
     keywords="database vertica",
     packages=['vertica_python'],
+    package_data={
+        '': ['*.txt', '*.md'],
+    },
     license="MIT",
     install_requires=install_requires,
     dependency_links=dependency_links,

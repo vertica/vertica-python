@@ -1,3 +1,5 @@
 include LICENSE
 include requirements.txt
 include README.md
+recursive-include vertica_python *.py
+recursive-exclude vertica_python *.pyc

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import collections
-from setuptools import setup
+from setuptools import setup, find_packages
 
 from pip.req import parse_requirements
 
@@ -20,14 +20,13 @@ for ir in parse_requirements("requirements.txt", options=opts):
 
 setup(
     name='vertica-python',
-    version='0.1.1',
+    version='0.1.2',
     description='A native Python client for the Vertica database.',
     author='Justin Berka',
     author_email='justin@uber.com',
     url='https://github.com/uber/vertica-python/',
     keywords="database vertica",
-    packages=['vertica_python'],
-    include_pckage_data=True,
+    packages=find_packages(),
     license="MIT",
     install_requires=install_requires,
     dependency_links=dependency_links,

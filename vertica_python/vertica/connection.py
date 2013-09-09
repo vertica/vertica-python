@@ -162,7 +162,7 @@ class Connection(object):
         if isinstance(message, messages.ErrorResponse):
             raise ConnectionError(message.error_message())
         elif isinstance(message, messages.NoticeResponse):
-            if self.notice_handler is not None:
+            if getattr(self, 'notice_handler', None) is not None:
                 self.notice_handler(message)
         elif isinstance(message, messages.BackendKeyData):
             self.backend_pid = message.pid

@@ -229,12 +229,14 @@ class Connection(object):
                 break
 
     def read_bytes(self, n):
-        bytes = self._socket().recv(n)
 
-        if bytes is None or len(bytes) != n:
-            raise ConnectionError("{} bytes requested, 0 or != {} bytes received".format(n, n))
-
-        return bytes
+        results = ''
+        while len(results) < n:
+            bytes = self._socket().recv(n-len(results))
+            if bytes is None or len(bytes) == 0:
+                raise ConnectionError("Connection closed by Vertica")
+            results = results + bytes
+        return results
 
     def startup_connection(self):
         self.write(messages.Startup(self.options['user'], self.options['database']))

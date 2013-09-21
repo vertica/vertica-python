@@ -10,7 +10,7 @@ from vertica_python.vertica.connection import Connection
 # Main module for this library.
 
 # The version number of this library.
-VERSION = 0.1
+VERSION = 0.1.4
 
 # The protocol version (3.0.0) implemented in this library.
 PROTOCOL_VERSION = 3 << 16

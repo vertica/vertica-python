@@ -20,7 +20,7 @@ for ir in parse_requirements("requirements.txt", options=opts):
 
 setup(
     name='vertica-python',
-    version='0.1.5',
+    version='0.1.6',
     description='A native Python client for the Vertica database.',
     author='Justin Berka',
     author_email='justin@uber.com',
@@ -30,7 +30,7 @@ setup(
     license="MIT",
     install_requires=install_requires,
     dependency_links=dependency_links,
-    classifiers = [
+    classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",

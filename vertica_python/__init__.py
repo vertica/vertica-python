@@ -10,14 +10,21 @@ from vertica_python.vertica.connection import Connection
 # Main module for this library.
 
 # The version number of this library.
-VERSION = 0.1.5
+version_info = (0, 1, 5)
+__version__ = '.'.join(map(str, version_info))
+
+__author__ = 'Uber Technologies, Inc'
+__copyright__ = 'Copyright 2013, Uber Technologies, Inc.'
+__license__ = 'MIT'
 
 # The protocol version (3.0.0) implemented in this library.
 PROTOCOL_VERSION = 3 << 16
 
+
 # Opens a new connection to a Vertica database.
 def connect(options):
     return Connection(options)
+
 
 # Properly quotes a value for safe usage in SQL queries.
 #
@@ -43,6 +50,7 @@ def quote(value):
         return map(lambda x: quote(x), value)
     else:
         return quote(unicode(value))
+
 
 # Quotes an identifier for safe use within SQL queries, using double quotes.
 def quote_identifier(identifier):

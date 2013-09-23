@@ -6,7 +6,7 @@ This package is a Python port of the excellent Vertica Ruby gem (https://github.
 
 vertica-python is currently in a alpha stage; it has been tested for functionality, but does not have a test suite. Please use with caution, and feel free to submit issues and/or pull requests.
 
-vertica-python has been tested with Vertica 6.1.2 and Python 2.7.5. Please let me know if it's working on other versions.
+vertica-python has been tested with Vertica 6.1.2 and Python 2.6/2.7. Please let me know if it's working on other versions.
 
 
 ## Installation

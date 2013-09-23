@@ -10,7 +10,7 @@ class CopyData(FrontendMessage):
         self.data = data
 
     def to_bytes(self):
-        return self.message_string(pack('{}s'.format(len(self.data)), self.data))
+        return self.message_string(pack('{0}s'.format(len(self.data)), self.data))
 
 
 CopyData._message_id('d')

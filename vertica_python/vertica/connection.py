@@ -89,10 +89,10 @@ class Connection(object):
 
     def write(self, message):
         if hasattr(message, 'to_bytes') is False or callable(getattr(message, 'to_bytes')) is False:
-            raise TypeError("invalid message: ({})".format(message))
+            raise TypeError("invalid message: ({0})".format(message))
 
         if getattr(self, 'debug', False):
-            print "=> {}".format(message)
+            print "=> {0}".format(message)
         try:
             self._socket().sendall(message.to_bytes())
         except Exception, e:
@@ -131,7 +131,7 @@ class Connection(object):
         if self.session_id is None:
             raise InterruptImpossible("Session cannot be interrupted: session ID unknown")
         conn = self.__class__(dict(interruptable=False, role=None, search_path=None, **self.options))
-        response = conn.query("SELECT CLOSE_SESSION({})".format(quote(self.session_id))).the_value()
+        response = conn.query("SELECT CLOSE_SESSION({0})".format(quote(self.session_id))).the_value()
         conn.close()
         return response
 
@@ -146,10 +146,10 @@ class Connection(object):
                 size = unpack('!I', self.read_bytes(4))[0]
 
                 if size < 4:
-                    raise MessageError("Bad message size: {}".format(size))
+                    raise MessageError("Bad message size: {0}".format(size))
                 message = BackendMessage.factory(type, self.read_bytes(size - 4))
                 if getattr(self, 'debug', False):
-                    print "<= {}".format(message)
+                    print "<= {0}".format(message)
                 return message
             else:
                 self.close()
@@ -173,7 +173,7 @@ class Connection(object):
             self.transaction_status = message.transaction_status
             self.current_job = None
         else:
-            raise MessageError("Unhandled message: {}".format(message))
+            raise MessageError("Unhandled message: {0}".format(message))
 
     # These handlers need to be fixed to support generators for non-buffered output
     def query(self, sql, options={}, handler=None):
@@ -197,8 +197,8 @@ class Connection(object):
         for key, value in self.options.iteritems():
             if key != 'password':
                 safe_options[key] = value
-        s1 = "<Vertica.Connection:{} parameters={} backend_pid={}, ".format(id(self), self.parameters, self.backend_pid)
-        s2 = "backend_key={}, transaction_status={}, socket={}, options={}, row_style={}>".format(self.backend_key, self.transaction_status, self.socket, safe_options, self.row_style)
+        s1 = "<Vertica.Connection:{0} parameters={1} backend_pid={2}, ".format(id(self), self.parameters, self.backend_pid)
+        s2 = "backend_key={0}, transaction_status={1}, socket={2}, options={3}, row_style={4}>".format(self.backend_key, self.transaction_status, self.socket, safe_options, self.row_style)
         return s1+s2
 
     def run_with_job_lock(self, job):
@@ -256,8 +256,8 @@ class Connection(object):
 
     def initialize_connection(self):
         if self.options.get('search_path') is not None:
-            self.query("SET SEARCH_PATH TO {}".format(self.options['search_path']))
+            self.query("SET SEARCH_PATH TO {0}".format(self.options['search_path']))
         if self.options.get('role') is not None:
-            self.query("SET ROLE {}".format(self.options['role']))
+            self.query("SET ROLE {0}".format(self.options['role']))
         if self.options.get('interruptable', False) is True:
             self.session_id = self.query("SELECT session_id FROM v_monitor.current_session").the_value()

@@ -15,7 +15,7 @@ class RowDescription(BackendMessage):
         pos = 2
 
         for i in xrange(field_count):
-            field_info = unpack_from("!{}sxIHIHIH".format(string.find(data, '\x00', pos) - pos), data, pos)
+            field_info = unpack_from("!{0}sxIHIHIH".format(string.find(data, '\x00', pos) - pos), data, pos)
             self.fields.append({
                 'name': field_info[0],
                 'table_oid': field_info[1],

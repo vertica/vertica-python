@@ -28,9 +28,9 @@ class Message(object):
 
         message_size = pack('!I', bytesize)
         if self.message_id() is not None:
-            msg_with_size = "{}{}{}".format(self.message_id(), message_size, msg)
+            msg_with_size = "{0}{1}{2}".format(self.message_id(), message_size, msg)
         else:
-            msg_with_size = "{}{}".format(message_size, msg)
+            msg_with_size = "{0}{1}".format(message_size, msg)
 
         return msg_with_size
 

@@ -20,7 +20,7 @@ class DataRow(BackendMessage):
             if size == -1:
                 self.values.append(None)
             else:
-                self.values.append(unpack_from('{}s'.format(size), data, pos + 4)[0])
+                self.values.append(unpack_from('{0}s'.format(size), data, pos + 4)[0])
             pos += (4 + max(size, 0))
 
 

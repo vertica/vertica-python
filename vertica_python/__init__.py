@@ -10,7 +10,7 @@ from vertica_python.vertica.connection import Connection
 # Main module for this library.
 
 # The version number of this library.
-version_info = (0, 1, 6)
+version_info = (0, 1, 7)
 __version__ = '.'.join(map(str, version_info))
 
 __author__ = 'Uber Technologies, Inc'
@@ -43,7 +43,7 @@ def quote(value):
     elif isinstance(value, date):
         return value.strftime("'%Y-%m-%d'::date")
     elif isinstance(value, basestring) or isinstance(value, unicode):
-        return "'{}'".format(re.sub(r"'", "''", value))
+        return "'{0}'".format(re.sub(r"'", "''", value))
     elif isinstance(value, Decimal) or isinstance(value, int) or isinstance(value, long) or isinstance(value, float):
         return str(value)
     elif isinstance(value, list):
@@ -54,4 +54,4 @@ def quote(value):
 
 # Quotes an identifier for safe use within SQL queries, using double quotes.
 def quote_identifier(identifier):
-    return "\"{}\"".format(re.sub(r'\"', '""', unicode(identifier)))
+    return "\"{0}\"".format(re.sub(r'\"', '""', unicode(identifier)))

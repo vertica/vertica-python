@@ -9,7 +9,7 @@ class ParameterDescription(BackendMessage):
 
     def __init__(self, data):
         parameter_count = unpack('!H', data)[0]
-        parameter_type_ids = unpack_from("!{}N".format(parameter_count), data, 2)
+        parameter_type_ids = unpack_from("!{0}N".format(parameter_count), data, 2)
         self.parameter_types = [Column.DATA_TYPES[dtid] for dtid in parameter_type_ids]
 
 

@@ -29,11 +29,11 @@ class Password(FrontendMessage):
             self.password = hashlib.md5().update(self.password + self.options['salt']).hexdigest()
             return 'md5' + self.password
         else:
-            raise ValueError("unsupported authentication method: {}".format(self.auth_method))
+            raise ValueError("unsupported authentication method: {0}".format(self.auth_method))
 
     def to_bytes(self):
         encoded_pw = self.encoded_password()
-        return self.message_string(pack('{}sx'.format(len(encoded_pw)), encoded_pw))
+        return self.message_string(pack('{0}sx'.format(len(encoded_pw)), encoded_pw))
 
 
 Password._message_id('p')

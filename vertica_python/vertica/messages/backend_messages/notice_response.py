@@ -37,7 +37,7 @@ class NoticeResponse(BackendMessage):
             null_byte = string.find(data, '\x00', pos)
             
             # This will probably work
-            unpacked = unpack_from('c{}sx'.format(null_byte - 1 - pos), data, pos)
+            unpacked = unpack_from('c{0}sx'.format(null_byte - 1 - pos), data, pos)
             key = unpacked[0]
             value = unpacked[1]
 
@@ -53,7 +53,7 @@ class NoticeResponse(BackendMessage):
         ordered = []
         for field in self.FIELDS_DEFINITIONS:
             if self.values.get(field['name']) is not None:
-                ordered.append("{}: {}".format(field['name'], self.values[field['name']]))
+                ordered.append("{0}: {1}".format(field['name'], self.values[field['name']]))
         return ', '.join(ordered)
 
 

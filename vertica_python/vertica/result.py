@@ -20,7 +20,7 @@ class Result(object):
         return row
 
     def format_row(self, row_data):
-        return getattr(self, "format_row_as_{}".format(self.row_style))(row_data)
+        return getattr(self, "format_row_as_{0}".format(self.row_style))(row_data)
 
     def format_row_as_array(self, row_data):
         row = []

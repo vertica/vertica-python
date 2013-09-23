@@ -10,7 +10,7 @@ class CommandComplete(BackendMessage):
 
     def __init__(self, data):
 
-        data = unpack('{}sx'.format(len(data) - 1), data)[0]
+        data = unpack('{0}sx'.format(len(data) - 1), data)[0]
 
         if re.match("INSERT", data) is not None:
             splitstr = data.split(' ', 3)

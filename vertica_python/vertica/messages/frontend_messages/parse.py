@@ -16,7 +16,7 @@ class Parse(FrontendMessage):
         for param in self.param_types:
             params = params + param
 
-        return self.message_string(pack('!{}sx{}sxH{}I'.format(len(self.name), len(self.query), len(self.param_types)), self.name, self.query, len(self.param_types), params))
+        return self.message_string(pack('!{0}sx{1}sxH{2}I'.format(len(self.name), len(self.query), len(self.param_types)), self.name, self.query, len(self.param_types), params))
 
 
 Parse._message_id('P')

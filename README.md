@@ -43,7 +43,7 @@ connection = connect({
 result = connection.query("SELECT * FROM a_table LIMIT 2")
 connection.close()
 
-print result.rows() 
+print result.rows
 # [{'id': 1, 'value': 'something'}, {'id': 2, 'value': 'something_else'}]
 
 ```

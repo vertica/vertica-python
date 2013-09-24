@@ -11,6 +11,12 @@ vertica-python has been tested with Vertica 6.1.2 and Python 2.6/2.7. Please let
 
 ## Installation
 
+If you're using pip >= 1.4 and you don't already have pytz installed:
+
+    pip install --pre pytz
+
+To install vertica-python with pip:
+
     pip install vertica-python
 
 Source code for vertica-python can be found at:

@@ -11,6 +11,12 @@ vertica-python has been tested with Vertica 6.1.2 and Python 2.6/2.7. Please let
 
 ## Installation
 
+If you're using pip >= 1.4 and you don't already have pytz installed:
+
+    pip install --pre pytz
+
+To install vertica-python with pip:
+
     pip install vertica-python
 
 Source code for vertica-python can be found at:
@@ -37,7 +43,7 @@ connection = connect({
 result = connection.query("SELECT * FROM a_table LIMIT 2")
 connection.close()
 
-print result.rows() 
+print result.rows
 # [{'id': 1, 'value': 'something'}, {'id': 2, 'value': 'something_else'}]
 
 ```

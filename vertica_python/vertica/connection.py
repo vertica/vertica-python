@@ -215,7 +215,7 @@ class Connection(object):
         with open(input_file, 'r') as f:
             while True:
                 data = f.read(self.COPY_FROM_IO_BLOCK_SIZE)
-                if data is not None:
+                if len(data) > 0:
                     output.write(data)
                 else:
                     break
@@ -223,7 +223,7 @@ class Connection(object):
     def io_copy_handler(self, input, output):
         while True:
             data = input.read(self.COPY_FROM_IO_BLOCK_SIZE)
-            if data is not None:
+            if len(data) > 0:
                 output.write(data)
             else:
                 break

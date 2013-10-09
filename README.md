@@ -1,5 +1,7 @@
 # vertica-python
 
+[![PyPI version](https://badge.fury.io/py/vertica-python.png)](http://badge.fury.io/py/vertica-python)
+
 vertica-python is a native Python adapter for the Vertica (http://www.vertica.com) database.
 
 This package is a Python port of the excellent Vertica Ruby gem (https://github.com/sprsquish/vertica).
@@ -28,7 +30,7 @@ Source code for vertica-python can be found at:
 
 **Buffered** (in-memory) results:
 
-```
+```python
 from vertica_python import connect
 
 connection = connect({
@@ -45,12 +47,11 @@ connection.close()
 
 print result.rows
 # [{'id': 1, 'value': 'something'}, {'id': 2, 'value': 'something_else'}]
-
 ```
 
 **Unbuffered** (streaming) results:
 
-```
+```python
 from vertica_python import connect
 
 connection = connect({
@@ -59,7 +60,6 @@ connection = connect({
     'user': 'some_user',
     'password': 'some_password',
     'database': 'a_database'
-
     })
 
 def magical_row_handler(row):
@@ -70,7 +70,6 @@ result = connection.query("SELECT * FROM a_table LIMIT 2", options={}, handler=m
 # {'id': 2, 'value': 'something_else'}
 
 connection.close()
-
 ```
 
 ## License

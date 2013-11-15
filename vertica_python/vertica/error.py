@@ -35,10 +35,13 @@ class QueryError(VerticaError):
 
     @classmethod
     def from_error_response(cls, error_response, sql):
-        klass = QUERY_ERROR_CLASSES[error_response.sqlstate]
-        if klass is None:
-            klass = cls
-        return klass(error_response, sql)
+        if error_response.sqlstate in QUERY_ERROR_CLASSES:
+            klass = QUERY_ERROR_CLASSES[error_response.sqlstate]
+            return klass(error_response, sql)
+        else:
+            klass = type('UnknownVerticaError', (QueryError,), dict())
+            return klass(error_response, sql)
+
 
 QUERY_ERROR_CLASSES = {
     '55V03': type('LockFailure', (QueryError,), dict()),

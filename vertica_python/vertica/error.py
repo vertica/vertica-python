@@ -35,7 +35,7 @@ class QueryError(VerticaError):
 
     @classmethod
     def from_error_response(cls, error_response, sql):
-        klass = QUERY_ERROR_CLASSES[error_response.sqlstate]
+        klass = QUERY_ERROR_CLASSES.get(error_response.sqlstate, None)
         if klass is None:
             klass = cls
         return klass(error_response, sql)
@@ -48,5 +48,6 @@ QUERY_ERROR_CLASSES = {
     '42V01': type('MissingRelation', (QueryError,), dict()),
     '42703': type('MissingColumn', (QueryError,), dict()),
     '22V04': type('CopyRejected', (QueryError,), dict()),
-    '42501': type('PermissionDenied', (QueryError,), dict())
+    '42501': type('PermissionDenied', (QueryError,), dict()),
+    '22007': type('InvalidDatetimeFormat', (QueryError,), dict())
 }

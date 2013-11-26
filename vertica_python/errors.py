@@ -1,30 +1,60 @@
 from __future__ import absolute_import
 
+import exceptions
 import re
 
-class VerticaError(Exception):
+class Error(exceptions.StandardError):
     pass
 
-class ConnectionError(VerticaError):
+class Warning(exceptions.StandardError):
     pass
+
+class InterfaceError(Error):
+    pass
+
+class DatabaseError(Error):
+    pass
+
+class InternalError(DatabaseError):
+    pass
+
+class OperationalError(DatabaseError):
+    pass
+
+class ProgrammingError(DatabaseError):
+    pass
+
+class IntegrityError(DatabaseError):
+    pass
+
+class DataError(DatabaseError):
+    pass
+
+class NotSupportedError(DatabaseError):
+    pass
+
+
+
+#
+# Other Errors
+#
+
+class TimedOutError(OperationalError):
+    pass
+
+class ConnectionError(DatabaseError):
+    pass
+
 class SSLNotSupported(ConnectionError):
     pass
-class InterruptImpossible(VerticaError):
-    pass
-class MessageError(VerticaError):
-    pass
-class EmptyQueryError(VerticaError):
-    pass
-class TimedOutError(ConnectionError):
+
+class MessageError(InternalError):
     pass
 
-class SynchronizeError(VerticaError):
-    def __init__(self, running_job, requested_job):
-        self.running_job = running_job
-        self.requested_job = requested_job
-        super(SynchronizeError, self).__init__("Cannot execute {0}, connection is in use for {1}!".format(self.running_job, self.requested_job))
+class EmptyQueryError(ProgrammingError):
+    pass
 
-class QueryError(VerticaError):
+class QueryError(ProgrammingError):
     def __init__(self, error_response, sql):
         self.error_response = error_response
         self.sql = sql

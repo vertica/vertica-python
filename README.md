@@ -65,7 +65,7 @@ connection = connect({
 def magical_row_handler(row):
     print row
 
-result = connection.query("SELECT * FROM a_table LIMIT 2", options={}, handler=magical_row_jhandler)
+result = connection.query("SELECT * FROM a_table LIMIT 2", options={}, handler=magical_row_handler)
 # {'id': 1, 'value': 'something'}
 # {'id': 2, 'value': 'something_else'}
 

@@ -1,9 +1,12 @@
 from __future__ import absolute_import
 
+from collections import namedtuple
+
 from decimal import Decimal
 from datetime import date
 from datetime import datetime
 from dateutil import parser
+
 import pytz
 
 
@@ -37,6 +40,11 @@ def timestamp_tz_parse(s):
     # other wise do a real parse (slower)
     return parser.parse(s)
 
+
+
+ColumnTuple = namedtuple('Column', ['name', 'type_code', 'display_size', 'internal_size', 'precision', 'scale', 'null_ok'])
+
+
 class Column(object):
 
     DATA_TYPE_CONVERSIONS = [
@@ -60,20 +68,50 @@ class Column(object):
         ['bytea', None],
         ['rle_tuple', None],
     ]
-
     DATA_TYPES = map(lambda x: x[0], DATA_TYPE_CONVERSIONS)
 
+
     def __init__(self, col):
-        self.type_modifier = col['type_modifier']
-        self.format = 'text' if col['format_code'] == 0 else 'binary'
-        self.table_oid = col['table_oid']
+
         self.name = col['name']
-        self.attribute_number = col['attribute_number']
-        self.data_type = self.DATA_TYPE_CONVERSIONS[col['data_type_oid']][0]
+        self.type_code = col['data_type_oid']
+        self.display_size = None
+        self.internal_size = col['data_type_size']
+        self.precision = None
+        self.scale = None
+        self.null_ok = None
+
+        self.props = ColumnTuple(col['name'], col['data_type_oid'], None, col['data_type_size'], None, None, None)
+
         self.converter = self.DATA_TYPE_CONVERSIONS[col['data_type_oid']][1]
-        self.size = col['data_type_size']
+        # things that are actually sent
+        #self.name = col['name']
+        #self.data_type = self.DATA_TYPE_CONVERSIONS[col['data_type_oid']][0]
+        #self.type_modifier = col['type_modifier']
+        #self.format = 'text' if col['format_code'] == 0 else 'binary'
+        #self.table_oid = col['table_oid']
+        #self.attribute_number = col['attribute_number']
+        #self.size = col['data_type_size']
 
     def convert(self, s):
         if s is None:
             return
         return self.converter(s) if self.converter is not None else s
+
+    def __str__(self):
+        return self.props.__str__()
+
+    def __unicode__(self):
+
+        return unicode(self.props.__str__())
+    def __repr__(self):
+        return self.props.__str__()
+
+    def __iter__(self):
+       for prop in self.props:
+          yield prop
+
+    def __getitem__(self, key):
+        return self.props[key]
+
+

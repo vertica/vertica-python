@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 import collections
-from psycopg2.extensions import adapt
 
 import vertica_python.errors as errors
 
@@ -11,9 +10,10 @@ from vertica_python.vertica.column import Column
 
 class Cursor(object):
 
-    def __init__(self, connection, cursor_type=None):
+    def __init__(self, connection, cursor_type=None, row_handler=None):
         self.connection = connection
         self.cursor_type = cursor_type
+        self.row_handler = row_handler
         self._closed = False
 
         self.last_execution = None
@@ -37,17 +37,17 @@ class Cursor(object):
     def close():
         self._closed = True
 
-    def execute(self, operation, parameters={}):
+    def execute(self, operation, parameters=None):
 
         if self.closed():
             raise errors.Error('Cursor is closed')
 
-        print operation
-        for key in parameters:
-            v = adapt(parameters[key]).getquoted()
-            operation = operation.replace(':' + key, v)
-
-        print operation
+        if parameters:
+            # optional requirement
+            from psycopg2.extensions import adapt
+            for key in parameters:
+                v = adapt(parameters[key]).getquoted()
+                operation = operation.replace(':' + key, v)
 
         self.rowcount = 0
         self.buffered_rows = collections.deque()
@@ -170,8 +170,11 @@ class Cursor(object):
 
     def _handle_datarow(self, datarow_message):
         row = self.row_formatter(datarow_message)
-        self.buffered_rows.append(row)
-        self.rowcount += 1
+        if self.row_handler:
+            self.row_handler(row)
+        else:
+            self.buffered_rows.append(row)
+            self.rowcount += 1
 
     def row_formatter(self, row_data):
         if not self.cursor_type:

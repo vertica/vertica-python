@@ -14,6 +14,11 @@ from vertica_python.vertica.messages.message import BackendMessage
 
 from vertica_python.vertica.cursor  import Cursor
 
+# To support vertica_python 0.1.9 interface
+class OldResults(object):
+    def __init__(self, rows):
+        self.rows = rows
+
 class Connection(object):
 
     def __init__(self, options={}):
@@ -31,6 +36,19 @@ class Connection(object):
         self.row_style = self.options.get('row_style') if self.options.get('row_style') is not None else 'hash'
         self.boot_connection()
         #self.debug = True
+
+
+    #
+    # To support vertica_python 0.1.9 interface
+    #
+    def query(self, query, handler=None):
+        if handler:
+            cur = Cursor(self, 'dict', handler)
+            cur.execute(query)
+        else:
+            cur = Cursor(self, 'dict')
+            cur.execute(query)
+            return OldResults(cur.fetchall())
 
     #
     # dbApi methods
@@ -56,11 +74,10 @@ class Connection(object):
         cur = self.cursor()
         cur.execute('rollback')
 
-    def cursor(self, cursor_type=None):
+    def cursor(self, cursor_type=None, row_handler=None):
         if self.closed():
             raise errors.Error('Connection is closed')
-
-        return Cursor(self, cursor_type)
+        return Cursor(self, cursor_type=cursor_type, row_handler=row_handler)
 
 
 

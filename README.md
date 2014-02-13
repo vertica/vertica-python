@@ -69,7 +69,7 @@ def magical_row_handler(row):
     print row
 
 cur = connection.cursor(row_handler=magical_row_handler)
-cur.execute("SELECT * FROM a_table LIMIT 2", handler=magical_row_handler)
+cur.execute("SELECT * FROM a_table LIMIT 2")
 # {'id': 1, 'value': 'something'}
 # {'id': 2, 'value': 'something_else'}
 

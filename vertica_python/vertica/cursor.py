@@ -34,7 +34,7 @@ class Cursor(object):
     def callproc(procname, parameters=None):
         raise errors.NotSupportedError('Cursor.callproc() is not implemented')
 
-    def close():
+    def close(self):
         self._closed = True
 
     def execute(self, operation, parameters=None):

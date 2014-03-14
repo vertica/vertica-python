@@ -61,7 +61,10 @@ class QueryError(ProgrammingError):
         super(QueryError, self).__init__("{0}, SQL: {1}".format(error_response.error_message(), repr(self.one_line_sql())))
 
     def one_line_sql(self):
-        return re.sub(r"[\r\n]+", ' ', self.sql)
+        if self.sql:
+            return re.sub(r"[\r\n]+", ' ', self.sql)
+        else:
+            return ''
 
     @classmethod
     def from_error_response(cls, error_response, sql):

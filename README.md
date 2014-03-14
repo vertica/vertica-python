@@ -77,7 +77,7 @@ connection.close()
 ```
 
 
-**Using parameter bindings:
+**Using parameter bindings** :
 
 ```python
 # Using parameter bindings requires psycopg2>=2.5.1 which is not includes with the base vertica_python requirements.
@@ -88,6 +88,16 @@ cur.fetchall()
 # [ [1, 'something'], [2, 'something_else'] ]
 
 connection.close()
+```
+
+
+**Copy** :
+
+cur = connection.cursor()
+cur.copy("COPY test_copy (id, name) from stdin DELIMITER ',' ",  "1,foo\n2,bar")
+
+# input stream copy is todo
+
 ```
 
 

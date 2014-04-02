@@ -93,6 +93,7 @@ connection.close()
 
 **Copy** :
 
+```python
 cur = connection.cursor()
 cur.copy("COPY test_copy (id, name) from stdin DELIMITER ',' ",  "1,foo\n2,bar")
 

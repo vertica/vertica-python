@@ -10,7 +10,8 @@ class Query(FrontendMessage):
         self.query_string = query_string
 
     def to_bytes(self):
-        return self.message_string(pack('{0}sx'.format(len(self.query_string)), self.query_string.encode('utf-8')))
+        encoded = self.query_string.encode('utf-8')
+        return self.message_string(pack('{0}sx'.format(len(encoded)), encoded))
 
 
 Query._message_id('Q')

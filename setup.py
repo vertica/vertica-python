@@ -29,6 +29,7 @@ setup(
     packages=find_packages(),
     license="MIT",
     install_requires=install_requires,
+    extras_require={'namedparams': ['psycopg2>=2.5.1']},
     dependency_links=dependency_links,
     classifiers=[
         "Development Status :: 3 - Alpha",

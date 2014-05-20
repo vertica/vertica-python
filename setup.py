@@ -2,21 +2,10 @@
 import collections
 from setuptools import setup, find_packages
 
-from pip.req import parse_requirements
-
-dependency_links = []
-install_requires = []
 
 ReqOpts = collections.namedtuple('ReqOpts', ['skip_requirements_regex', 'default_vcs'])
 
 opts = ReqOpts(None, 'git')
-
-for ir in parse_requirements("requirements.txt", options=opts):
-    if ir is not None:
-        if ir.url is not None:
-            dependency_links.append(str(ir.url))
-        if ir.req is not None:
-            install_requires.append(str(ir.req))
 
 setup(
     name='vertica-python',
@@ -28,9 +17,8 @@ setup(
     keywords="database vertica",
     packages=find_packages(),
     license="MIT",
-    install_requires=install_requires,
+    install_requires=['python-dateutil>=1.5', 'pytz'],
     extras_require={'namedparams': ['psycopg2>=2.5.1']},
-    dependency_links=dependency_links,
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

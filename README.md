@@ -24,6 +24,7 @@ To install vertica-python with pip:
     pip install vertica-python
 
 To install vertica-python with pip (with optional namedparams dependencies):
+
     # see 'Using named parameters' section below
     pip install 'vertica-python[namedparams]'
 

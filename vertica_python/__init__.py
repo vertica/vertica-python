@@ -24,7 +24,7 @@ from vertica_python.errors import TimedOutError, ConnectionError, SSLNotSupporte
 # Main module for this library.
 
 # The version number of this library.
-version_info = (0, 2, 1)
+version_info = (0, 2, 2)
 __version__ = '.'.join(map(str, version_info))
 
 __author__ = 'Uber Technologies, Inc'

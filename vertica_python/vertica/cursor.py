@@ -45,9 +45,15 @@ class Cursor(object):
         if parameters:
             # optional requirement
             from psycopg2.extensions import adapt
-            for key in parameters:
-                v = adapt(parameters[key]).getquoted()
-                operation = operation.replace(':' + key, v)
+
+            if isinstance(parameters, dict):
+                for key in parameters:
+                    v = adapt(parameters[key]).getquoted()
+                    operation = operation.replace(':' + key, v)
+            elif isinstance(parameters, tuple):
+                operation = operation % tuple(adapt(p).getquoted() for p in parameters)
+            else:
+                raise errors.Error("Argument 'parameters' must be dict or tuple")
 
         self.rowcount = 0
         self.buffered_rows = collections.deque()

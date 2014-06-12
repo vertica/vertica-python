@@ -41,7 +41,10 @@ class Connection(object):
         return self
 
     def __exit__(self, type, value, traceback):
-        self.close()
+        if type:
+            self.rollback()
+        else:
+            self.commit()
 
 
     #

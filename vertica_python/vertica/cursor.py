@@ -27,6 +27,12 @@ class Cursor(object):
         self.rowcount = -1
         self.arraysize = 1
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
+
     #
     # dbApi methods
     #

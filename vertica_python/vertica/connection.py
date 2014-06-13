@@ -37,6 +37,15 @@ class Connection(object):
         self.boot_connection()
         #self.debug = True
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        if type:
+            self.rollback()
+        else:
+            self.commit()
+
 
     #
     # To support vertica_python 0.1.9 interface

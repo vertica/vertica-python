@@ -219,6 +219,9 @@ class Connection(object):
         return results
 
     def startup_connection(self):
+        if not 'database' in self.options:
+            self.options['database'] = None
+
         self.write(messages.Startup(self.options['user'], self.options['database']))
         message = None
         while True:

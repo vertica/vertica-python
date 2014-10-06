@@ -39,6 +39,7 @@ class NotSupportedError(DatabaseError):
 # Other Errors
 #
 
+
 class TimedOutError(OperationalError):
     pass
 
@@ -73,14 +74,34 @@ class QueryError(ProgrammingError):
             klass = cls
         return klass(error_response, sql)
 
+class LockFailure(QueryError):
+    pass
+class InsufficientResources(QueryError):
+    pass
+class OutOfMemory(QueryError):
+    pass
+class VerticaSyntaxError(QueryError):
+    pass
+class MissingRelation(QueryError):
+    pass
+class MissingColumn(QueryError):
+    pass
+class CopyRejected(QueryError):
+    pass
+class PermissionDenied(QueryError):
+    pass
+class InvalidDatetimeFormat(QueryError):
+    pass
+
+
 QUERY_ERROR_CLASSES = {
-    '55V03': type('LockFailure', (QueryError,), dict()),
-    '53000': type('InsufficientResources', (QueryError,), dict()),
-    '53200': type('OutOfMemory', (QueryError,), dict()),
-    '42601': type('SyntaxError', (QueryError,), dict()),
-    '42V01': type('MissingRelation', (QueryError,), dict()),
-    '42703': type('MissingColumn', (QueryError,), dict()),
-    '22V04': type('CopyRejected', (QueryError,), dict()),
-    '42501': type('PermissionDenied', (QueryError,), dict()),
-    '22007': type('InvalidDatetimeFormat', (QueryError,), dict())
+    '55V03': LockFailure,
+    '53000': InsufficientResources,
+    '53200': OutOfMemory,
+    '42601': VerticaSyntaxError,
+    '42V01': MissingRelation,
+    '42703': MissingColumn,
+    '22V04': CopyRejected,
+    '42501': PermissionDenied,
+    '22007': InvalidDatetimeFormat
 }

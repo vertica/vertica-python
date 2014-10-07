@@ -113,8 +113,13 @@ class Cursor(object):
     #
     # Non dbApi methods
     #
-    # todo: input stream
-    def copy(self, sql, data):
+    # example:
+    #
+    # with open("/tmp/file.csv", "rb") as fs:
+    #   cursor.copy("COPY table(field1,field2) FROM STDIN DELIMITER ',' ENCLOSED BY '\"'", fs, buffer_size=65536)
+    #
+
+    def copy(self, sql, data, **kwargs):
 
         if self.closed():
             raise errors.Error('Cursor is closed')
@@ -127,8 +132,14 @@ class Cursor(object):
             if isinstance(message, messages.ReadyForQuery):
                 break
             elif isinstance(message, messages.CopyInResponse):
+
                 #write stuff
-                self.connection.write(messages.CopyData(data))
+                if not hasattr(data, "read"):
+                    self.connection.write(messages.CopyData(data))
+                else:
+                    # treat data as stream
+                    self.connection.write(messages.CopyStream(data, **kwargs))
+
                 self.connection.write(messages.CopyDone())
 
         if self.error is not None:

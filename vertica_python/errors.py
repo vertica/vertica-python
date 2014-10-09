@@ -74,29 +74,38 @@ class QueryError(ProgrammingError):
             klass = cls
         return klass(error_response, sql)
 
+
 class LockFailure(QueryError):
     pass
+
 
 class InsufficientResources(QueryError):
     pass
 
+
 class OutOfMemory(QueryError):
     pass
+
 
 class VerticaSyntaxError(QueryError):
     pass
 
+
 class MissingRelation(QueryError):
     pass
+
 
 class MissingColumn(QueryError):
     pass
 
+
 class CopyRejected(QueryError):
     pass
 
+
 class PermissionDenied(QueryError):
     pass
+
     
 class InvalidDatetimeFormat(QueryError):
     pass

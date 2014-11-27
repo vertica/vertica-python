@@ -200,19 +200,14 @@ class Cursor(object):
         # throw some error
 
     def format_row_as_dict(self, row_data):
-        row = {}
-        for idx, value in enumerate(row_data.values):
-            col = self.description[idx]
-            row[col.name] = col.convert(value)
-        return row
+        return {
+            self.description[idx].name: self.description[idx].convert(value)
+            for idx, value in enumerate(row_data.values)
+        }
 
     def format_row_as_array(self, row_data):
-        row = []
-        for idx, value in enumerate(row_data.values):
-            col = self.description[idx]
-            row.append(col.convert(value))
-        return row
-
+        return [self.description[idx].convert(value)
+                for idx, value in enumerate(row_data.values)]
 
     #COPY_FROM_IO_BLOCK_SIZE = 1024 * 4096
 

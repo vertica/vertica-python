@@ -91,7 +91,7 @@ class Connection(object):
 
 
     #
-    # Internal 
+    # Internal
     #
 
     def reset_values(self):
@@ -244,5 +244,3 @@ class Connection(object):
             self.query("SET ROLE {0}".format(self.options['role']))
         #if self.options.get('interruptable', False) is True:
         #    self.session_id = self.query("SELECT session_id FROM v_monitor.current_session").the_value()
-
-

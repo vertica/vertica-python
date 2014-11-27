@@ -101,7 +101,7 @@ class Cursor(object):
 
 
     def nextset(self):
-        raise errors.NotSupportedError('Cursor.nextset() is not implemented')    
+        raise errors.NotSupportedError('Cursor.nextset() is not implemented')
 
     def setinputsizes(self):
         pass
@@ -232,5 +232,3 @@ class Cursor(object):
     #            output.write(data)
     #        else:
     #            break
-
-

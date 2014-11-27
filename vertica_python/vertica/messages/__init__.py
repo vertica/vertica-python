@@ -40,4 +40,3 @@ __all__ = ["Authentication", "BackendKeyData", "BindComplete", "CloseComplete", 
            "ReadyForQuery", "RowDescription", "Unknown", "Bind", "CancelRequest", "Close", "CopyData", "CopyDone",
            "CopyFail", "Describe", "Execute", "Flush", "Parse", "Password", "Query", "SslRequest", "Startup", "Sync", "Terminate"
            ]
-

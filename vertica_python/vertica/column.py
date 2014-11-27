@@ -18,7 +18,7 @@ import pytz
 # 2013-01-01 00:00:00.01+00
 # 2013-01-01 00:00:00.00001+00
 #
-# Vertica stores all data in UTC: 
+# Vertica stores all data in UTC:
 #   "TIMESTAMP WITH TIMEZONE (TIMESTAMPTZ) data is stored in GMT (UTC) by converting data from the current local time zone to GMT."
 # Vertica fetches data in local timezone:
 #   "When TIMESTAMPTZ data is used, data is converted back to use the current local time zone"
@@ -102,8 +102,8 @@ class Column(object):
         return self.props.__str__()
 
     def __unicode__(self):
-
         return unicode(self.props.__str__())
+
     def __repr__(self):
         return self.props.__str__()
 
@@ -113,5 +113,3 @@ class Column(object):
 
     def __getitem__(self, key):
         return self.props[key]
-
-

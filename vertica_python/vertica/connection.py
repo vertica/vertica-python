@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 
-import os
 import select
 import socket
 import ssl
@@ -219,11 +218,8 @@ class Connection(object):
         return results
 
     def startup_connection(self):
-        if not 'database' in self.options:
-            self.options['database'] = None
-
-        self.write(messages.Startup(self.options['user'], self.options['database']))
-        message = None
+        self.write(messages.Startup(self.options['user'],
+                                    self.options.get('database')))
         while True:
             message = self.read_message()
 

@@ -146,8 +146,8 @@ class Connection(object):
 
     def close_socket(self):
         try:
-            self._socket().close()
-            self.socket = None
+            if self.socket is not None:
+                self._socket().close()
         finally:
             self.reset_values()
 

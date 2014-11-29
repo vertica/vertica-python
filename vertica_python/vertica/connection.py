@@ -29,10 +29,8 @@ class Connection(object):
             if value is not None:
                 self.options[key] = value
 
-        self.options['port'] = 5433 if self.options.get('port') is None else self.options['port']
-        self.options['read_timeout'] = 600 if self.options.get('read_timeout') is None else self.options['read_timeout']
-
-        self.row_style = self.options.get('row_style') if self.options.get('row_style') is not None else 'hash'
+        self.options.setdefault('port', 5433)
+        self.options.setdefault('read_timeout', 600)
         self.boot_connection()
         #self.debug = True
 
@@ -105,7 +103,7 @@ class Connection(object):
         if self.socket is not None:
             return self.socket
 
-        if self.options.get('ssl', False) is True:
+        if self.options.get('ssl'):
             # SSL
             raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             raw_socket.connect((self.options['host'], self.options['port']))
@@ -203,7 +201,10 @@ class Connection(object):
             if key != 'password':
                 safe_options[key] = value
         s1 = "<Vertica.Connection:{0} parameters={1} backend_pid={2}, ".format(id(self), self.parameters, self.backend_pid)
-        s2 = "backend_key={0}, transaction_status={1}, socket={2}, options={3}, row_style={4}>".format(self.backend_key, self.transaction_status, self.socket, safe_options, self.row_style)
+        s2 = "backend_key={0}, transaction_status={1}, socket={2}, options={3}>".format(
+            self.backend_key, self.transaction_status, self.socket,
+            safe_options, self.row_style,
+        )
         return s1+s2
 
 

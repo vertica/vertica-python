@@ -203,7 +203,7 @@ class Connection(object):
         s1 = "<Vertica.Connection:{0} parameters={1} backend_pid={2}, ".format(id(self), self.parameters, self.backend_pid)
         s2 = "backend_key={0}, transaction_status={1}, socket={2}, options={3}>".format(
             self.backend_key, self.transaction_status, self.socket,
-            safe_options, self.row_style,
+            safe_options,
         )
         return s1+s2
 

@@ -23,11 +23,11 @@ class OldResults(object):
 
 class Connection(object):
 
-    def __init__(self, options={}):
+    def __init__(self, options=None):
         self.reset_values()
 
         self.options = {}
-
+        options = options or {}
         for key, value in options.iteritems():
             if value is not None:
                 self.options[key] = value

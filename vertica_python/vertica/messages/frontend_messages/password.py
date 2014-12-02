@@ -11,9 +11,9 @@ from vertica_python.vertica.messages.backend_messages.authentication import Auth
 
 class Password(FrontendMessage):
 
-    def __init__(self, password, auth_method=None, options={}):
+    def __init__(self, password, auth_method=None, options=None):
         self.password = password
-        self.options = options
+        self.options = options or {}
         if auth_method is not None:
             self.auth_method = auth_method
         else:

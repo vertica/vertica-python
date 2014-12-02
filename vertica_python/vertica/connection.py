@@ -26,11 +26,10 @@ class Connection(object):
     def __init__(self, options=None):
         self.reset_values()
 
-        self.options = {}
         options = options or {}
-        for key, value in options.iteritems():
-            if value is not None:
-                self.options[key] = value
+        self.options = {
+            key: value for key, value in options.iteritems() if value is not None
+        }
 
         self.options.setdefault('port', 5433)
         self.options.setdefault('read_timeout', 600)
@@ -199,10 +198,9 @@ class Connection(object):
             raise errors.MessageError("Unhandled message: {0}".format(message))
 
     def __str__(self):
-        safe_options = {}
-        for key, value in self.options.iteritems():
-            if key != 'password':
-                safe_options[key] = value
+        safe_options = {
+            key: value for key, value in self.options.iteritems() if key != 'password'
+        }
         s1 = "<Vertica.Connection:{0} parameters={1} backend_pid={2}, ".format(
             id(self), self.parameters, self.backend_pid
         )
@@ -216,7 +214,7 @@ class Connection(object):
         results = ''
         while len(results) < n:
             bytes = self._socket().recv(n - len(results))
-            if bytes is None or len(bytes) == 0:
+            if not bytes:
                 raise errors.ConnectionError("Connection closed by Vertica")
             results = results + bytes
         return results

@@ -106,7 +106,7 @@ class CopyRejected(QueryError):
 class PermissionDenied(QueryError):
     pass
 
-    
+
 class InvalidDatetimeFormat(QueryError):
     pass
 

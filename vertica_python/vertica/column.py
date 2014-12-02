@@ -18,7 +18,7 @@ import pytz
 # 2013-01-01 00:00:00.01+00
 # 2013-01-01 00:00:00.00001+00
 #
-# Vertica stores all data in UTC: 
+# Vertica stores all data in UTC:
 #   "TIMESTAMP WITH TIMEZONE (TIMESTAMPTZ) data is stored in GMT (UTC) by converting data from the current local time zone to GMT."
 # Vertica fetches data in local timezone:
 #   "When TIMESTAMPTZ data is used, data is converted back to use the current local time zone"
@@ -48,25 +48,25 @@ ColumnTuple = namedtuple('Column', ['name', 'type_code', 'display_size', 'intern
 class Column(object):
 
     DATA_TYPE_CONVERSIONS = [
-        ['unspecified', None],
-        ['tuple', None],
-        ['pos', None],
-        ['record', None],
-        ['unknown', None],
-        ['bool', lambda s: s == 't'],
-        ['integer', lambda s: int(s)],
-        ['float', lambda s: float(s)],
-        ['char', lambda s: unicode(s, 'utf-8')],
-        ['varchar', lambda s: unicode(s, 'utf-8')],
-        ['date', lambda s: date(*map(lambda x: int(x), s.split('-')))],
-        ['time', None],
-        ['timestamp', timestamp_parse],
-        ['timestamp_tz', timestamp_tz_parse],
-        ['interval', None],
-        ['time_tz', None],
-        ['numeric', lambda s: Decimal(s)],
-        ['bytea', None],
-        ['rle_tuple', None],
+        ('unspecified', None),
+        ('tuple', None),
+        ('pos', None),
+        ('record', None),
+        ('unknown', None),
+        ('bool', lambda s: s == 't'),
+        ('integer', lambda s: int(s)),
+        ('float', lambda s: float(s)),
+        ('char', lambda s: unicode(s, 'utf-8')),
+        ('varchar', lambda s: unicode(s, 'utf-8')),
+        ('date', lambda s: date(*map(lambda x: int(x), s.split('-')))),
+        ('time', None),
+        ('timestamp', timestamp_parse),
+        ('timestamp_tz', timestamp_tz_parse),
+        ('interval', None),
+        ('time_tz', None),
+        ('numeric', lambda s: Decimal(s)),
+        ('bytea', None),
+        ('rle_tuple', None),
     ]
     DATA_TYPES = map(lambda x: x[0], DATA_TYPE_CONVERSIONS)
 
@@ -102,8 +102,8 @@ class Column(object):
         return self.props.__str__()
 
     def __unicode__(self):
-
         return unicode(self.props.__str__())
+
     def __repr__(self):
         return self.props.__str__()
 
@@ -113,5 +113,3 @@ class Column(object):
 
     def __getitem__(self, key):
         return self.props[key]
-
-

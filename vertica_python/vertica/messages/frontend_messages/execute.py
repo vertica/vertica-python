@@ -4,6 +4,7 @@ from struct import pack
 
 from vertica_python.vertica.messages.message import FrontendMessage
 
+
 class Execute(FrontendMessage):
 
     def __init__(self, portal_name, max_rows):

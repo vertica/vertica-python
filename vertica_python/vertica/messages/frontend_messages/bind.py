@@ -4,6 +4,7 @@ from struct import pack
 
 from vertica_python.vertica.messages.message import FrontendMessage
 
+
 class Bind(FrontendMessage):
 
     def __init__(self, portal_name, prepared_statement_name, parameter_values):

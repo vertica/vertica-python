@@ -5,6 +5,7 @@ from struct import unpack, unpack_from
 from vertica_python.vertica.messages.message import BackendMessage
 from vertica_python.vertica.column import Column
 
+
 class ParameterDescription(BackendMessage):
 
     def __init__(self, data):

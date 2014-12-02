@@ -6,6 +6,7 @@ from struct import unpack, unpack_from
 
 from vertica_python.vertica.messages.message import BackendMessage
 
+
 class RowDescription(BackendMessage):
 
     def __init__(self, data):

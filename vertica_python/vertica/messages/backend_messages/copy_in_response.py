@@ -4,6 +4,7 @@ from struct import unpack
 
 from vertica_python.vertica.messages.message import BackendMessage
 
+
 class CopyInResponse(BackendMessage):
 
     def __init__(self, data):

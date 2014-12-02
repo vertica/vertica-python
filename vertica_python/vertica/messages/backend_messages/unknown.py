@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 from vertica_python.vertica.messages.message import BackendMessage
 
+
 class Unknown(BackendMessage):
 
     def __init__(self, message_id, data):

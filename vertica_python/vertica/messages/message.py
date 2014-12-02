@@ -6,6 +6,7 @@ from struct import pack
 
 from vertica_python.vertica.messages import *
 
+
 class Message(object):
 
     @classmethod

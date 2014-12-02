@@ -4,6 +4,7 @@ from struct import pack
 
 from vertica_python.vertica.messages.message import FrontendMessage
 
+
 class SslRequest(FrontendMessage):
 
     def to_bytes(self):

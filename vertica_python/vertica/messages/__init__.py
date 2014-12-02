@@ -38,5 +38,6 @@ __all__ = ["Authentication", "BackendKeyData", "BindComplete", "CloseComplete", 
            "CopyInResponse", "DataRow", "EmptyQueryResponse", "ErrorResponse", "NoData", "NoticeResponse",
            "ParameterDescription", "ParameterStatus", "ParseComplete", "PortalSuspended",
            "ReadyForQuery", "RowDescription", "Unknown", "Bind", "CancelRequest", "Close", "CopyData", "CopyDone",
-           "CopyFail", "Describe", "Execute", "Flush", "Parse", "Password", "Query", "SslRequest", "Startup", "Sync", "Terminate"
+           "CopyFail", "Describe", "Execute", "Flush", "Parse", "Password", "Query", "SslRequest", "Startup", "Sync",
+           "Terminate",
            ]

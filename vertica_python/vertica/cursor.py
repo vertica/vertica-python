@@ -99,16 +99,14 @@ class Cursor(object):
             results.append(row)
         return results
 
-
     def nextset(self):
         raise errors.NotSupportedError('Cursor.nextset() is not implemented')
 
     def setinputsizes(self):
         pass
 
-    def setoutputsize(self,size, column=None):
+    def setoutputsize(self, size, column=None):
         pass
-
 
     #
     # Non dbApi methods
@@ -127,7 +125,7 @@ class Cursor(object):
             if isinstance(message, messages.ReadyForQuery):
                 break
             elif isinstance(message, messages.CopyInResponse):
-                #write stuff
+                # write stuff
                 self.connection.write(messages.CopyData(data))
                 self.connection.write(messages.CopyDone())
 
@@ -138,7 +136,6 @@ class Cursor(object):
     # Internal
     #
 
-
     def closed(self):
         return self._closed or self.connection.closed()
 
@@ -148,14 +145,12 @@ class Cursor(object):
 
         return None
 
-
     def fetch_rows(self):
         while True:
             message = self.connection.read_message()
             self._process_message(message=message)
             if isinstance(message, messages.ReadyForQuery):
                 break
-
 
     def _process_message(self, message):
         if isinstance(message, messages.ErrorResponse):
@@ -170,17 +165,15 @@ class Cursor(object):
         elif isinstance(message, messages.DataRow):
             self._handle_datarow(message)
         elif isinstance(message, messages.CommandComplete):
-            #self.result.tag = message.tag
             pass
+#            self.result.tag = message.tag
         else:
             self.connection.process_message(message)
         return None
 
-
     # sets column meta data
     def set_description(self, message):
         self.description = map(lambda fd: Column(fd), message.fields)
-
 
     def _handle_datarow(self, datarow_message):
         row = self.row_formatter(datarow_message)
@@ -208,22 +201,3 @@ class Cursor(object):
     def format_row_as_array(self, row_data):
         return [self.description[idx].convert(value)
                 for idx, value in enumerate(row_data.values)]
-
-    #COPY_FROM_IO_BLOCK_SIZE = 1024 * 4096
-
-    #def file_copy_handler(self, input_file, output):
-    #    with open(input_file, 'r') as f:
-    #        while True:
-    #            data = f.read(self.COPY_FROM_IO_BLOCK_SIZE)
-    #            if len(data) > 0:
-    #                output.write(data)
-    #            else:
-    #                break
-
-    #def io_copy_handler(self, input, output):
-    #    while True:
-    #        data = input.read(self.COPY_FROM_IO_BLOCK_SIZE)
-    #        if len(data) > 0:
-    #            output.write(data)
-    #        else:
-    #            break

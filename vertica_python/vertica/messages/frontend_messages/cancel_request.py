@@ -4,6 +4,7 @@ from struct import pack
 
 from vertica_python.vertica.messages.message import FrontendMessage
 
+
 class CancelRequest(FrontendMessage):
 
     def __init__(self, backend_pid, backend_key):

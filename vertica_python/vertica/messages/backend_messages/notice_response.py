@@ -6,6 +6,7 @@ from struct import unpack_from
 
 from vertica_python.vertica.messages.message import BackendMessage
 
+
 class NoticeResponse(BackendMessage):
 
     FIELDS_DEFINITIONS = [
@@ -35,7 +36,7 @@ class NoticeResponse(BackendMessage):
         pos = 0
         while pos < len(data) - 1:
             null_byte = string.find(data, '\x00', pos)
-            
+
             # This will probably work
             unpacked = unpack_from('c{0}sx'.format(null_byte - 1 - pos), data, pos)
             key = unpacked[0]

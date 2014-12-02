@@ -5,6 +5,7 @@ from struct import pack
 import vertica_python
 from vertica_python.vertica.messages.message import FrontendMessage
 
+
 class Startup(FrontendMessage):
 
     def __init__(self, user, database, options=None):

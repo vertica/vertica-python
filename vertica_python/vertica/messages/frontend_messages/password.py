@@ -8,6 +8,7 @@ from struct import pack
 from vertica_python.vertica.messages.message import FrontendMessage
 from vertica_python.vertica.messages.backend_messages.authentication import Authentication
 
+
 class Password(FrontendMessage):
 
     def __init__(self, password, auth_method=None, options={}):

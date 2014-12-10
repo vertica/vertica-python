@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import logging
 import select
 import socket
 import ssl
@@ -13,6 +14,8 @@ from vertica_python.vertica.messages.message import BackendMessage
 
 from vertica_python.vertica.cursor import Cursor
 from vertica_python.errors import SSLNotSupported
+
+logger = logging.getLogger('vertica')
 
 
 # To support vertica_python 0.1.9 interface
@@ -136,8 +139,7 @@ class Connection(object):
         if hasattr(message, 'to_bytes') is False or callable(getattr(message, 'to_bytes')) is False:
             raise TypeError("invalid message: ({0})".format(message))
 
-        if getattr(self, 'debug', False):
-            print "=> {0}".format(message)
+        logger.debug('=> %s', message)
         try:
             self._socket().sendall(message.to_bytes())
         except Exception, e:
@@ -171,8 +173,7 @@ class Connection(object):
                         "Bad message size: {0}".format(size)
                     )
                 message = BackendMessage.factory(type, self.read_bytes(size - 4))
-                if getattr(self, 'debug', False):
-                    print "<= {0}".format(message)
+                logger.debug('<= %s', message)
                 return message
             else:
                 self.close()

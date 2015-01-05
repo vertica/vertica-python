@@ -9,7 +9,7 @@ opts = ReqOpts(None, 'git')
 
 setup(
     name='vertica-python',
-    version='0.3.1',
+    version='0.3.2',
     description='A native Python client for the Vertica database.',
     author='Justin Berka, Alex Kim',
     author_email='justin.berka@gmail.com, alex.kim@uber.com',

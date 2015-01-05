@@ -42,10 +42,13 @@ class Connection(object):
         return self
 
     def __exit__(self, type, value, traceback):
-        if type:
-            self.rollback()
-        else:
-            self.commit()
+        try:
+            if type is not None:
+                self.rollback()
+            else:
+                self.commit()
+        finally:
+            self.close()
 
     #
     # To support vertica_python 0.1.9 interface
@@ -71,21 +74,21 @@ class Connection(object):
 
     def commit(self):
         if self.closed():
-            raise errors.Error('Connection is closed')
+            raise errors.ConnectionError('Connection is closed')
 
         cur = self.cursor()
         cur.execute('commit')
 
     def rollback(self):
         if self.closed():
-            raise errors.Error('Connection is closed')
+            raise errors.ConnectionError('Connection is closed')
 
         cur = self.cursor()
         cur.execute('rollback')
 
     def cursor(self, cursor_type=None, row_handler=None):
         if self.closed():
-            raise errors.Error('Connection is closed')
+            raise errors.ConnectionError('Connection is closed')
         return Cursor(self, cursor_type=cursor_type, row_handler=row_handler)
 
     #

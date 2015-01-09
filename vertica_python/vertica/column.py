@@ -90,7 +90,10 @@ class Column(object):
         self.props = ColumnTuple(col['name'], col['data_type_oid'], None,
                                  col['data_type_size'], None, None, None)
 
-        self.converter = self.DATA_TYPE_CONVERSIONS[col['data_type_oid']][1]
+        try:
+            self.converter = self.DATA_TYPE_CONVERSIONS[col['data_type_oid']][1]
+        except IndexError:
+            self.converter = self.DATA_TYPE_CONVERSIONS[0][1]
         # things that are actually sent
 #        self.name = col['name']
 #        self.data_type = self.DATA_TYPE_CONVERSIONS[col['data_type_oid']][0]

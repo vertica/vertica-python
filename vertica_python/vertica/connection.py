@@ -43,6 +43,10 @@ class Connection(object):
 
     def __exit__(self, type, value, traceback):
         try:
+            # if there's no outstanding transaction, we can simply close the connection
+            if self.transaction_status in (None, 'in_transaction'):
+                return
+
             if type is not None:
                 self.rollback()
             else:

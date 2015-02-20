@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import os
 
 if os.name == 'nt':
-    import crypt_windows as crypt
+    from . import crypt_windows as crypt
 else:
     import crypt
 import hashlib

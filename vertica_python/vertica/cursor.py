@@ -113,7 +113,10 @@ class Cursor(object):
     #
     # todo: input stream
     def copy(self, sql, data):
+        # Legacy support
+        self.copy_string(sql, data)
 
+    def _copy_internal(self, sql, datagen):
         if self.closed():
             raise errors.Error('Cursor is closed')
 
@@ -126,11 +129,23 @@ class Cursor(object):
                 break
             elif isinstance(message, messages.CopyInResponse):
                 # write stuff
-                self.connection.write(messages.CopyData(data))
+                for line in datagen:
+                    self.connection.write(messages.CopyData(line))
                 self.connection.write(messages.CopyDone())
 
         if self.error is not None:
             raise self.error
+
+    def copy_string(self, sql, data):
+        self._copy_internal(sql, [data])
+
+
+    def copy_file(self, sql, data, decoder=None):
+        if decoder is None:
+            self._copy_internal(sql, data)
+        else:
+            self._copy_internal(sql, (line.decode(decoder) for line in data))
+
 
     #
     # Internal

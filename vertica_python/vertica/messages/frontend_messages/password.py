@@ -1,6 +1,11 @@
 from __future__ import absolute_import
 
-import crypt
+import os
+
+if os.name == 'nt':
+    import crypt_windows as crypt
+else:
+    import crypt
 import hashlib
 
 from struct import pack

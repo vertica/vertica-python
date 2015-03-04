@@ -37,8 +37,6 @@ class Password(FrontendMessage):
             m = hashlib.md5()
             m.update(self.password + self.options['salt'])
             self.password = m.hexdigest()
-            # self.password = hashlib.md5().update(self.password + self.options['user']).hexdigest()
-            # self.password = hashlib.md5().update(self.password + self.options['salt']).hexdigest()
             return 'md5' + self.password
         else:
             raise ValueError("unsupported authentication method: {0}".format(self.auth_method))

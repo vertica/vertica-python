@@ -185,6 +185,8 @@ class Connection(object):
             else:
                 self.close()
                 raise errors.TimedOutError("Connection timed out")
+        except errors.TimedOutError:
+            raise
         except Exception as e:
             self.close_socket()
             raise errors.ConnectionError(e.message)

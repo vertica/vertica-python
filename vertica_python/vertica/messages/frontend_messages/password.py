@@ -1,6 +1,11 @@
 from __future__ import absolute_import
 
-import crypt
+import os
+
+if os.name == 'nt':
+    from . import crypt_windows as crypt
+else:
+    import crypt
 import hashlib
 
 from struct import pack
@@ -26,8 +31,13 @@ class Password(FrontendMessage):
         elif self.auth_method == Authentication.CRYPT_PASSWORD:
             return crypt.crypt(self.password, self.options['salt'])
         elif self.auth_method == Authentication.MD5_PASSWORD:
-            self.password = hashlib.md5().update(self.password + self.options['user']).hexdigest()
-            self.password = hashlib.md5().update(self.password + self.options['salt']).hexdigest()
+            m = hashlib.md5()
+            m.update(self.password + self.options['user'])
+            self.password = m.hexdigest()
+
+            m = hashlib.md5()
+            m.update(self.password + self.options['salt'])
+            self.password = m.hexdigest()
             return 'md5' + self.password
         else:
             raise ValueError("unsupported authentication method: {0}".format(self.auth_method))

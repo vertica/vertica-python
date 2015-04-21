@@ -57,10 +57,14 @@ class Connection(object):
     #
     # To support vertica_python 0.1.9 interface
     #
-    def query(self, query):
-        cur = Cursor(self, 'dict')
-        cur.execute(query)
-        return OldResults(cur.fetchall())
+    def query(self, query, handler=None):
+        if handler:
+            cur = Cursor(self, 'dict', handler)
+            cur.execute(query)
+        else:
+            cur = Cursor(self, 'dict')
+            cur.execute(query)
+            return OldResults(cur.fetchall())
 
     #
     # dbApi methods
@@ -86,10 +90,10 @@ class Connection(object):
         cur = self.cursor()
         cur.execute('rollback')
 
-    def cursor(self, cursor_type=None):
+    def cursor(self, cursor_type=None, row_handler=None):
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
-        return Cursor(self, cursor_type=cursor_type)
+        return Cursor(self, cursor_type=cursor_type, row_handler=row_handler)
 
     #
     # Internal

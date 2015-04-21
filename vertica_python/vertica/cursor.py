@@ -99,6 +99,15 @@ class Cursor(object):
             results.append(row)
         return results
 
+    # REVIEW: this *iterator* mutates the state of the object, like many other methods.
+    def iterate(self):
+        while True:
+            row = self.get_one_row()
+            if row:
+                yield row
+            else:
+                break
+    
     def nextset(self):
         raise errors.NotSupportedError('Cursor.nextset() is not implemented')
 

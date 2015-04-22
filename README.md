@@ -33,8 +33,7 @@ Source code for vertica-python can be found at:
     http://github.com/uber/vertica-python
 
 ## Usage
-
-**Buffered** (in-memory) results as list:
+**Stream** results:
 
 ```python
 from vertica_python import connect
@@ -50,34 +49,33 @@ connection = connect({
 
 cur = connection.cursor()
 cur.execute("SELECT * FROM a_table LIMIT 2")
+for row in cur.iterate():
+    print(row)
+# {'id': 1, 'value': 'something'}
+# {'id': 2, 'value': 'something_else'}
+
+connection.close()
+```
+Streaming is recommended if you want to further process each row, save the results in a non-list/dict format (e.g. Pandas DataFrame), or save the results in a file.
+
+**In-memory** results as list:
+
+```python
+cur = connection.cursor()
+cur.execute("SELECT * FROM a_table LIMIT 2")
 cur.fetchall()
 # [ [1, 'something'], [2, 'something_else'] ]
 connection.close()
 ```
 
 
-**Buffered** (in-memory) results as dictionary:
+**In-memory** results as dictionary:
 
 ```python
 cur = connection.cursor('dict')
 cur.execute("SELECT * FROM a_table LIMIT 2")
 cur.fetchall()
 # [ {'id': 1, 'value': 'something'}, {'id': 2, 'value': 'something_else'} ]
-connection.close()
-```
-
-
-**Unbuffered** (streaming) results:
-
-```python
-def magical_row_handler(row):
-    print row
-
-cur = connection.cursor(row_handler=magical_row_handler)
-cur.execute("SELECT * FROM a_table LIMIT 2")
-# {'id': 1, 'value': 'something'}
-# {'id': 2, 'value': 'something_else'}
-
 connection.close()
 ```
 

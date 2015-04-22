@@ -1,7 +1,5 @@
 from __future__ import absolute_import
 
-import collections
-
 import vertica_python.errors as errors
 
 import vertica_python.vertica.messages as messages
@@ -71,12 +69,9 @@ class Cursor(object):
             raise errors.QueryError.from_error_response(message, self.last_execution)
         elif not isinstance(message, messages.RowDescription):
             print("Message type: {0}".format(type(message)))
-            print(self.row_formatter(message))
+            print(message)
             raise errors.QueryError("Unexpected message type", self.last_execution)
         self.description = map(lambda fd: Column(fd), message.fields)
-
-    def executemany(self, operation, seq_of_parameters):
-        raise errors.NotSupportedError('Cursor.executemany() is not implemented')
 
     def iterate(self):
         while True:
@@ -113,9 +108,6 @@ class Cursor(object):
             results.append(row)
         return results
 
-    def nextset(self):
-        raise errors.NotSupportedError('Cursor.nextset() is not implemented')
-
     def setinputsizes(self):
         pass
 
@@ -138,16 +130,15 @@ class Cursor(object):
 
         while True:
             message = self.connection.read_message()
-            if isinstance(message, messages.ReadyForQuery):
+            if isinstance(message, messages.ErrorResponse):
+                raise errors.QueryError.from_error_response(message, self.last_execution)
+            elif isinstance(message, messages.ReadyForQuery):
                 break
             elif isinstance(message, messages.CopyInResponse):
                 # write stuff
                 for line in datagen:
                     self.connection.write(messages.CopyData(line))
                 self.connection.write(messages.CopyDone())
-
-        if self.error is not None:
-            raise self.error
 
     def copy_string(self, sql, data):
         self._copy_internal(sql, [data])
@@ -192,4 +183,3 @@ class Cursor(object):
     def format_row_as_array(self, row_data):
         return [self.description[idx].convert(value)
                 for idx, value in enumerate(row_data.values)]
-

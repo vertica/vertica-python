@@ -18,14 +18,7 @@ from vertica_python.errors import SSLNotSupported
 logger = logging.getLogger('vertica')
 
 
-# To support vertica_python 0.1.9 interface
-class OldResults(object):
-    def __init__(self, rows):
-        self.rows = rows
-
-
 class Connection(object):
-
     def __init__(self, options=None):
         self.reset_values()
 
@@ -60,7 +53,7 @@ class Connection(object):
     def query(self, query):
         cur = Cursor(self, 'dict')
         cur.execute(query)
-        return OldResults(cur.fetchall())
+        return cur.fetchall()
 
     #
     # dbApi methods
@@ -214,7 +207,7 @@ class Connection(object):
             self.backend_key, self.transaction_status, self.socket,
             safe_options,
         )
-        return s1+s2
+        return s1 + s2
 
     def read_bytes(self, n):
         results = ''
@@ -248,6 +241,7 @@ class Connection(object):
             self.query("SET SEARCH_PATH TO {0}".format(self.options['search_path']))
         if self.options.get('role') is not None:
             self.query("SET ROLE {0}".format(self.options['role']))
-#        if self.options.get('interruptable'):
+
+# if self.options.get('interruptable'):
 #            self.session_id = self.query("SELECT session_id FROM v_monitor.current_session").the_value()
 

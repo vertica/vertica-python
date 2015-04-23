@@ -208,9 +208,9 @@ class Connection(object):
             raise errors.MessageError("Unhandled message: {0}".format(message))
 
     def __str__(self):
-        safe_options = {
-            key: value for key, value in self.options.iteritems() if key != 'password'
-        }
+        safe_options = dict(
+            (key, value) for key, value in self.options.iteritems() if key != 'password'
+        )
         s1 = "<Vertica.Connection:{0} parameters={1} backend_pid={2}, ".format(
             id(self), self.parameters, self.backend_pid
         )

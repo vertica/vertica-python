@@ -2,15 +2,14 @@
 
 [![PyPI version](https://badge.fury.io/py/vertica-python.png)](http://badge.fury.io/py/vertica-python)
 
-Starting with v0.2.0 python_vertica interface is more consistent with dbapi. One big thing missing is server side cursors/streaming. The old interface is deprecated, but should still be supported.
+0.4.0 breaks some of the older query interfaces (row_handler callback, and connection.query).
+It replaces the row_handler callback with an iterator() method. Please see examples below
 
 vertica-python is a native Python adapter for the Vertica (http://www.vertica.com) database.
 
-This package is a Python port of the excellent Vertica Ruby gem (https://github.com/sprsquish/vertica).
+vertica-python is currently in alpha stage; it has been tested for functionality, but does not have a test suite. Please use with caution, and feel free to submit issues and/or pull requests.
 
-vertica-python is currently in a alpha stage; it has been tested for functionality, but does not have a test suite. Please use with caution, and feel free to submit issues and/or pull requests.
-
-vertica-python has been tested with Vertica 6.1.2/7.0.0 and Python 2.6/2.7. Please let me know if it's working on other versions.
+vertica-python has been tested with Vertica 6.1.2/7.0.0+ and Python 2.6/2.7.
 
 
 ## Installation
@@ -112,7 +111,7 @@ MIT License, please see `LICENSE` for details.
 
 ## Acknowledgements
 
-Many thanks go to the contributors to the Ruby Vertica gem, since they did all of the wrestling with Vertica's protocol and have kept the gem updated. They are:
+Many thanks go to the contributors to the Ruby Vertica gem (https://github.com/sprsquish/vertica), since they did all of the wrestling with Vertica's protocol and have kept the gem updated. They are:
 
  * [Matt Bauer](http://github.com/mattbauer)
  * [Jeff Smick](http://github.com/sprsquish)

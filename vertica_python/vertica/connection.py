@@ -18,14 +18,7 @@ from vertica_python.errors import SSLNotSupported
 logger = logging.getLogger('vertica')
 
 
-# To support vertica_python 0.1.9 interface
-class OldResults(object):
-    def __init__(self, rows):
-        self.rows = rows
-
-
 class Connection(object):
-
     def __init__(self, options=None):
         self.reset_values()
 
@@ -55,18 +48,6 @@ class Connection(object):
             self.close()
 
     #
-    # To support vertica_python 0.1.9 interface
-    #
-    def query(self, query, handler=None):
-        if handler:
-            cur = Cursor(self, 'dict', handler)
-            cur.execute(query)
-        else:
-            cur = Cursor(self, 'dict')
-            cur.execute(query)
-            return OldResults(cur.fetchall())
-
-    #
     # dbApi methods
     #
 
@@ -90,10 +71,11 @@ class Connection(object):
         cur = self.cursor()
         cur.execute('rollback')
 
-    def cursor(self, cursor_type=None, row_handler=None):
+    def cursor(self, cursor_type=None):
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
-        return Cursor(self, cursor_type=cursor_type, row_handler=row_handler)
+        self.reset_connection();
+        return Cursor(self, cursor_type=cursor_type)
 
     #
     # Internal
@@ -218,7 +200,7 @@ class Connection(object):
             self.backend_key, self.transaction_status, self.socket,
             safe_options,
         )
-        return s1+s2
+        return s1 + s2
 
     def read_bytes(self, n):
         results = ''
@@ -252,5 +234,7 @@ class Connection(object):
             self.query("SET SEARCH_PATH TO {0}".format(self.options['search_path']))
         if self.options.get('role') is not None:
             self.query("SET ROLE {0}".format(self.options['role']))
-#        if self.options.get('interruptable'):
+
+# if self.options.get('interruptable'):
 #            self.session_id = self.query("SELECT session_id FROM v_monitor.current_session").the_value()
+

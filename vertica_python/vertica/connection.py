@@ -48,14 +48,6 @@ class Connection(object):
             self.close()
 
     #
-    # To support vertica_python 0.1.9 interface
-    #
-    def query(self, query):
-        cur = Cursor(self, 'dict')
-        cur.execute(query)
-        return cur.fetchall()
-
-    #
     # dbApi methods
     #
 
@@ -82,6 +74,7 @@ class Connection(object):
     def cursor(self, cursor_type=None):
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
+        self.reset_connection();
         return Cursor(self, cursor_type=cursor_type)
 
     #

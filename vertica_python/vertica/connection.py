@@ -30,9 +30,9 @@ class Connection(object):
         self.reset_values()
 
         options = options or {}
-        self.options = {
-            key: value for key, value in options.iteritems() if value is not None
-        }
+        self.options = dict(
+            (key, value) for key, value in options.iteritems() if value is not None
+        )
 
         self.options.setdefault('port', 5433)
         self.options.setdefault('read_timeout', 600)

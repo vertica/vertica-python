@@ -11,6 +11,7 @@ class Cursor(object):
         self.connection = connection
         self.cursor_type = cursor_type
         self._closed = False
+        self._message = None
 
         self.last_execution = None
         self.error = None
@@ -39,7 +40,6 @@ class Cursor(object):
         self._closed = True
 
     def execute(self, operation, parameters=None):
-
         if self.closed():
             raise errors.Error('Cursor is closed')
 
@@ -73,25 +73,34 @@ class Cursor(object):
             raise errors.QueryError("Unexpected message type", self.last_execution)
         self.description = map(lambda fd: Column(fd), message.fields)
 
-    def iterate(self):
+        # Read until data rows or end of stream
         while True:
             message = self.connection.read_message()
-            if isinstance(message, messages.DataRow):
-                self.rowcount += 1
-                yield self.row_formatter(message)
-            else:
-                # REVIEW: any other case should we check?
+            if isinstance(message, messages.DataRow) or isinstance(message, messages.ReadyForQuery):
+                self._message = message  # cache the message because there's no way to undo the read
                 break
+            else:
+                self.connection.process_message(message)
 
     def fetchone(self):
-        return self.get_one_row()
+        if isinstance(self._message, messages.DataRow):
+            self.rowcount += 1
+            row = self.row_formatter(self._message)
+            self._message = self.connection.read_message()
+            return row
+
+    def iterate(self):
+        row = self.fetchone()
+        while row:
+            yield row
+            row = self.fetchone()
 
     def fetchmany(self, size=None):
         if not size:
             size = self.arraysize
         results = []
         while True:
-            row = self.get_one_row()
+            row = self.fetchone()
             if not row:
                 break
             results.append(row)
@@ -100,13 +109,7 @@ class Cursor(object):
         return results
 
     def fetchall(self):
-        results = []
-        while True:
-            row = self.get_one_row()
-            if not row:
-                break
-            results.append(row)
-        return results
+        return list(self.iterate())
 
     def setinputsizes(self):
         pass
@@ -156,14 +159,6 @@ class Cursor(object):
 
     def closed(self):
         return self._closed or self.connection.closed()
-
-    def get_one_row(self):
-        message = self.connection.read_message()
-        if isinstance(message, messages.DataRow):
-            self.rowcount += 1
-            return self.row_formatter(message)
-
-        return None
 
     def row_formatter(self, row_data):
         if not self.cursor_type:

@@ -76,7 +76,9 @@ class Cursor(object):
         # Read until data rows or end of stream
         while True:
             message = self.connection.read_message()
-            if isinstance(message, messages.DataRow) or isinstance(message, messages.ReadyForQuery):
+            if isinstance(message, messages.DataRow) \
+                    or isinstance(message, messages.CommandComplete) \
+                    or isinstance(message, messages.ReadyForQuery):
                 self._message = message  # cache the message because there's no way to undo the read
                 break
             else:

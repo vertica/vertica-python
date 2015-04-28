@@ -172,10 +172,10 @@ class Cursor(object):
             # throw some error
 
     def format_row_as_dict(self, row_data):
-        return {
-            self.description[idx].name: self.description[idx].convert(value)
+        return dict(
+            (self.description[idx].name, self.description[idx].convert(value))
             for idx, value in enumerate(row_data.values)
-        }
+        )
 
     def format_row_as_array(self, row_data):
         return [self.description[idx].convert(value)

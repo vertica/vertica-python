@@ -2,7 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/vertica-python.png)](http://badge.fury.io/py/vertica-python)
 
-0.4.0 breaks some of the older query interfaces (row_handler callback, and connection.query).
+0.4.2 breaks some of the older query interfaces (row_handler callback, and connection.query).
 It replaces the row_handler callback with an iterate() method. Please see examples below
 
 vertica-python is a native Python adapter for the Vertica (http://www.vertica.com) database.

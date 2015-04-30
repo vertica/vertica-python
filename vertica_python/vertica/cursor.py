@@ -63,20 +63,13 @@ class Cursor(object):
         self.last_execution = operation
         self.connection.write(messages.Query(operation))
 
-        # Fetch the schema
-        message = self.connection.read_message()
-        if isinstance(message, messages.ErrorResponse):
-            raise errors.QueryError.from_error_response(message, self.last_execution)
-        elif not isinstance(message, messages.RowDescription):
-            print("Message type: {0}".format(type(message)))
-            print(message)
-            raise errors.QueryError("Unexpected message type", self.last_execution)
-        self.description = map(lambda fd: Column(fd), message.fields)
-
-        # Read until data rows or end of stream
         while True:
             message = self.connection.read_message()
-            if isinstance(message, messages.DataRow) \
+            if isinstance(message, messages.ErrorResponse):
+                raise errors.QueryError.from_error_response(message, self.last_execution)
+            elif isinstance(message, messages.RowDescription):
+                self.description = map(lambda fd: Column(fd), message.fields)
+            elif isinstance(message, messages.DataRow) \
                     or isinstance(message, messages.CommandComplete) \
                     or isinstance(message, messages.ReadyForQuery):
                 self._message = message  # cache the message because there's no way to undo the read

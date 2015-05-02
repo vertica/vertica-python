@@ -43,7 +43,6 @@ connection = connect({
     'user': 'some_user',
     'password': 'some_password',
     'database': 'a_database'
-
     })
 
 cur = connection.cursor()

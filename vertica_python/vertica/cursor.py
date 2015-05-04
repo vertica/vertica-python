@@ -82,6 +82,8 @@ class Cursor(object):
             row = self.row_formatter(self._message)
             self._message = self.connection.read_message()
             return row
+        else:
+            self.connection.process_message(self._message)
 
     def iterate(self):
         row = self.fetchone()

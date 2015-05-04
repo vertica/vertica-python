@@ -70,7 +70,6 @@ class Cursor(object):
             elif isinstance(message, messages.RowDescription):
                 self.description = map(lambda fd: Column(fd), message.fields)
             elif isinstance(message, messages.DataRow) \
-                    or isinstance(message, messages.CommandComplete) \
                     or isinstance(message, messages.ReadyForQuery):
                 self._message = message  # cache the message because there's no way to undo the read
                 break
@@ -83,6 +82,8 @@ class Cursor(object):
             row = self.row_formatter(self._message)
             self._message = self.connection.read_message()
             return row
+        else:
+            self.connection.process_message(self._message)
 
     def iterate(self):
         row = self.fetchone()

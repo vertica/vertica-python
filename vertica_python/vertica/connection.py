@@ -186,6 +186,8 @@ class Connection(object):
             self.parameters[message.name] = message.value
         elif isinstance(message, messages.ReadyForQuery):
             self.transaction_status = message.transaction_status
+        elif isinstance(message, messages.CommandComplete):
+            pass
         else:
             raise errors.MessageError("Unhandled message: {0}".format(message))
 

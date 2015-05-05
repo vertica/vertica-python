@@ -51,9 +51,30 @@ for row in cur.iterate():
     print(row)
 # {'id': 1, 'value': 'something'}
 # {'id': 2, 'value': 'something_else'}
-
-connection.close()
 ```
+
+Note that streaming automatically closes both cursor and connection once you have iterated over all results, to help prevent leaving connections open.
+
+```python
+In [26]: connection = connect(config_dict)
+
+In [27]: cur = connection.cursor()
+
+In [28]: cur.closed(), connection.closed()
+Out[28]: (False, False)
+
+In [29]: cur.execute(query)
+
+In [30]: for row in cur.iterate(): print row
+[datetime.datetime(2015, 4, 25, 14, 13, 19, tzinfo=<UTC>)]
+[datetime.datetime(2015, 4, 26, 6, 16, 14, tzinfo=<UTC>)]
+[datetime.datetime(2015, 4, 27, 18, 0, 32, tzinfo=<UTC>)]
+
+In [31]: cur.closed(), connection.closed()
+Out[31]: (True, True)
+
+```
+
 Streaming is recommended if you want to further process each row, save the results in a non-list/dict format (e.g. Pandas DataFrame), or save the results in a file.
 
 **In-memory** results as list:

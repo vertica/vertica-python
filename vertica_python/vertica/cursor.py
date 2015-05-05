@@ -91,6 +91,9 @@ class Cursor(object):
             yield row
             row = self.fetchone()
 
+        self.close()
+        self.connection.close()
+
     def fetchmany(self, size=None):
         if not size:
             size = self.arraysize

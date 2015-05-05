@@ -86,6 +86,9 @@ class Cursor(object):
                 self.connection.process_message(self._message)
                 self._message = self.connection.read_message()
 
+            if isinstance(self._message, messages.ReadyForQuery):
+                self.connection.transaction_status = self._message.transaction_status
+
     def iterate(self):
         row = self.fetchone()
         while row:

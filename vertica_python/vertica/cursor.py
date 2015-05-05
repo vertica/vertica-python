@@ -58,8 +58,7 @@ class Cursor(object):
 
         self.rowcount = 0
         if self.last_execution:
-            # ToDo: can just empty the message buffer in connection if easy to do
-            self.connection.reset_connection()
+            self._message = None
         self.last_execution = operation
         self.connection.write(messages.Query(operation))
 
@@ -83,7 +82,9 @@ class Cursor(object):
             self._message = self.connection.read_message()
             return row
         else:
-            self.connection.process_message(self._message)
+            while not isinstance(self._message, messages.ReadyForQuery):
+                self.connection.process_message(self._message)
+                self._message = self.connection.read_message()
 
     def iterate(self):
         row = self.fetchone()

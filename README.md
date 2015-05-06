@@ -51,9 +51,11 @@ for row in cur.iterate():
     print(row)
 # {'id': 1, 'value': 'something'}
 # {'id': 2, 'value': 'something_else'}
+
+connection.close()
 ```
 
-Note that streaming automatically closes both cursor and connection once you have iterated over all results, to help prevent leaving connections open.
+You can enable automatic closing of the cursor and connection after an iterator is emptied by setting the keyword argument `autoclose` to True:
 
 ```python
 In [26]: connection = connect(config_dict)
@@ -65,7 +67,7 @@ Out[28]: (False, False)
 
 In [29]: cur.execute(query)
 
-In [30]: for row in cur.iterate(): print row
+In [30]: for row in cur.iterate(autoclose=True): print row
 [datetime.datetime(2015, 4, 25, 14, 13, 19, tzinfo=<UTC>)]
 [datetime.datetime(2015, 4, 26, 6, 16, 14, tzinfo=<UTC>)]
 [datetime.datetime(2015, 4, 27, 18, 0, 32, tzinfo=<UTC>)]

@@ -85,14 +85,15 @@ class Cursor(object):
         else:
             self.connection.process_message(self._message)
 
-    def iterate(self):
+    def iterate(self, autoclose=False):
         row = self.fetchone()
         while row:
             yield row
             row = self.fetchone()
 
-        self.close()
-        self.connection.close()
+        if autoclose:
+            self.close()
+            self.connection.close()
 
     def fetchmany(self, size=None):
         if not size:

@@ -37,42 +37,38 @@ Source code for vertica-python can be found at:
 ```python
 from vertica_python import connect
 
-connection = connect({
-    'host': '127.0.0.1',
-    'port': 5433,
-    'user': 'some_user',
-    'password': 'some_password',
-    'database': 'a_database'
-    })
-
-cur = connection.cursor()
-cur.execute("SELECT * FROM a_table LIMIT 2")
-for row in cur.iterate():
-    print(row)
-# {'id': 1, 'value': 'something'}
-# {'id': 2, 'value': 'something_else'}
-
-connection.close()
+with vertica_python.connect({'host': '127.0.0.1', 
+                             'port': 5433, 
+                             'user': 'some_user', 
+                             'password': 'some_password', 
+                             'database': 'a_database'}) as connection:
+    cur = connection.cursor()
+    cur.execute("SELECT * FROM a_table LIMIT 2")
+    for row in cur.iterate():
+        print(row)
+    # {'id': 1, 'value': 'something'}
+    # {'id': 2, 'value': 'something_else'}
 ```
 Streaming is recommended if you want to further process each row, save the results in a non-list/dict format (e.g. Pandas DataFrame), or save the results in a file.
 
 **In-memory** results as list:
 
 ```python
-cur = connection.cursor()
-cur.execute("SELECT * FROM a_table LIMIT 2")
-cur.fetchall()
-# [ [1, 'something'], [2, 'something_else'] ]
-connection.close()
+with vertica_python.connect(...) as connection:
+    cur = connection.cursor()
+    cur.execute("SELECT * FROM a_table LIMIT 2")
+    cur.fetchall()
+    # [ [1, 'something'], [2, 'something_else'] ]
 ```
 
 
 **In-memory** results as dictionary:
 
 ```python
-cur = connection.cursor('dict')
-cur.execute("SELECT * FROM a_table LIMIT 2")
-cur.fetchall()
+with vertica_python.connect(...) as connection:
+    cur = connection.cursor('dict')
+    cur.execute("SELECT * FROM a_table LIMIT 2")
+    cur.fetchall()
 # [ {'id': 1, 'value': 'something'}, {'id': 2, 'value': 'something_else'} ]
 connection.close()
 ```
@@ -87,8 +83,6 @@ cur = connection.cursor()
 cur.execute("SELECT * FROM a_table WHERE a = :propA b = :propB", {'propA': 1, 'propB': 'stringValue'})
 cur.fetchall()
 # [ [1, 'something'], [2, 'something_else'] ]
-
-connection.close()
 ```
 
 

@@ -1,12 +1,14 @@
 from __future__ import absolute_import
 
 import re
+import logging
 
 import vertica_python.errors as errors
 
 import vertica_python.vertica.messages as messages
 from vertica_python.vertica.column import Column
 
+logger = logging.getLogger('vertica')
 
 class Cursor(object):
     def __init__(self, connection, cursor_type=None):
@@ -45,6 +47,8 @@ class Cursor(object):
         if self.closed():
             raise errors.Error('Cursor is closed')
 
+        self.flush_to_query_ready()
+
         if parameters:
             # # optional requirement
             from psycopg2.extensions import adapt
@@ -74,21 +78,21 @@ class Cursor(object):
                 raise errors.Error("Argument 'parameters' must be dict or tuple")
 
         self.rowcount = 0
-        if self.last_execution:
-            # ToDo: can just empty the message buffer in connection if easy to do
-            self.connection.reset_connection()
+
         self.last_execution = operation
         self.connection.write(messages.Query(operation))
 
+        # read messages until we hit an Error, DataRow or ReadyForQuery
         while True:
             message = self.connection.read_message()
+            # save the message because there's no way to undo the read
+            self._message = message
             if isinstance(message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(message, self.last_execution)
             elif isinstance(message, messages.RowDescription):
                 self.description = map(lambda fd: Column(fd), message.fields)
-            elif isinstance(message, messages.DataRow) \
-                    or isinstance(message, messages.ReadyForQuery):
-                self._message = message  # cache the message because there's no way to undo the read
+            elif (isinstance(message, messages.DataRow)
+                   or isinstance(message, messages.ReadyForQuery)):
                 break
             else:
                 self.connection.process_message(message)
@@ -97,6 +101,7 @@ class Cursor(object):
         if isinstance(self._message, messages.DataRow):
             self.rowcount += 1
             row = self.row_formatter(self._message)
+            # fetch next message
             self._message = self.connection.read_message()
             return row
         else:
@@ -134,6 +139,18 @@ class Cursor(object):
     # Non dbApi methods
     #
     # todo: input stream
+    def flush_to_query_ready(self):
+        # if the last message isnt empty or ReadyForQuery, read all remaining messages
+        if(self._message is None
+           or isinstance(self._message, messages.ReadyForQuery)):
+            return
+
+        while True:
+            message = self.connection.read_message()
+            if isinstance(message, messages.ReadyForQuery):
+                self._message = message
+                break
+
     def copy(self, sql, data):
         # Legacy support
         self.copy_string(sql, data)

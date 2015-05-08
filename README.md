@@ -5,7 +5,7 @@
 0.4.x breaks some of the older query interfaces (row_handler callback, and connection.query).
 It replaces the row_handler callback with an iterate() method. Please see examples below
 
-If you are on 0.4.1 - 0.4.3, please upgrade to 0.4.5 as there are various bug fixes
+If you are on 0.4.0 - 0.4.3, please upgrade to 0.4.5 as there are various bug fixes
 
 vertica-python is a native Python adapter for the Vertica (http://www.vertica.com) database.
 

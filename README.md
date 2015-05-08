@@ -9,7 +9,7 @@ If you are on 0.4.1 - 0.4.3, please upgrade to 0.4.5 as there are various bug fi
 
 vertica-python is a native Python adapter for the Vertica (http://www.vertica.com) database.
 
-vertica-python is currently in alpha stage; it has been tested for functionality, but does not have a test suite. Please use with caution, and feel free to submit issues and/or pull requests.
+vertica-python is currently in beta stage; it has been tested for functionality and has a very basic test suite. Please use with caution, and feel free to submit issues and/or pull requests (after running the unit tests).
 
 vertica-python has been tested with Vertica 6.1.2/7.0.0+ and Python 2.6/2.7.
 
@@ -32,6 +32,18 @@ To install vertica-python with pip (with optional namedparams dependencies):
 Source code for vertica-python can be found at:
 
     http://github.com/uber/vertica-python
+
+
+## Run unit tests
+    # install nose if you don't have it
+    pip install -r requirements_test.txt
+
+    # you will need to have access to a vertica database.
+    # connection info is in tests/basic_tests.py
+
+    # run tests
+    nosetests
+
 
 ## Usage
 

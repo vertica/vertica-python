@@ -17,7 +17,6 @@ class Cursor(object):
         self._closed = False
         self._message = None
 
-        self.last_execution = None
         self.error = None
 
         #
@@ -79,7 +78,6 @@ class Cursor(object):
 
         self.rowcount = 0
 
-        self.last_execution = operation
         self.connection.write(messages.Query(operation))
 
         # read messages until we hit an Error, DataRow or ReadyForQuery
@@ -88,7 +86,7 @@ class Cursor(object):
             # save the message because there's no way to undo the read
             self._message = message
             if isinstance(message, messages.ErrorResponse):
-                raise errors.QueryError.from_error_response(message, self.last_execution)
+                raise errors.QueryError.from_error_response(message, operation)
             elif isinstance(message, messages.RowDescription):
                 self.description = map(lambda fd: Column(fd), message.fields)
             elif (isinstance(message, messages.DataRow)
@@ -148,6 +146,7 @@ class Cursor(object):
         while True:
             message = self.connection.read_message()
             if isinstance(message, messages.ReadyForQuery):
+                self.connection.transaction_status = message.transaction_status
                 self._message = message
                 break
 
@@ -164,7 +163,7 @@ class Cursor(object):
         while True:
             message = self.connection.read_message()
             if isinstance(message, messages.ErrorResponse):
-                raise errors.QueryError.from_error_response(message, self.last_execution)
+                raise errors.QueryError.from_error_response(message, sql)
             elif isinstance(message, messages.ReadyForQuery):
                 break
             elif isinstance(message, messages.CopyInResponse):

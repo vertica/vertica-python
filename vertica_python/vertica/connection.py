@@ -62,19 +62,19 @@ class Connection(object):
             raise errors.ConnectionError('Connection is closed')
 
         cur = self.cursor()
-        cur.execute('commit')
+        cur.execute('COMMIT;')
 
     def rollback(self):
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
         cur = self.cursor()
-        cur.execute('rollback')
+        cur.execute('ROLLBACK;')
 
     def cursor(self, cursor_type=None):
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
-        self.reset_connection();
+        self.reset_connection()
         return Cursor(self, cursor_type=cursor_type)
 
     #
@@ -214,16 +214,21 @@ class Connection(object):
         return results
 
     def startup_connection(self):
-        self.write(messages.Startup(self.options['user'],
-                                    self.options.get('database')))
+        # This doesn't handle Unicode usernames or passwords
+        user = self.options['user'].encode('ascii')
+        database = self.options['database'].encode('ascii')
+        password = self.options['password'].encode('ascii')
+
+        self.write(messages.Startup(user, database))
+
         while True:
             message = self.read_message()
 
             if isinstance(message, messages.Authentication):
                 # Password message isn't right format ("incomplete message from client")
                 if message.code != messages.Authentication.OK:
-                    self.write(messages.Password(self.options['password'], message.code, {
-                        'user': self.options['user'], 'salt': getattr(message, 'salt', None)
+                    self.write(messages.Password(password, message.code, {
+                        'user': user, 'salt': getattr(message, 'salt', None)
                     }))
             else:
                 self.process_message(message)
@@ -239,4 +244,3 @@ class Connection(object):
 
 # if self.options.get('interruptable'):
 #            self.session_id = self.query("SELECT session_id FROM v_monitor.current_session").the_value()
-

@@ -7,6 +7,8 @@ from vertica_python.vertica.connection import Connection
 
 # The version number of this library.
 version_info = (0, 4, 3)
+version_info = (0, 4, 4)
+
 __version__ = '.'.join(map(str, version_info))
 
 __author__ = 'Uber Technologies, Inc'

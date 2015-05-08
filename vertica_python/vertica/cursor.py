@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+import re
+
 import vertica_python.errors as errors
 
 import vertica_python.vertica.messages as messages
@@ -33,7 +35,7 @@ class Cursor(object):
     # dbApi methods
     #
 
-    def callproc(procname, parameters=None):
+    def callproc(self, procname, parameters=None):
         raise errors.NotSupportedError('Cursor.callproc() is not implemented')
 
     def close(self):
@@ -44,15 +46,30 @@ class Cursor(object):
             raise errors.Error('Cursor is closed')
 
         if parameters:
-            # optional requirement
+            # # optional requirement
             from psycopg2.extensions import adapt
 
             if isinstance(parameters, dict):
                 for key in parameters:
-                    v = adapt(parameters[key]).getquoted()
-                    operation = operation.replace(':' + key, v)
+                    param = parameters[key]
+                    # Make sure adapt() behaves properly
+                    if isinstance(param, unicode):
+                        v = adapt(param.encode('utf8')).getquoted()
+                    else:
+                        v = adapt(param).getquoted()
+
+                    # Using a regex with word boundary to correctly handle params with similar names
+                    # such as :s and :start
+                    match_str = u':%s\\b' % unicode(key)
+                    operation = re.sub(match_str, v.decode('utf-8'), operation, re.UNICODE)
             elif isinstance(parameters, tuple):
-                operation = operation % tuple(adapt(p).getquoted() for p in parameters)
+                tlist = []
+                for p in parameters:
+                    if isinstance(p, unicode):
+                        tlist.append(adapt(p.encode('utf8')).getquoted())
+                    else:
+                        tlist.append(adapt(p).getquoted())
+                operation = operation % tuple(tlist)
             else:
                 raise errors.Error("Argument 'parameters' must be dict or tuple")
 
@@ -147,7 +164,6 @@ class Cursor(object):
             self._copy_internal(sql, data)
         else:
             self._copy_internal(sql, (line.decode(decoder) for line in data))
-
 
     #
     # Internal

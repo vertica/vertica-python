@@ -27,6 +27,8 @@ class Connection(object):
             (key, value) for key, value in options.iteritems() if value is not None
         )
 
+        # we only support one cursor per connection
+        self._cursor = Cursor(self, None)
         self.options.setdefault('port', 5433)
         self.options.setdefault('read_timeout', 600)
         self.boot_connection()
@@ -74,13 +76,15 @@ class Connection(object):
     def cursor(self, cursor_type=None):
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
-        self.reset_connection()
-        return Cursor(self, cursor_type=cursor_type)
+
+        # let user change type if they want?
+        self._cursor.cursor_type = cursor_type
+        return self._cursor
+
 
     #
     # Internal
     #
-
     def reset_values(self):
         self.parameters = {}
         self.session_id = None
@@ -190,6 +194,9 @@ class Connection(object):
             pass
         else:
             raise errors.MessageError("Unhandled message: {0}".format(message))
+
+        # set last message
+        self._cursor._message = message
 
     def __str__(self):
         safe_options = dict(

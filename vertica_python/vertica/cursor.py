@@ -136,7 +136,6 @@ class Cursor(object):
     #
     # Non dbApi methods
     #
-    # todo: input stream
     def flush_to_query_ready(self):
         # if the last message isnt empty or ReadyForQuery, read all remaining messages
         if(self._message is None

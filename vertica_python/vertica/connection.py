@@ -77,10 +77,12 @@ class Connection(object):
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
+        if self._cursor.closed():
+            self._cursor._closed = False
+
         # let user change type if they want?
         self._cursor.cursor_type = cursor_type
         return self._cursor
-
 
     #
     # Internal

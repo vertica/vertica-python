@@ -229,3 +229,26 @@ class TestVerticaPython(unittest.TestCase):
         assert 1 == len(res)
         assert 1 == res[0][0]
         assert 'aa' == res[0][1]
+
+    def test_cursor_close_and_reuse(self):
+
+        conn = vertica_python.connect(conn_info)
+        cur = conn.cursor()
+        init_table(cur)
+
+        # insert data
+        cur.execute(""" INSERT INTO vertica_python_unit_test (a, b) VALUES (2, 'bb'); commit; """)
+        #conn.commit()
+
+        # query
+        cur.execute("SELECT a, b from vertica_python_unit_test WHERE a = 2")
+        res = cur.fetchall()
+        assert 1 == len(res)
+
+        # close and reopen cursor
+        cur.close()
+        cur = conn.cursor()
+
+        cur.execute("SELECT a, b from vertica_python_unit_test")
+        res = cur.fetchall()
+        assert 1 == len(res)

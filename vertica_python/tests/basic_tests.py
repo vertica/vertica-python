@@ -1,14 +1,11 @@
 import unittest
 import logging
 
+from test_commons import conn_info
+
 import vertica_python
 from vertica_python import errors
 
-conn_info = {'host': '127.0.0.1', 
-             'port': 5433, 
-             'user': 'dbadmin', 
-             'password': 'unit_test', 
-             'database': 'unit_test'}
 logger = logging.getLogger('vertica')
 
 
@@ -22,6 +19,7 @@ def init_table(cur):
                     b varchar(32)
                     ) ;
                 """)
+
 
 class TestVerticaPython(unittest.TestCase):
 

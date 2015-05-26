@@ -35,6 +35,9 @@ nosetests.xml
 .pydevproject
 .DS_Store
 
+# vagrant
+.vagrant
+
 # pycharm
 /.idea/
 

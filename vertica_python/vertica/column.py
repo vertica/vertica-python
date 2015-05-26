@@ -6,6 +6,7 @@ from decimal import Decimal
 from datetime import date
 from datetime import datetime
 from dateutil import parser
+from vertica_python import errors
 
 import pytz
 
@@ -45,6 +46,18 @@ def timestamp_tz_parse(s):
     return parser.parse(s)
 
 
+def date_parse(s):
+    """
+    Parses value of a DATE type.
+    :param s: string to parse into date
+    :return: an instance of datetime.date
+    :raises NotSupportedError when a date Before Christ is encountered
+    """
+    if s.endswith(' BC'):
+        raise errors.NotSupportedError('Dates Before Christ are not supported. Got: ' + s)
+
+    return date(*map(lambda x: int(x), s.split('-')))
+
 ColumnTuple = namedtuple(
     'Column',
     ['name', 'type_code', 'display_size', 'internal_size',
@@ -65,7 +78,7 @@ class Column(object):
         ('float', lambda s: float(s)),
         ('char', lambda s: unicode(s, 'utf-8')),
         ('varchar', lambda s: unicode(s, 'utf-8')),
-        ('date', lambda s: date(*map(lambda x: int(x), s.split('-')))),
+        ('date', date_parse),
         ('time', None),
         ('timestamp', timestamp_parse),
         ('timestamp_tz', timestamp_tz_parse),

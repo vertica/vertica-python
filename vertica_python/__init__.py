@@ -25,6 +25,6 @@ threadsafety = 1
 paramstyle = 'named'  # WHERE name=:name
 
 
-def connect(options):
+def connect(**kwargs):
     """Opens a new connection to a Vertica database."""
-    return Connection(options)
+    return Connection(kwargs)

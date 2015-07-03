@@ -10,7 +10,7 @@ opts = ReqOpts(None, 'git')
 # version should use the format 'x.x.x' (instead of 'vx.x.x')
 setup(
     name='vertica-python',
-    version='0.4.6',
+    version='0.5.0',
     description='A native Python client for the Vertica database.',
     author='Justin Berka, Alex Kim, Kenneth Tran',
     author_email='justin.berka@gmail.com, alex.kim@uber.com, tran@uber.com',

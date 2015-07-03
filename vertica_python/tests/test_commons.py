@@ -21,7 +21,7 @@ class VerticaTestCase(unittest.TestCase):
         :param query: query to execute
         :return: all fetched results as returned by cursor.fetchall()
         """
-        with vertica_python.connect(conn_info) as conn:
+        with vertica_python.connect(**conn_info) as conn:
             cur = conn.cursor()
             cur.execute(query)
 

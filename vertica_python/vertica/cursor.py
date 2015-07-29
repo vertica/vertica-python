@@ -149,11 +149,14 @@ class Cursor(object):
                 self._message = message
                 break
 
-    def copy(self, sql, data):
-        # Legacy support
-        self.copy_string(sql, data)
+    # example:
+    #
+    # with open("/tmp/file.csv", "rb") as fs:
+    #   cursor.copy("COPY table(field1,field2) FROM STDIN DELIMITER ',' ENCLOSED BY '\"'", fs, buffer_size=65536)
+    #
 
-    def _copy_internal(self, sql, datagen):
+    def copy(self, sql, data, **kwargs):
+
         if self.closed():
             raise errors.Error('Cursor is closed')
 
@@ -161,24 +164,22 @@ class Cursor(object):
 
         while True:
             message = self.connection.read_message()
-            if isinstance(message, messages.ErrorResponse):
-                raise errors.QueryError.from_error_response(message, sql)
-            elif isinstance(message, messages.ReadyForQuery):
+            self.connection.process_message(message=message)
+            if isinstance(message, messages.ReadyForQuery):
                 break
             elif isinstance(message, messages.CopyInResponse):
-                # write stuff
-                for line in datagen:
-                    self.connection.write(messages.CopyData(line))
+
+                #write stuff
+                if not hasattr(data, "read"):
+                    self.connection.write(messages.CopyData(data))
+                else:
+                    # treat data as stream
+                    self.connection.write(messages.CopyStream(data, **kwargs))
+
                 self.connection.write(messages.CopyDone())
 
-    def copy_string(self, sql, data):
-        self._copy_internal(sql, [data])
-
-    def copy_file(self, sql, data, decoder=None):
-        if decoder is None:
-            self._copy_internal(sql, data)
-        else:
-            self._copy_internal(sql, (line.decode(decoder) for line in data))
+        if self.error is not None:
+            raise self.error
 
     #
     # Internal

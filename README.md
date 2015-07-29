@@ -139,8 +139,10 @@ connection.commit()
 
 ```python
 cur = connection.cursor()
-cur.copy("COPY test_copy (id, name) from stdin DELIMITER ',' ",  "1,foo\n2,bar")
+cur.copy("COPY test_copy (id, name) from stdin DELIMITER ',' ",  csv)
 ```
+
+Where `csv` is either a string or a file-like object (specifically, any object with a `read()` method). If using a file, the data is streamed.
 
 
 ## License

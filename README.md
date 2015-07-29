@@ -2,7 +2,8 @@
 
 [![PyPI version](https://badge.fury.io/py/vertica-python.png)](http://badge.fury.io/py/vertica-python)
 
-0.5.x changes the connection method to accept kwargs instead of a dict to be more dbapi compliant
+0.5.x changes the connection method to accept kwargs instead of a dict to be more dbapi compliant.
+      copy methods improved and consolidated in 0.5.1
 
 0.4.x breaks some of the older query interfaces (row_handler callback, and connection.query).
 It replaces the row_handler callback with an iterate() method. Please see examples below

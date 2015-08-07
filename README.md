@@ -79,8 +79,8 @@ cur = connection.cursor()
 cur.execute("SELECT * FROM a_table LIMIT 2")
 for row in cur.iterate():
     print(row)
-# {'id': 1, 'value': 'something'}
-# {'id': 2, 'value': 'something_else'}
+# [ 1, 'some text', datetime.datetime(2014, 5, 18, 6, 47, 1, 928014) ]
+# [ 2, 'something else', None ]
 ```
 Streaming is recommended if you want to further process each row, save the results in a non-list/dict format (e.g. Pandas DataFrame), or save the results in a file.
 

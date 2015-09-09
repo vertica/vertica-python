@@ -160,6 +160,8 @@ class Cursor(object):
         if self.closed():
             raise errors.Error('Cursor is closed')
 
+        self.flush_to_query_ready()
+
         self.connection.write(messages.Query(sql))
 
         while True:

@@ -76,7 +76,7 @@ class Cursor(object):
             else:
                 raise errors.Error("Argument 'parameters' must be dict or tuple")
 
-        self.rowcount = 0
+        self.rowcount = -1
 
         self.connection.write(messages.Query(operation))
 
@@ -89,15 +89,20 @@ class Cursor(object):
                 raise errors.QueryError.from_error_response(message, operation)
             elif isinstance(message, messages.RowDescription):
                 self.description = map(lambda fd: Column(fd), message.fields)
-            elif (isinstance(message, messages.DataRow)
-                   or isinstance(message, messages.ReadyForQuery)):
+            elif isinstance(message, messages.DataRow):
+                break;
+            elif isinstance(message, messages.ReadyForQuery):
                 break
             else:
                 self.connection.process_message(message)
 
     def fetchone(self):
         if isinstance(self._message, messages.DataRow):
-            self.rowcount += 1
+            if self.rowcount == -1:
+                self.rowcount = 1
+            else:
+                self.rowcount += 1
+
             row = self.row_formatter(self._message)
             # fetch next message
             self._message = self.connection.read_message()

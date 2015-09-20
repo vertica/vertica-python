@@ -206,6 +206,10 @@ class Connection(object):
         elif isinstance(message, messages.ReadyForQuery):
             self.transaction_status = message.transaction_status
         elif isinstance(message, messages.CommandComplete):
+            # TODO: im not ever seeing this actually returned by vertica...
+            # if vertica returns a row count, set the rowcount attribute in cursor
+            #if hasattr(message, 'rows'):
+            #    self.cursor.rowcount = message.rows
             pass
         elif isinstance(message, messages.CopyInResponse):
             pass

@@ -32,10 +32,15 @@ class TestVerticaPython(unittest.TestCase):
         
         cur.execute(""" INSERT INTO vertica_python_unit_test (a, b) VALUES (1, 'aa'); commit; """)
         cur.execute("SELECT a, b from vertica_python_unit_test WHERE a = 1")
+
+        # unknown rowcount
+        assert cur.rowcount == -1
+
         res = cur.fetchall()
         assert 1 == len(res)
         assert 1 == res[0][0]
         assert 'aa' == res[0][1]
+        assert cur.rowcount == 1
 
     def test_multi_inserts_and_transaction(self):
 
@@ -88,6 +93,30 @@ class TestVerticaPython(unittest.TestCase):
         assert 1 == len(res)
 
 
+    def test_delete(self):
+
+        conn = vertica_python.connect(**conn_info)
+        cur = conn.cursor()
+        init_table(cur)
+
+        cur.execute(""" INSERT INTO vertica_python_unit_test (a, b) VALUES (5, 'cc') """)
+        conn.commit()
+
+        cur.execute(""" DELETE from vertica_python_unit_test WHERE a = 5 """)
+
+        # validate delete count
+        assert cur.rowcount == -1
+        res = cur.fetchone()
+        assert 1 == len(res)
+        assert 1 == res[0]
+
+        conn.commit()
+
+        cur.execute("SELECT a, b from vertica_python_unit_test WHERE a = 5")
+        res = cur.fetchall()
+        assert 0 == len(res)
+
+
     def test_update(self):
 
         conn = vertica_python.connect(**conn_info)
@@ -95,9 +124,22 @@ class TestVerticaPython(unittest.TestCase):
         init_table(cur)
     
         cur.execute(""" INSERT INTO vertica_python_unit_test (a, b) VALUES (5, 'cc') """)
+
+        # validate insert count
+        res = cur.fetchone()
+        assert 1 == len(res)
+        assert 1 == res[0]
+
         conn.commit()
     
         cur.execute(""" UPDATE vertica_python_unit_test SET b = 'ff' WHERE a = 5 """)
+
+        # validate update count
+        assert cur.rowcount == -1
+        res = cur.fetchone()
+        assert 1 == len(res)
+        assert 1 == res[0]
+
         conn.commit()
     
         cur.execute("SELECT a, b from vertica_python_unit_test WHERE a = 5")

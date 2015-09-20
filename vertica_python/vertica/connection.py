@@ -152,7 +152,10 @@ class Connection(object):
 
         except Exception, e:
             self.close_socket()
-            raise errors.ConnectionError(e.message)
+            if e.message == 'unsupported authentication method: 9':
+                raise errors.ConnectionError('Error during authentication. Your password might be expired.')
+            else:
+                raise errors.ConnectionError(e.message)
 
     def close_socket(self):
         try:

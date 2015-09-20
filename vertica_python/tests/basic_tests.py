@@ -349,3 +349,63 @@ class TestVerticaPython(unittest.TestCase):
 
         conn.close()
 
+    # unit test for #74
+    def test_nextset(self):
+
+        conn = vertica_python.connect(**conn_info)
+        cur = conn.cursor()
+        init_table(cur)
+
+        cur.execute("select 1; select 2;")
+        res = cur.fetchall()
+
+        assert 1 == len(res)
+        assert 1 == res[0][0]
+        assert cur.fetchone() is None
+
+        assert cur.nextset() == True
+
+        res = cur.fetchall()
+        assert 1 == len(res)
+        assert 2 == res[0][0]
+        assert cur.fetchone() is None
+
+        assert cur.nextset() is None
+
+    # unit test for #74
+    def test_nextset_with_delete(self):
+
+        conn = vertica_python.connect(**conn_info)
+        cur = conn.cursor()
+        init_table(cur)
+
+        # insert data
+        cur.execute(""" INSERT INTO vertica_python_unit_test (a, b) VALUES (1, 'aa') """)
+        cur.execute(""" INSERT INTO vertica_python_unit_test (a, b) VALUES (2, 'bb') """)
+        conn.commit()
+
+        cur.execute("""select * from vertica_python_unit_test;
+                    delete from vertica_python_unit_test;
+                    select * from vertica_python_unit_test;
+                    """)
+
+        # check first select results
+        res = cur.fetchall()
+        assert 2 == len(res)
+        assert cur.fetchone() is None
+
+        # check delete results
+        assert cur.nextset() == True
+        res = cur.fetchall()
+        assert 1 == len(res)
+        assert 2 == res[0][0]
+        assert cur.fetchone() is None
+
+        # check second select results
+        assert cur.nextset() == True
+        res = cur.fetchall()
+        assert 0 == len(res)
+        assert cur.fetchone() is None
+
+        # no more data sets
+        assert cur.nextset() is None

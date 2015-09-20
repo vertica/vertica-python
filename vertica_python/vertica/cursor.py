@@ -151,12 +151,12 @@ class Cursor(object):
                 return True
             elif isinstance(self._message, messages.ReadyForQuery):
                 return None
-            else
+            else:
                 raise errors.Error('Unexpected nextset() state after CommandComplete: ' + str(self._message))
         elif isinstance(self._message, messages.ReadyForQuery):
             # no more sets left to be read
             return None
-        else
+        else:
             raise errors.Error('Unexpected nextset() state: ' + str(self._message))
 
 
@@ -185,6 +185,7 @@ class Cursor(object):
     def flush_to_command_complete(self):
         # if the last message isnt empty or CommandComplete, read messages until it is
         if(self._message is None
+           or isinstance(self._message, messages.ReadyForQuery)
            or isinstance(self._message, messages.CommandComplete)):
             return
 

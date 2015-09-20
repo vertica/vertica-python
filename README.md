@@ -178,6 +178,30 @@ cur.rowcount == -1  # indicates unknown rowcount
 cur.fetchone()[0] == 3
 ```
 
+## Nextset
+
+If you execute multiple statements in a single call to execute(), you can use cursor.nextset() to retrieve all of the data.
+
+```python
+cur.execute('SELECT 1; SELECT 2;')
+
+cur.fetchone()
+# [1]
+cur.fetchone()
+# None 
+
+cur.nextset()
+# True
+
+cur.fetchone()
+# [2]
+cur.fetchone()
+# None 
+
+cur.nextset()
+# None
+```
+
 ## License
 
 MIT License, please see `LICENSE` for details.

@@ -90,7 +90,7 @@ class Cursor(object):
             elif isinstance(message, messages.RowDescription):
                 self.description = map(lambda fd: Column(fd), message.fields)
             elif isinstance(message, messages.DataRow):
-                break;
+                break
             elif isinstance(message, messages.ReadyForQuery):
                 break
             else:
@@ -107,6 +107,10 @@ class Cursor(object):
             # fetch next message
             self._message = self.connection.read_message()
             return row
+        elif isinstance(self._message, messages.ReadyForQuery):
+            return None
+        elif isinstance(self._message, messages.CommandComplete):
+            return None
         else:
             self.connection.process_message(self._message)
 
@@ -132,6 +136,30 @@ class Cursor(object):
     def fetchall(self):
         return list(self.iterate())
 
+    def nextset(self):
+        # skip any data for this set if exists
+        self.flush_to_command_complete()
+
+        if self._message is None:
+            return None
+        elif isinstance(self._message, messages.CommandComplete):
+            # there might be another set, read next message to find out
+            self._message = self.connection.read_message()
+            if isinstance(self._message, messages.RowDescription):
+                # next row will be either a DataRow or CommandComplete
+                self._message = self.connection.read_message()
+                return True
+            elif isinstance(self._message, messages.ReadyForQuery):
+                return None
+            else
+                raise errors.Error('Unexpected nextset() state after CommandComplete: ' + str(self._message))
+        elif isinstance(self._message, messages.ReadyForQuery):
+            # no more sets left to be read
+            return None
+        else
+            raise errors.Error('Unexpected nextset() state: ' + str(self._message))
+
+
     def setinputsizes(self):
         pass
 
@@ -153,6 +181,19 @@ class Cursor(object):
                 self.connection.transaction_status = message.transaction_status
                 self._message = message
                 break
+
+    def flush_to_command_complete(self):
+        # if the last message isnt empty or CommandComplete, read messages until it is
+        if(self._message is None
+           or isinstance(self._message, messages.CommandComplete)):
+            return
+
+        while True:
+            message = self.connection.read_message()
+            if isinstance(message, messages.CommandComplete):
+                self._message = message
+                break
+
 
     # example:
     #

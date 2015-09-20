@@ -281,3 +281,29 @@ class TestVerticaPython(unittest.TestCase):
         cur.execute("SELECT a, b from vertica_python_unit_test")
         res = cur.fetchall()
         assert 1 == len(res)
+
+    # unit test for #78
+    def test_copy_with_data_in_buffer(self):
+
+        conn = vertica_python.connect(**conn_info)
+        cur = conn.cursor()
+        init_table(cur)
+
+        cur.execute("select 1;")
+        cur.fetchall()
+
+        # Current status: CommandComplete
+
+        copy_sql = """COPY vertica_python_unit_test (a, b)
+                     FROM STDIN
+                     DELIMITER '|'
+                     NULL AS 'None'"""
+
+        data = """1|name1
+        2|name2"""
+
+        cur.copy(copy_sql, data)
+        cur.execute("select 1;") # will raise QueryError here
+
+        conn.close()
+

@@ -53,12 +53,12 @@ Source code for vertica-python can be found at:
 **Create connection**
 
 ```python
-from vertica_python import connect
+import vertica_python
 
-conn_info = {'host': '127.0.0.1', 
-             'port': 5433, 
-             'user': 'some_user', 
-             'password': 'some_password', 
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
              'database': 'a_database'}
 
 # simple connection, with manual close
@@ -152,7 +152,7 @@ Where `csv` is either a string or a file-like object (specifically, any object w
 
 ## Rowcount oddities
 
-vertica_python behaves a bit differently then dbapi when returning rowcounts
+vertica_python behaves a bit differently than dbapi when returning rowcounts.
 
 After a select execution, the rowcount will be -1, indicating that the row count is unknown. The rowcount value will be updated as data is streamed.
 
@@ -188,7 +188,7 @@ cur.execute('SELECT 1; SELECT 2;')
 cur.fetchone()
 # [1]
 cur.fetchone()
-# None 
+# None
 
 cur.nextset()
 # True
@@ -196,7 +196,7 @@ cur.nextset()
 cur.fetchone()
 # [2]
 cur.fetchone()
-# None 
+# None
 
 cur.nextset()
 # None

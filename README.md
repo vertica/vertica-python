@@ -53,7 +53,7 @@ Source code for vertica-python can be found at:
 **Create connection**
 
 ```python
-from vertica_python import connect
+import vertica_python
 
 conn_info = {'host': '127.0.0.1', 
              'port': 5433, 

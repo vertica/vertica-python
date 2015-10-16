@@ -55,10 +55,10 @@ Source code for vertica-python can be found at:
 ```python
 import vertica_python
 
-conn_info = {'host': '127.0.0.1', 
-             'port': 5433, 
-             'user': 'some_user', 
-             'password': 'some_password', 
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
              'database': 'a_database'}
 
 # simple connection, with manual close
@@ -188,7 +188,7 @@ cur.execute('SELECT 1; SELECT 2;')
 cur.fetchone()
 # [1]
 cur.fetchone()
-# None 
+# None
 
 cur.nextset()
 # True
@@ -196,7 +196,7 @@ cur.nextset()
 cur.fetchone()
 # [2]
 cur.fetchone()
-# None 
+# None
 
 cur.nextset()
 # None

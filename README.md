@@ -152,7 +152,7 @@ Where `csv` is either a string or a file-like object (specifically, any object w
 
 ## Rowcount oddities
 
-vertica_python behaves a bit differently then dbapi when returning rowcounts
+vertica_python behaves a bit differently than dbapi when returning rowcounts.
 
 After a select execution, the rowcount will be -1, indicating that the row count is unknown. The rowcount value will be updated as data is streamed.
 

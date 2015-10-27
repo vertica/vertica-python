@@ -3,6 +3,8 @@ from __future__ import absolute_import
 import re
 import logging
 
+from collections import OrderedDict
+
 import vertica_python.errors as errors
 
 import vertica_python.vertica.messages as messages
@@ -247,7 +249,7 @@ class Cursor(object):
             # throw some error
 
     def format_row_as_dict(self, row_data):
-        return dict(
+        return OrderedDict(
             (self.description[idx].name, self.description[idx].convert(value))
             for idx, value in enumerate(row_data.values)
         )

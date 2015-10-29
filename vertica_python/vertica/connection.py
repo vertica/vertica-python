@@ -31,7 +31,7 @@ class Connection(object):
         self._cursor = Cursor(self, None)
         self.options.setdefault('port', 5433)
         self.options.setdefault('read_timeout', 600)
-        self.boot_connection()
+        self.startup_connection()
 
     def __enter__(self):
         return self
@@ -166,11 +166,7 @@ class Connection(object):
 
     def reset_connection(self):
         self.close()
-        self.boot_connection()
-
-    def boot_connection(self):
         self.startup_connection()
-        self.initialize_connection()
 
     def read_message(self):
         try:
@@ -266,12 +262,3 @@ class Connection(object):
 
             if isinstance(message, messages.ReadyForQuery):
                 break
-
-    def initialize_connection(self):
-        if self.options.get('search_path') is not None:
-            self.query("SET SEARCH_PATH TO {0}".format(self.options['search_path']))
-        if self.options.get('role') is not None:
-            self.query("SET ROLE {0}".format(self.options['role']))
-
-# if self.options.get('interruptable'):
-#            self.session_id = self.query("SELECT session_id FROM v_monitor.current_session").the_value()

@@ -40,8 +40,10 @@ def timestamp_parse(s):
         year_match = years_re.match(s)
         if year_match:
             year = year_match.groups()[0]
-        dt = _timestamp_parse_without_year(s[len(year) + 1:])
-        dt = dt.replace(year=int(year) % 10000)
+            dt = _timestamp_parse_without_year(s[len(year) + 1:])
+            dt = dt.replace(year=int(year) % 10000)
+        else:
+            raise errors.DataError('Timestamp value not supported: %s' % s)
 
     return dt
 

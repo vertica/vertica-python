@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 from collections import namedtuple
+import re
 
 from decimal import Decimal
 from datetime import date
@@ -9,6 +10,8 @@ from dateutil import parser
 from vertica_python import errors
 
 import pytz
+
+years_re = re.compile(r'^([0-9]+)-')
 
 
 # these methods are bad...
@@ -30,9 +33,31 @@ import pytz
 # timestamptz type stores: 2013-01-01 05:00:00.01+00
 #       select t AT TIMEZONE 'America/New_York' returns: 2012-12-31 19:00:00.01
 def timestamp_parse(s):
+    try:
+        dt = _timestamp_parse(s)
+    except ValueError:
+        # Value error, year might be over 9999
+        year_match = years_re.match(s)
+        if year_match:
+            year = year_match.groups()[0]
+            dt = _timestamp_parse_without_year(s[len(year) + 1:])
+            dt = dt.replace(year=int(year) % 10000)
+        else:
+            raise errors.DataError('Timestamp value not supported: %s' % s)
+
+    return dt
+
+
+def _timestamp_parse(s):
     if len(s) == 19:
         return datetime.strptime(s, '%Y-%m-%d %H:%M:%S')
     return datetime.strptime(s, '%Y-%m-%d %H:%M:%S.%f')
+
+
+def _timestamp_parse_without_year(s):
+    if len(s) == 14:
+        return datetime.strptime(s, '%m-%d %H:%M:%S')
+    return datetime.strptime(s, '%m-%d %H:%M:%S.%f')
 
 
 def timestamp_tz_parse(s):

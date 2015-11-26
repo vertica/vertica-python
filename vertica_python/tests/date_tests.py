@@ -1,6 +1,7 @@
-from datetime import date
+from datetime import date, datetime
 from test_commons import *
 from vertica_python import errors
+from vertica_python.vertica.column import timestamp_parse
 
 
 class DateParsingTestCase(VerticaTestCase):
@@ -48,3 +49,23 @@ class DateParsingTestCase(VerticaTestCase):
             self.fail("Expected to see NotSupportedError when Before Christ date is encountered. Got: " + str(res))
         except errors.NotSupportedError:
             pass
+
+
+class TimestampParsingTestCase(VerticaTestCase):
+    """Verify timestamp parsing works properly."""
+
+
+    def test_timestamp_parser(self):
+        parsed_timestamp = timestamp_parse('1841-05-05 22:07:58')
+        # Assert parser default to strptime
+        self.assertEqual(datetime(year=1841, month=5, day=5, hour=22, minute=7, second=58), parsed_timestamp)
+
+    def test_timestamp_with_year_over_9999(self):
+        parsed_timestamp = timestamp_parse('44841-05-05 22:07:58')
+        # Assert year was truncated properly
+        self.assertEqual(datetime(year=4841, month=5, day=5, hour=22, minute=7, second=58), parsed_timestamp)
+
+    def test_timestamp_with_year_over_9999_and_ms(self):
+        parsed_timestamp = timestamp_parse('124841-05-05 22:07:58.000003')
+        # Assert year was truncated properly
+        self.assertEqual(datetime(year=4841, month=5, day=5, hour=22, minute=7, second=58, microsecond=3), parsed_timestamp)

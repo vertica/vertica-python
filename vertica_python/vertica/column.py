@@ -129,6 +129,10 @@ class Column(object):
         if self.type_code == 115:
             self.type_code = 9
 
+        # Mark type_code as unspecified if not within known data types
+        if self.type_code >= len(self.DATA_TYPE_CONVERSIONS):
+            self.type_code = 0
+
         #self.props = ColumnTuple(col['name'], col['data_type_oid'], None, col['data_type_size'], None, None, None)
         self.props = ColumnTuple(col['name'], self.type_code, None, col['data_type_size'], None, None, None)
 

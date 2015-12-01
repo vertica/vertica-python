@@ -59,7 +59,9 @@ conn_info = {'host': '127.0.0.1',
              'port': 5433,
              'user': 'some_user',
              'password': 'some_password',
-             'database': 'a_database'}
+             'database': 'a_database',
+             # 10 minutes timeout on queries
+             'read_timeout': 600}
 
 # simple connection, with manual close
 connection = vertica_python.connect(**conn_info)

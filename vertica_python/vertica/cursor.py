@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 
 import re
 import logging
@@ -56,19 +56,19 @@ class Cursor(object):
                 for key in parameters:
                     param = parameters[key]
                     # Make sure adapt() behaves properly
-                    if isinstance(param, unicode):
+                    if isinstance(param, str):
                         v = adapt(param.encode('utf8')).getquoted()
                     else:
                         v = adapt(param).getquoted()
 
                     # Using a regex with word boundary to correctly handle params with similar names
                     # such as :s and :start
-                    match_str = u':%s\\b' % unicode(key)
+                    match_str = ':%s\\b' % str(key)
                     operation = re.sub(match_str, v.decode('utf-8'), operation, re.UNICODE)
             elif isinstance(parameters, tuple):
                 tlist = []
                 for p in parameters:
-                    if isinstance(p, unicode):
+                    if isinstance(p, str):
                         tlist.append(adapt(p.encode('utf8')).getquoted())
                     else:
                         tlist.append(adapt(p).getquoted())
@@ -88,7 +88,7 @@ class Cursor(object):
             if isinstance(message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(message, operation)
             elif isinstance(message, messages.RowDescription):
-                self.description = map(lambda fd: Column(fd), message.fields)
+                self.description = [Column(fd) for fd in message.fields]
             elif isinstance(message, messages.DataRow):
                 break
             elif isinstance(message, messages.ReadyForQuery):

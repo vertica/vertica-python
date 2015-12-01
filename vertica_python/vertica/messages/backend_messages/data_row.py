@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 
 from struct import unpack, unpack_from
 
@@ -12,7 +12,7 @@ class DataRow(BackendMessage):
         field_count = unpack('!H', data[0:2])[0]
         pos = 2
 
-        for i in xrange(field_count):
+        for i in range(field_count):
             size = unpack_from('!I', data, pos)[0]
 
             if size == 4294967295:

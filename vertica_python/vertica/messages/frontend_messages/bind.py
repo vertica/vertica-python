@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 
 from struct import pack
 
@@ -14,7 +14,7 @@ class Bind(FrontendMessage):
 
     def to_bytes(self):
         bytes = pack('!{0}sx{1}sxHH'.format(len(self.portal_name), len(self.prepared_statement_name)), self.portal_name, self.prepared_statement_name, 0, len(self.parameter_values))
-        for val in self.parameter_values.values():
+        for val in list(self.parameter_values.values()):
             if val is None:
                 bytes += pack('!I', [-1])
             else:

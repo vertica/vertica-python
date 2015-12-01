@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 
 import string
 
@@ -15,7 +15,7 @@ class RowDescription(BackendMessage):
         field_count = unpack('!H', data[0:2])[0]
         pos = 2
 
-        for i in xrange(field_count):
+        for i in range(field_count):
             field_info = unpack_from("!{0}sxIHIHIH".format(string.find(data, '\x00', pos) - pos), data, pos)
             self.fields.append({
                 'name': field_info[0],

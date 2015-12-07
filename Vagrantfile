@@ -28,4 +28,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
      d.ports = ["5433:5433"]
   end
 
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
 end

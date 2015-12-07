@@ -37,11 +37,15 @@ Source code for vertica-python can be found at:
 
 
 ## Run unit tests
+
+To run the tests, you must have access to a Vertica database. You can
+spin one up with Vagrant that uses the default credentials using
+`vagrant up`. If you want to run it against an existing database
+instead; you can set the environment variables seen in
+`tests/test_commons.py`.
+
     # install nose if you don't have it
     pip install -r requirements_test.txt
-
-    # you will need to have access to a vertica database.
-    # connection info is in tests/basic_tests.py
 
     # run tests
     nosetests

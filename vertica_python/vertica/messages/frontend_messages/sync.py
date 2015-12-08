@@ -7,4 +7,4 @@ class Sync(FrontendMessage):
     pass
 
 
-Sync._message_id('S')
+Sync._message_id(b'S')

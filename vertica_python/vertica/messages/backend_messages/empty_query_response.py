@@ -7,4 +7,4 @@ class EmptyQueryResponse(BackendMessage):
     pass
 
 
-EmptyQueryResponse._message_id('I')
+EmptyQueryResponse._message_id(b'I')

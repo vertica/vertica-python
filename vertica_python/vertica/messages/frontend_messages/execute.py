@@ -15,4 +15,4 @@ class Execute(FrontendMessage):
         return self.message_string(pack('!{0}sxI'.format(len(self.portal_name)), self.portal_name, self.max_rows))
 
 
-Execute._message_id('E')
+Execute._message_id(b'E')

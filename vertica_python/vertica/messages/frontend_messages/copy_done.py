@@ -7,4 +7,4 @@ class CopyDone(FrontendMessage):
     pass
 
 
-CopyDone._message_id('c')
+CopyDone._message_id(b'c')

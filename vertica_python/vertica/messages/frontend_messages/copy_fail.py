@@ -14,4 +14,4 @@ class CopyFail(FrontendMessage):
         return self.message_string(pack('{0}sx'.format(len(self.error_message)), self.error_message))
 
 
-CopyFail._message_id('f')
+CopyFail._message_id(b'f')

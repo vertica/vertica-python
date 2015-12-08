@@ -1,7 +1,6 @@
 
 
-import string
-
+from builtins import range
 from struct import unpack, unpack_from
 
 from vertica_python.vertica.messages.message import BackendMessage
@@ -16,7 +15,7 @@ class RowDescription(BackendMessage):
         pos = 2
 
         for i in range(field_count):
-            field_info = unpack_from("!{0}sxIHIHIH".format(string.find(data, '\x00', pos) - pos), data, pos)
+            field_info = unpack_from("!{0}sxIHIHIH".format(data.find(b'\x00', pos) - pos), data, pos)
             self.fields.append({
                 'name': field_info[0],
                 'table_oid': field_info[1],
@@ -30,4 +29,4 @@ class RowDescription(BackendMessage):
             pos += 19 + len(field_info[0])
 
 
-RowDescription._message_id('T')
+RowDescription._message_id(b'T')

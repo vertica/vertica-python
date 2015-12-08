@@ -13,4 +13,4 @@ class BackendKeyData(BackendMessage):
         self.key = unpacked[1]
 
 
-BackendKeyData._message_id('K')
+BackendKeyData._message_id(b'K')

@@ -27,4 +27,4 @@ class Authentication(BackendMessage):
             self.auth_data = other
 
 
-Authentication._message_id('R')
+Authentication._message_id(b'R')

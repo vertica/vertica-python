@@ -7,4 +7,4 @@ class PortalSuspended(BackendMessage):
     pass
 
 
-PortalSuspended._message_id('s')
+PortalSuspended._message_id(b's')

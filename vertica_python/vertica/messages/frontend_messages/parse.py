@@ -20,4 +20,4 @@ class Parse(FrontendMessage):
         return self.message_string(pack('!{0}sx{1}sxH{2}I'.format(len(self.name), len(self.query), len(self.param_types)), self.name, self.query, len(self.param_types), params))
 
 
-Parse._message_id('P')
+Parse._message_id(b'P')

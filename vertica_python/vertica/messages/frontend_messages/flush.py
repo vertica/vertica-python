@@ -7,4 +7,4 @@ class Flush(FrontendMessage):
     pass
 
 
-Flush._message_id('H')
+Flush._message_id(b'H')

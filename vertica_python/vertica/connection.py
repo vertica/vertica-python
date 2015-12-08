@@ -35,13 +35,13 @@ class Connection(object):
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type_, value, traceback):
         try:
             # if there's no outstanding transaction, we can simply close the connection
             if self.transaction_status in (None, 'in_transaction'):
                 return
 
-            if type is not None:
+            if type_ is not None:
                 self.rollback()
             else:
                 self.commit()
@@ -151,10 +151,10 @@ class Connection(object):
 
         except Exception as e:
             self.close_socket()
-            if e.message == 'unsupported authentication method: 9':
+            if str(e) == 'unsupported authentication method: 9':
                 raise errors.ConnectionError('Error during authentication. Your password might be expired.')
             else:
-                raise errors.ConnectionError(e.message)
+                raise errors.ConnectionError(str(e))
 
     def close_socket(self):
         try:
@@ -171,14 +171,14 @@ class Connection(object):
         try:
             ready = select.select([self._socket()], [], [], self.options['read_timeout'])
             if len(ready[0]) > 0:
-                type = self.read_bytes(1)
+                type_ = self.read_bytes(1)
                 size = unpack('!I', self.read_bytes(4))[0]
 
                 if size < 4:
                     raise errors.MessageError(
                         "Bad message size: {0}".format(size)
                     )
-                message = BackendMessage.factory(type, self.read_bytes(size - 4))
+                message = BackendMessage.factory(type_, self.read_bytes(size - 4))
                 logger.debug('<= %s', message)
                 return message
             else:
@@ -188,7 +188,7 @@ class Connection(object):
             raise
         except Exception as e:
             self.close_socket()
-            raise errors.ConnectionError(e.message)
+            raise errors.ConnectionError(str(e))
 
     def process_message(self, message):
         if isinstance(message, messages.ErrorResponse):
@@ -231,12 +231,12 @@ class Connection(object):
         return s1 + s2
 
     def read_bytes(self, n):
-        results = ''
+        results = bytes()
         while len(results) < n:
-            bytes = self._socket().recv(n - len(results))
-            if not bytes:
+            bytes_ = self._socket().recv(n - len(results))
+            if not bytes_:
                 raise errors.ConnectionError("Connection closed by Vertica")
-            results = results + bytes
+            results = results + bytes_
         return results
 
     def startup_connection(self):

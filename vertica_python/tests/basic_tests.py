@@ -184,7 +184,7 @@ class TestVerticaPython(unittest.TestCase):
         cur2 = conn.cursor()
     
         f = tempfile.TemporaryFile()
-        f.write("1,foo\n2,bar")
+        f.write(b"1,foo\n2,bar")
         # move rw pointer to top of file
         f.seek(0)
         cur.copy(""" COPY vertica_python_unit_test (a, b) from stdin DELIMITER ',' """,  f)

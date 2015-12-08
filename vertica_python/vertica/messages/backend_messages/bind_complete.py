@@ -7,4 +7,4 @@ class BindComplete(BackendMessage):
     pass
 
 
-BindComplete._message_id('2')
+BindComplete._message_id(b'2')

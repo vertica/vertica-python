@@ -19,4 +19,4 @@ class CopyStream(FrontendMessage):
 
         return self.message_string(data)
 
-CopyStream._message_id('d')
+CopyStream._message_id(b'd')

@@ -44,3 +44,6 @@ nosetests.xml
 
 # default virtual environment
 /env/
+
+# pyenv
+.python-version

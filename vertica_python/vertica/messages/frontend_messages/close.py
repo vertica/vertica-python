@@ -21,4 +21,4 @@ class Close(FrontendMessage):
         return self.message_string(pack('c{0}sx'.format(len(self.close_name)), self.close_type, self.close_name))
 
 
-Close._message_id('C')
+Close._message_id(b'C')

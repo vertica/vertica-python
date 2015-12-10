@@ -1,5 +1,6 @@
 
 
+from builtins import range
 from struct import unpack, unpack_from
 
 from vertica_python.vertica.messages.message import BackendMessage
@@ -25,4 +26,4 @@ class DataRow(BackendMessage):
             pos += (4 + max(size, 0))
 
 
-DataRow._message_id('D')
+DataRow._message_id(b'D')

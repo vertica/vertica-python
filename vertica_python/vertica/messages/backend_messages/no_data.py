@@ -7,4 +7,4 @@ class NoData(BackendMessage):
     pass
 
 
-NoData._message_id('n')
+NoData._message_id(b'n')

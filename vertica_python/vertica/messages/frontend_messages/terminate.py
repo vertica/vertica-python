@@ -7,4 +7,4 @@ class Terminate(FrontendMessage):
     pass
 
 
-Terminate._message_id('X')
+Terminate._message_id(b'X')

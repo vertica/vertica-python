@@ -7,4 +7,4 @@ class CloseComplete(BackendMessage):
     pass
 
 
-CloseComplete._message_id('3')
+CloseComplete._message_id(b'3')

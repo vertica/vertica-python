@@ -16,4 +16,4 @@ class CopyData(FrontendMessage):
         return self.message_string(pack('{0}s'.format(len(encoded)), encoded))
 
 
-CopyData._message_id('d')
+CopyData._message_id(b'd')

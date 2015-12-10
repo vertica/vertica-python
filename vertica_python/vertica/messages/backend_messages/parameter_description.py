@@ -14,4 +14,4 @@ class ParameterDescription(BackendMessage):
         self.parameter_types = [Column.DATA_TYPES[dtid] for dtid in parameter_type_ids]
 
 
-ParameterDescription._message_id('t')
+ParameterDescription._message_id(b't')

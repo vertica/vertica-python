@@ -1,6 +1,8 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+ENV["VAGRANT_DEFAULT_PROVIDER"] ||= "docker"
+
 VAGRANTFILE_API_VERSION = "2"
 
 #######################################################################
@@ -19,39 +21,13 @@ VAGRANTFILE_API_VERSION = "2"
 # >>>
 #######################################################################
 
-
-# Globally install docker - bypass default Vagrant docker installation
-# procedure because it does not work reliably (curl does not follow
-# redirect = Docker won't be installed)
-
-$install_docker = <<SCRIPT
-curl -sSL https://get.docker.io | sh
-usermod -aG docker vagrant
-SCRIPT
-
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "phusion/ubuntu-14.04-amd64"
 
-  # Make Vertica available on host machine on port 5433
-  config.vm.network "forwarded_port", guest: 5433, host: 5433
-
-  config.vm.provider "virtualbox" do |v|
-     v.memory = 2048
-     v.cpus = 2
+  config.vm.provider "docker" do |d|
+     d.image = "sumitchawla/vertica:latest"
+     d.ports = ["5433:5433"]
   end
 
-  config.vm.provision "shell", inline: $install_docker
-
-  # Pull Vertica image when the box is first provisioned
-  config.vm.provision "docker" do |d|
-    d.pull_images 'sumitchawla/vertica:latest'
-  end
-
-  # Start Vertica inside container every time box is started
-  config.vm.provision "docker", run: "always" do |d|
-    d.run 'sumitchawla/vertica',
-    cmd: "",
-    args: "-d -p 5433:5433 --name vertica"
-  end
+  config.vm.synced_folder ".", "/vagrant", disabled: true
 
 end

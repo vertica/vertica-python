@@ -8,4 +8,4 @@ class ErrorResponse(NoticeResponse, BackendMessage):
     pass
 
 
-ErrorResponse._message_id('E')
+ErrorResponse._message_id(b'E')

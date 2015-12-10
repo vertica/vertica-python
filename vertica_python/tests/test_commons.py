@@ -5,8 +5,8 @@ import vertica_python
 conn_info = {'host': os.getenv('VP_TEST_HOST', '127.0.0.1'),
              'port': int(os.getenv('VP_TEST_PORT', 5433)),
              'user': os.getenv('VP_TEST_USER', 'dbadmin'),
-             'password': os.getenv('VP_TEST_PASSWD', 'unit_test'),
-             'database': os.getenv('VP_TEST_DB', 'unit_test')}
+             'password': os.getenv('VP_TEST_PASSWD', ''),
+             'database': os.getenv('VP_TEST_DB', 'docker')}
 
 
 class VerticaTestCase(unittest.TestCase):

@@ -3,6 +3,8 @@
 import re
 import logging
 
+from builtins import str
+
 import vertica_python.errors as errors
 
 import vertica_python.vertica.messages as messages
@@ -29,7 +31,7 @@ class Cursor(object):
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type_, value, traceback):
         self.close()
 
     #
@@ -63,8 +65,8 @@ class Cursor(object):
 
                     # Using a regex with word boundary to correctly handle params with similar names
                     # such as :s and :start
-                    match_str = ':%s\\b' % str(key)
-                    operation = re.sub(match_str, v.decode('utf-8'), operation, re.UNICODE)
+                    match_str = u':%s\\b' % str(key)
+                    operation = re.sub(match_str, v.decode('utf-8'), operation, flags=re.UNICODE)
             elif isinstance(parameters, tuple):
                 tlist = []
                 for p in parameters:

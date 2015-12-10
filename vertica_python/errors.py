@@ -130,13 +130,13 @@ class InvalidDatetimeFormat(QueryError):
 
 
 QUERY_ERROR_CLASSES = {
-    '55V03': LockFailure,
-    '53000': InsufficientResources,
-    '53200': OutOfMemory,
-    '42601': VerticaSyntaxError,
-    '42V01': MissingRelation,
-    '42703': MissingColumn,
-    '22V04': CopyRejected,
-    '42501': PermissionDenied,
-    '22007': InvalidDatetimeFormat
+    b'55V03': LockFailure,
+    b'53000': InsufficientResources,
+    b'53200': OutOfMemory,
+    b'42601': VerticaSyntaxError,
+    b'42V01': MissingRelation,
+    b'42703': MissingColumn,
+    b'22V04': CopyRejected,
+    b'42501': PermissionDenied,
+    b'22007': InvalidDatetimeFormat
 }

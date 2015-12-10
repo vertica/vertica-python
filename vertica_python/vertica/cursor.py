@@ -63,8 +63,8 @@ class Cursor(object):
 
                     # Using a regex with word boundary to correctly handle params with similar names
                     # such as :s and :start
-                    match_str = ':%s\\b' % str(key)
-                    operation = re.sub(match_str, v.decode('utf-8'), operation, re.UNICODE)
+                    match_str = u':%s\\b' % str(key)
+                    operation = re.sub(match_str, v.decode('utf-8'), operation, flags=re.UNICODE)
             elif isinstance(parameters, tuple):
                 tlist = []
                 for p in parameters:

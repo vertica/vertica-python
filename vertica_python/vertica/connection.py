@@ -171,24 +171,17 @@ class Connection(object):
 
     def read_message(self):
         try:
-            ready = select.select([self._socket()], [], [], self.options['read_timeout'])
-            if len(ready[0]) > 0:
-                type = self.read_bytes(1)
-                size = unpack('!I', self.read_bytes(4))[0]
+            type = self.read_bytes(1)
+            size = unpack('!I', self.read_bytes(4))[0]
 
-                if size < 4:
-                    raise errors.MessageError(
-                        "Bad message size: {0}".format(size)
-                    )
-                message = BackendMessage.factory(type, self.read_bytes(size - 4))
-                logger.debug('<= %s', message)
-                return message
-            else:
-                self.close()
-                raise errors.TimedOutError("Connection timed out")
-        except errors.TimedOutError:
-            raise
-        except Exception as e:
+            if size < 4:
+                raise errors.MessageError(
+                    "Bad message size: {0}".format(size)
+                )
+            message = BackendMessage.factory(type, self.read_bytes(size - 4))
+            logger.debug('<= %s', message)
+            return message
+        except (SystemError, IOError) as e:
             self.close_socket()
             raise errors.ConnectionError(e.message)
 

@@ -114,6 +114,19 @@ connection.close()
 ```
 
 
+**In-memory results as pandas DataFrame**:
+
+```python
+cur = connection.cursor('dict')
+cur.execute("SELECT * FROM a_table LIMIT 2")
+cur.dataframe()
+#    id           value
+# 0   1       something
+# 1   2  something_else
+connection.close()
+```
+
+
 **Query using named parameters**:
 
 ```python

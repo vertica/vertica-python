@@ -92,31 +92,37 @@ ColumnTuple = namedtuple(
 
 class Column(object):
 
-    DATA_TYPE_CONVERSIONS = [
-        ('unspecified', None),
-        ('tuple', None),
-        ('pos', None),
-        ('record', None),
-        ('unknown', None),
-        ('bool', lambda s: s == 't'),
-        ('integer', lambda s: int(s)),
-        ('float', lambda s: float(s)),
-        ('char', lambda s: unicode(s, 'utf-8')),
-        ('varchar', lambda s: unicode(s, 'utf-8')),
-        ('date', date_parse),
-        ('time', None),
-        ('timestamp', timestamp_parse),
-        ('timestamp_tz', timestamp_tz_parse),
-        ('interval', None),
-        ('time_tz', None),
-        ('numeric', lambda s: Decimal(s)),
-        ('bytea', None),
-        ('rle_tuple', None),
-    ]
-    DATA_TYPES = map(lambda x: x[0], DATA_TYPE_CONVERSIONS)
+    @classmethod
+    def DATA_TYPE_CONVERSIONS(cls, unicode_error=None):
+        if unicode_error is None:
+            unicode_error = 'strict'
+        return [
+            ('unspecified', None),
+            ('tuple', None),
+            ('pos', None),
+            ('record', None),
+            ('unknown', None),
+            ('bool', lambda s: s == 't'),
+            ('integer', lambda s: int(s)),
+            ('float', lambda s: float(s)),
+            ('char', lambda s: unicode(s, 'utf-8', unicode_error)),
+            ('varchar', lambda s: unicode(s, 'utf-8', unicode_error)),
+            ('date', date_parse),
+            ('time', None),
+            ('timestamp', timestamp_parse),
+            ('timestamp_tz', timestamp_tz_parse),
+            ('interval', None),
+            ('time_tz', None),
+            ('numeric', lambda s: Decimal(s)),
+            ('bytea', None),
+            ('rle_tuple', None),
+        ]
 
-    def __init__(self, col):
+    @property
+    def DATA_TYPES():
+        return map(lambda x: x[0], Column.DATA_TYPE_CONVERSIONS())
 
+    def __init__(self, col, unicode_error=None):
         self.name = col['name']
         self.type_code = col['data_type_oid']
         self.display_size = None
@@ -124,6 +130,8 @@ class Column(object):
         self.precision = None
         self.scale = None
         self.null_ok = None
+        self.unicode_error = unicode_error
+        self.DATA_TYPE_CONVERSIONS = Column.DATA_TYPE_CONVERSIONS(unicode_error=self.unicode_error)
 
         # WORKAROUND: Treat LONGVARCHAR as VARCHAR
         if self.type_code == 115:

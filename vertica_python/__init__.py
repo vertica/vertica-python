@@ -6,7 +6,7 @@ from vertica_python.vertica.connection import Connection
 # Main module for this library.
 
 # The version number of this library.
-version_info = (0, 5, 5)
+version_info = (0, 5, 6)
 
 __version__ = '.'.join(map(str, version_info))
 

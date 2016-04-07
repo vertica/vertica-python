@@ -11,9 +11,10 @@ from vertica_python.vertica.column import Column
 logger = logging.getLogger('vertica')
 
 class Cursor(object):
-    def __init__(self, connection, cursor_type=None):
+    def __init__(self, connection, cursor_type=None, unicode_error='strict'):
         self.connection = connection
         self.cursor_type = cursor_type
+        self.unicode_error = unicode_error
         self._closed = False
         self._message = None
 
@@ -88,7 +89,7 @@ class Cursor(object):
             if isinstance(message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(message, operation)
             elif isinstance(message, messages.RowDescription):
-                self.description = map(lambda fd: Column(fd), message.fields)
+                self.description = map(lambda fd: Column(fd, self.unicode_error), message.fields)
             elif isinstance(message, messages.DataRow):
                 break
             elif isinstance(message, messages.ReadyForQuery):

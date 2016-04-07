@@ -28,7 +28,8 @@ class Connection(object):
         )
 
         # we only support one cursor per connection
-        self._cursor = Cursor(self, None)
+        self.options.setdefault('unicode_error', None)
+        self._cursor = Cursor(self, None, unicode_error=self.options['unicode_error'])
         self.options.setdefault('port', 5433)
         self.options.setdefault('read_timeout', 600)
         self.startup_connection()

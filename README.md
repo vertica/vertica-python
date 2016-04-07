@@ -65,7 +65,9 @@ conn_info = {'host': '127.0.0.1',
              'password': 'some_password',
              'database': 'a_database',
              # 10 minutes timeout on queries
-             'read_timeout': 600}
+             'read_timeout': 600,
+             # default throw error on invalid UTF-8 results
+             'unicode_error': 'strict'}
 
 # simple connection, with manual close
 connection = vertica_python.connect(**conn_info)
@@ -206,6 +208,27 @@ cur.fetchone()
 
 cur.nextset()
 # None
+```
+
+## UTF-8 encoding issues
+
+While Vertica expects varchars stored to be UTF-8 encoded, sometimes invalid stirngs get intot the database. You can specify how to handle reading these characters using the unicode_error conneciton option. This uses the same values as the unicode type (https://docs.python.org/2/library/functions.html#unicode)
+
+```python
+cur = vertica_python.Connection({..., 'unicode_error': 'strict'}).cursor()
+cur.execute(r"SELECT E'\xC2'")
+cur.fetchone()
+# caught 'utf8' codec can't decode byte 0xc2 in position 0: unexpected end of data
+
+cur = vertica_python.Connection({..., 'unicode_error': 'replace'}).cursor()
+cur.execute(r"SELECT E'\xC2'")
+cur.fetchone()
+# �
+
+cur = vertica_python.Connection({..., 'unicode_error': 'ignore'}).cursor()
+cur.execute(r"SELECT E'\xC2'")
+cur.fetchone()
+# 
 ```
 
 ## License

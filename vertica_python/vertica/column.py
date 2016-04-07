@@ -93,7 +93,7 @@ ColumnTuple = namedtuple(
 class Column(object):
 
     @classmethod
-    def DATA_TYPE_CONVERSIONS(cls, unicode_error=None):
+    def data_type_conversions(cls, unicode_error=None):
         if unicode_error is None:
             unicode_error = 'strict'
         return [
@@ -119,8 +119,8 @@ class Column(object):
         ]
 
     @property
-    def DATA_TYPES():
-        return map(lambda x: x[0], Column.DATA_TYPE_CONVERSIONS())
+    def data_types():
+        return map(lambda x: x[0], Column.data_type_conversions())
 
     def __init__(self, col, unicode_error=None):
         self.name = col['name']
@@ -131,25 +131,25 @@ class Column(object):
         self.scale = None
         self.null_ok = None
         self.unicode_error = unicode_error
-        self.DATA_TYPE_CONVERSIONS = Column.DATA_TYPE_CONVERSIONS(unicode_error=self.unicode_error)
+        self.data_type_conversions = Column.data_type_conversions(unicode_error=self.unicode_error)
 
         # WORKAROUND: Treat LONGVARCHAR as VARCHAR
         if self.type_code == 115:
             self.type_code = 9
 
         # Mark type_code as unspecified if not within known data types
-        if self.type_code >= len(self.DATA_TYPE_CONVERSIONS):
+        if self.type_code >= len(self.data_type_conversions):
             self.type_code = 0
 
         #self.props = ColumnTuple(col['name'], col['data_type_oid'], None, col['data_type_size'], None, None, None)
         self.props = ColumnTuple(col['name'], self.type_code, None, col['data_type_size'], None, None, None)
 
-        #self.converter = self.DATA_TYPE_CONVERSIONS[col['data_type_oid']][1]
-        self.converter = self.DATA_TYPE_CONVERSIONS[self.type_code][1]
+        #self.converter = self.data_type_conversions[col['data_type_oid']][1]
+        self.converter = self.data_type_conversions[self.type_code][1]
 
         # things that are actually sent
 #        self.name = col['name']
-#        self.data_type = self.DATA_TYPE_CONVERSIONS[col['data_type_oid']][0]
+#        self.data_type = self.data_type_conversions[col['data_type_oid']][0]
 #        self.type_modifier = col['type_modifier']
 #        self.format = 'text' if col['format_code'] == 0 else 'binary'
 #        self.table_oid = col['table_oid']

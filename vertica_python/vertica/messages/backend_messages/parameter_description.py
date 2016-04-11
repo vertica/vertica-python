@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 
 from struct import unpack, unpack_from
 
@@ -14,4 +14,4 @@ class ParameterDescription(BackendMessage):
         self.parameter_types = [Column.data_types[dtid] for dtid in parameter_type_ids]
 
 
-ParameterDescription._message_id('t')
+ParameterDescription._message_id(b't')

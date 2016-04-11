@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 
 from struct import unpack
 
@@ -27,4 +27,4 @@ class Authentication(BackendMessage):
             self.auth_data = other
 
 
-Authentication._message_id('R')
+Authentication._message_id(b'R')

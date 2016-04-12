@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import re
 import logging
 
+# from ordereddict import OrderedDict
 from collections import OrderedDict
 
 import vertica_python.errors as errors

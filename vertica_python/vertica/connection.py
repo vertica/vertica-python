@@ -12,7 +12,6 @@ import vertica_python.vertica.messages as messages
 
 from vertica_python.vertica.messages.message import BackendMessage
 
-from ssl import CertificateError, SSLError
 from vertica_python.vertica.cursor import Cursor
 from vertica_python.errors import SSLNotSupported
 
@@ -108,6 +107,7 @@ class Connection(object):
 
         ssl_options = self.options.get('ssl')
         if ssl_options is not None and not ssl_options:
+            from ssl import CertificateError, SSLError
             raw_socket.sendall(messages.SslRequest().to_bytes())
             response = raw_socket.recv(1)
             if response == 'S':

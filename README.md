@@ -67,7 +67,9 @@ conn_info = {'host': '127.0.0.1',
              # 10 minutes timeout on queries
              'read_timeout': 600,
              # default throw error on invalid UTF-8 results
-             'unicode_error': 'strict'}
+             'unicode_error': 'strict'
+             # SSL is disabled by default
+             'ssl': False}
 
 # simple connection, with manual close
 connection = vertica_python.connect(**conn_info)
@@ -79,6 +81,28 @@ with vertica_python.connect(**conn_info) as connection:
     # do things
 ```
 
+You can pass an `ssl.SSLContext` to `ssl` to customize the SSL connection options. For example,
+
+```python
+import vertica_python
+import ssl
+
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+ssl_context.verify_mode = ssl.CERT_REQUIRED
+ssl_context.check_hostname = True
+ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem')
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'ssl': ssl_context}
+connection = vertica_python.connect(**conn_info)
+
+```
+
+See more on SSL options [here](https://docs.python.org/2/library/ssl.html).
 
 **Stream query results**:
 

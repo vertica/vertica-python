@@ -18,7 +18,7 @@ setup(
     keywords="database vertica",
     packages=find_packages(),
     license="MIT",
-    install_requires=['python-dateutil>=1.5', 'pytz'],
+    install_requires=['python-dateutil>=1.5', 'pytz', 'ordereddict==1.1'],
     extras_require={'namedparams': ['psycopg2>=2.5.1']},
     classifiers=[
         "Development Status :: 3 - Alpha",

@@ -106,7 +106,7 @@ class Connection(object):
         raw_socket.connect((host, port))
 
         ssl_options = self.options.get('ssl')
-        if ssl_options is not None and not ssl_options:
+        if ssl_options is not None and ssl_options is not False:
             from ssl import CertificateError, SSLError
             raw_socket.sendall(messages.SslRequest().to_bytes())
             response = raw_socket.recv(1)

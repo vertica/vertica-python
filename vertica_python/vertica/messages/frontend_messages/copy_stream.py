@@ -1,4 +1,4 @@
-
+from __future__ import absolute_import
 
 from struct import pack
 
@@ -19,4 +19,4 @@ class CopyStream(FrontendMessage):
 
         return self.message_string(data)
 
-CopyStream._message_id(b'd')
+CopyStream._message_id('d')

@@ -1,6 +1,5 @@
+from __future__ import absolute_import
 
-
-from builtins import range
 from struct import unpack, unpack_from
 
 from vertica_python.vertica.messages.message import BackendMessage
@@ -13,7 +12,7 @@ class DataRow(BackendMessage):
         field_count = unpack('!H', data[0:2])[0]
         pos = 2
 
-        for i in range(field_count):
+        for i in xrange(field_count):
             size = unpack_from('!I', data, pos)[0]
 
             if size == 4294967295:
@@ -26,4 +25,4 @@ class DataRow(BackendMessage):
             pos += (4 + max(size, 0))
 
 
-DataRow._message_id(b'D')
+DataRow._message_id('D')

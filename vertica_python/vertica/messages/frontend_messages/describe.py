@@ -1,4 +1,4 @@
-
+from __future__ import absolute_import
 
 from struct import pack
 
@@ -21,4 +21,4 @@ class Describe(FrontendMessage):
         return self.message_string(pack('c{0}sx'.format(len(self.describe_name)), self.describe_type, self.describe_name))
 
 
-Describe._message_id(b'D')
+Describe._message_id('D')

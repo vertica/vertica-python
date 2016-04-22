@@ -2,7 +2,7 @@ import unittest
 import logging
 import tempfile
 
-from .test_commons import conn_info
+from test_commons import conn_info
 
 import vertica_python
 from vertica_python import errors
@@ -184,7 +184,7 @@ class TestVerticaPython(unittest.TestCase):
         cur2 = conn.cursor()
     
         f = tempfile.TemporaryFile()
-        f.write(b"1,foo\n2,bar")
+        f.write("1,foo\n2,bar")
         # move rw pointer to top of file
         f.seek(0)
         cur.copy(""" COPY vertica_python_unit_test (a, b) from stdin DELIMITER ',' """,  f)

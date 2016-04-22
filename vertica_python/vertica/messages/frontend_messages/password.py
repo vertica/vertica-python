@@ -1,4 +1,4 @@
-
+from __future__ import absolute_import
 
 import os
 
@@ -47,4 +47,4 @@ class Password(FrontendMessage):
         return self.message_string(pack('{0}sx'.format(len(encoded_pw)), encoded_pw))
 
 
-Password._message_id(b'p')
+Password._message_id('p')

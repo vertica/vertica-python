@@ -1,4 +1,4 @@
-
+from __future__ import absolute_import
 
 from struct import unpack
 
@@ -13,4 +13,4 @@ class BackendKeyData(BackendMessage):
         self.key = unpacked[1]
 
 
-BackendKeyData._message_id(b'K')
+BackendKeyData._message_id('K')

@@ -1,4 +1,6 @@
+from __future__ import absolute_import
 
+import string
 
 from struct import unpack_from
 
@@ -8,18 +10,18 @@ from vertica_python.vertica.messages.message import BackendMessage
 class NoticeResponse(BackendMessage):
 
     FIELDS_DEFINITIONS = [
-        {'type': b'q', 'name': "Internal Query", 'method': 'internal_query'},
-        {'type': b'S', 'name': "Severity", 'method': 'severity'},
-        {'type': b'M', 'name': "Message", 'method': 'message'},
-        {'type': b'C', 'name': "Sqlstate", 'method': 'sqlstate'},
-        {'type': b'D', 'name': "Detail", 'method': 'detail'},
-        {'type': b'H', 'name': "Hint", 'method': 'hint'},
-        {'type': b'P', 'name': "Position", 'method': 'position'},
-        {'type': b'W', 'name': "Where", 'method': 'where'},
-        {'type': b'p', 'name': "Internal Position", 'method': 'internal_position'},
-        {'type': b'R', 'name': "Routine", 'method': 'routine'},
-        {'type': b'F', 'name': "File", 'method': 'file'},
-        {'type': b'L', 'name': "Line", 'method': 'line'}
+        {'type': 'q', 'name': "Internal Query", 'method': 'internal_query'},
+        {'type': 'S', 'name': "Severity", 'method': 'severity'},
+        {'type': 'M', 'name': "Message", 'method': 'message'},
+        {'type': 'C', 'name': "Sqlstate", 'method': 'sqlstate'},
+        {'type': 'D', 'name': "Detail", 'method': 'detail'},
+        {'type': 'H', 'name': "Hint", 'method': 'hint'},
+        {'type': 'P', 'name': "Position", 'method': 'position'},
+        {'type': 'W', 'name': "Where", 'method': 'where'},
+        {'type': 'p', 'name': "Internal Position", 'method': 'internal_position'},
+        {'type': 'R', 'name': "Routine", 'method': 'routine'},
+        {'type': 'F', 'name': "File", 'method': 'file'},
+        {'type': 'L', 'name': "Line", 'method': 'line'}
     ]
 
     def FIELDS(self):
@@ -33,7 +35,7 @@ class NoticeResponse(BackendMessage):
 
         pos = 0
         while pos < len(data) - 1:
-            null_byte = data.find(b'\x00', pos)
+            null_byte = string.find(data, '\x00', pos)
 
             # This will probably work
             unpacked = unpack_from('c{0}sx'.format(null_byte - 1 - pos), data, pos)
@@ -56,4 +58,4 @@ class NoticeResponse(BackendMessage):
         return ', '.join(ordered)
 
 
-NoticeResponse._message_id(b'N')
+NoticeResponse._message_id('N')

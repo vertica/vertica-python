@@ -1,8 +1,9 @@
-from __future__ import absolute_import
+
 
 from collections import namedtuple
 import re
 
+from builtins import str
 from decimal import Decimal
 from datetime import date
 from datetime import datetime
@@ -78,10 +79,10 @@ def date_parse(s):
     :return: an instance of datetime.date
     :raises NotSupportedError when a date Before Christ is encountered
     """
-    if s.endswith(' BC'):
-        raise errors.NotSupportedError('Dates Before Christ are not supported. Got: ' + s)
+    if s.endswith(b' BC'):
+        raise errors.NotSupportedError('Dates Before Christ are not supported. Got: ' + str(s, 'utf-8'))
 
-    return date(*map(lambda x: int(x), s.split('-')))
+    return date(*map(lambda x: int(x), s.split(b'-')))
 
 ColumnTuple = namedtuple(
     'Column',
@@ -105,8 +106,8 @@ class Column(object):
             ('bool', lambda s: s == 't'),
             ('integer', lambda s: int(s)),
             ('float', lambda s: float(s)),
-            ('char', lambda s: unicode(s, 'utf-8', unicode_error)),
-            ('varchar', lambda s: unicode(s, 'utf-8', unicode_error)),
+            ('char', lambda s: str(s, 'utf-8', unicode_error)),
+            ('varchar', lambda s: str(s, 'utf-8', unicode_error)),
             ('date', date_parse),
             ('time', None),
             ('timestamp', timestamp_parse),
@@ -165,7 +166,7 @@ class Column(object):
         return self.props.__str__()
 
     def __unicode__(self):
-        return unicode(self.props.__str__())
+        return str(self.props.__str__())
 
     def __repr__(self):
         return self.props.__str__()

@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 
 import logging
 import select
@@ -7,6 +7,8 @@ import ssl
 
 from struct import unpack
 
+from builtins import str
+
 import vertica_python.errors as errors
 import vertica_python.vertica.messages as messages
 
@@ -14,6 +16,7 @@ from vertica_python.vertica.messages.message import BackendMessage
 
 from vertica_python.vertica.cursor import Cursor
 from vertica_python.errors import SSLNotSupported
+import collections
 
 logger = logging.getLogger('vertica')
 
@@ -24,7 +27,7 @@ class Connection(object):
 
         options = options or {}
         self.options = dict(
-            (key, value) for key, value in options.iteritems() if value is not None
+            (key, value) for key, value in options.items() if value is not None
         )
 
         # we only support one cursor per connection
@@ -37,13 +40,13 @@ class Connection(object):
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type_, value, traceback):
         try:
             # if there's no outstanding transaction, we can simply close the connection
             if self.transaction_status in (None, 'in_transaction'):
                 return
 
-            if type is not None:
+            if type_ is not None:
                 self.rollback()
             else:
                 self.commit()
@@ -116,9 +119,9 @@ class Connection(object):
                         raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=host)
                     else:
                         raw_socket = ssl.wrap_socket(raw_socket)
-                except CertificateError, e:
+                except CertificateError as e:
                     raise errors.ConnectionError('SSL: ' + e.message)
-                except SSLError, e:
+                except SSLError as e:
                     raise errors.ConnectionError('SSL: ' + e.reason)
             else:
                 raise SSLNotSupported("SSL requested but not supported by server")
@@ -141,7 +144,7 @@ class Connection(object):
 
         is_stream = hasattr(message, "read_bytes")
 
-        if (hasattr(message, 'to_bytes') is False or callable(getattr(message, 'to_bytes')) is False) and not is_stream:
+        if (hasattr(message, 'to_bytes') is False or isinstance(getattr(message, 'to_bytes'), collections.Callable) is False) and not is_stream:
             raise TypeError("invalid message: ({0})".format(message))
 
         logger.debug('=> %s', message)
@@ -158,12 +161,12 @@ class Connection(object):
 
                     self._socket().sendall(data)
 
-        except Exception, e:
+        except Exception as e:
             self.close_socket()
-            if e.message == 'unsupported authentication method: 9':
+            if str(e) == 'unsupported authentication method: 9':
                 raise errors.ConnectionError('Error during authentication. Your password might be expired.')
             else:
-                raise errors.ConnectionError(e.message)
+                raise errors.ConnectionError(str(e))
 
     def close_socket(self):
         try:
@@ -178,19 +181,19 @@ class Connection(object):
 
     def read_message(self):
         try:
-            type = self.read_bytes(1)
+            type_ = self.read_bytes(1)
             size = unpack('!I', self.read_bytes(4))[0]
 
             if size < 4:
                 raise errors.MessageError(
                     "Bad message size: {0}".format(size)
                 )
-            message = BackendMessage.factory(type, self.read_bytes(size - 4))
+            message = BackendMessage.factory(type_, self.read_bytes(size - 4))
             logger.debug('<= %s', message)
             return message
         except (SystemError, IOError) as e:
             self.close_socket()
-            raise errors.ConnectionError(e.message)
+            raise errors.ConnectionError(str(e))
 
     def process_message(self, message):
         if isinstance(message, messages.ErrorResponse):
@@ -221,7 +224,7 @@ class Connection(object):
 
     def __str__(self):
         safe_options = dict(
-            (key, value) for key, value in self.options.iteritems() if key != 'password'
+            (key, value) for key, value in self.options.items() if key != 'password'
         )
         s1 = "<Vertica.Connection:{0} parameters={1} backend_pid={2}, ".format(
             id(self), self.parameters, self.backend_pid
@@ -233,12 +236,12 @@ class Connection(object):
         return s1 + s2
 
     def read_bytes(self, n):
-        results = ''
+        results = bytes()
         while len(results) < n:
-            bytes = self._socket().recv(n - len(results))
-            if not bytes:
+            bytes_ = self._socket().recv(n - len(results))
+            if not bytes_:
                 raise errors.ConnectionError("Connection closed by Vertica")
-            results = results + bytes
+            results = results + bytes_
         return results
 
     def startup_connection(self):

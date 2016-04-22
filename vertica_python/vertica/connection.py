@@ -100,24 +100,31 @@ class Connection(object):
         if self.socket is not None:
             return self.socket
 
-        if self.options.get('ssl'):
-            # SSL
-            raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            raw_socket.connect((self.options['host'], self.options['port']))
+        host = self.options.get('host')
+        port = self.options.get('port')
+        raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        raw_socket.connect((host, port))
+
+        ssl_options = self.options.get('ssl')
+        if ssl_options is not None and ssl_options is not False:
+            from ssl import CertificateError, SSLError
             raw_socket.sendall(messages.SslRequest().to_bytes())
             response = raw_socket.recv(1)
             if response == 'S':
-                # May want to add certs to this
-                raw_socket = ssl.wrap_socket(raw_socket)
+                try:
+                    if isinstance(ssl_options, ssl.SSLContext):
+                        raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=host)
+                    else:
+                        raw_socket = ssl.wrap_socket(raw_socket)
+                except CertificateError, e:
+                    raise errors.ConnectionError('SSL: ' + e.message)
+                except SSLError, e:
+                    raise errors.ConnectionError('SSL: ' + e.reason)
             else:
                 raise SSLNotSupported("SSL requested but not supported by server")
-        else:
-            # Non-SSL
-            raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            raw_socket.connect((self.options['host'], self.options['port']))
 
         self.socket = raw_socket
-        return raw_socket
+        return self.socket
 
     def ssl(self):
         return self.socket is not None and isinstance(ssl.SSLSocket, self.socket)
@@ -171,24 +178,17 @@ class Connection(object):
 
     def read_message(self):
         try:
-            ready = select.select([self._socket()], [], [], self.options['read_timeout'])
-            if len(ready[0]) > 0:
-                type = self.read_bytes(1)
-                size = unpack('!I', self.read_bytes(4))[0]
+            type = self.read_bytes(1)
+            size = unpack('!I', self.read_bytes(4))[0]
 
-                if size < 4:
-                    raise errors.MessageError(
-                        "Bad message size: {0}".format(size)
-                    )
-                message = BackendMessage.factory(type, self.read_bytes(size - 4))
-                logger.debug('<= %s', message)
-                return message
-            else:
-                self.close()
-                raise errors.TimedOutError("Connection timed out")
-        except errors.TimedOutError:
-            raise
-        except Exception as e:
+            if size < 4:
+                raise errors.MessageError(
+                    "Bad message size: {0}".format(size)
+                )
+            message = BackendMessage.factory(type, self.read_bytes(size - 4))
+            logger.debug('<= %s', message)
+            return message
+        except (SystemError, IOError) as e:
             self.close_socket()
             raise errors.ConnectionError(e.message)
 

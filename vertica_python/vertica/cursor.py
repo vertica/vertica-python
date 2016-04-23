@@ -3,11 +3,7 @@
 import re
 import logging
 
-import sys
-if sys.version_info > (3,):
-    from collections import OrderedDict
-else:
-    from ordereddict import OrderedDict
+from collections import OrderedDict
 from builtins import str
 
 import vertica_python.errors as errors

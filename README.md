@@ -47,7 +47,12 @@ instead; you can set the environment variables seen in
 `tests/test_commons.py`.
 
 Assuming you have [tox](http://tox.readthedocs.io/) installed, all you
-have to do is run `tox`.
+have to do is run `tox`. It will run the unit tests using both python 2 and 3.
+
+If you run into an error like:
+```ERROR: InterpreterNotFound: python3.4```
+
+Edit the envlist property of tox.ini to use the version of python you have installed (eg py35)
 
 
 ## Usage

@@ -15,7 +15,7 @@ vertica-python is a native Python adapter for the Vertica (http://www.vertica.co
 
 vertica-python is currently in beta stage; it has been tested for functionality and has a very basic test suite. Please use with caution, and feel free to submit issues and/or pull requests (after running the unit tests).
 
-vertica-python has been tested with Vertica 6.1.2/7.0.0+ and Python 2.6/2.7.
+vertica-python has been tested with Vertica 6.1.2/7.0.0+ and Python 2.7/3.4.
 
 
 ## Installation
@@ -46,11 +46,8 @@ spin one up with Vagrant that uses the default credentials using
 instead; you can set the environment variables seen in
 `tests/test_commons.py`.
 
-    # install nose if you don't have it
-    pip install -r requirements_test.txt
-
-    # run tests
-    nosetests
+Assuming you have [tox](http://tox.readthedocs.io/) installed, all you
+have to do is run `tox`.
 
 
 ## Usage

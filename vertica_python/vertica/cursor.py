@@ -217,6 +217,10 @@ class Cursor(object):
 
         while True:
             message = self.connection.read_message()
+
+            if isinstance(message, messages.ErrorResponse):
+                raise errors.QueryError.from_error_response(message, sql)
+
             self.connection.process_message(message=message)
             if isinstance(message, messages.ReadyForQuery):
                 break

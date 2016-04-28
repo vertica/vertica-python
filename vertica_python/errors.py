@@ -109,6 +109,10 @@ class VerticaSyntaxError(QueryError):
     pass
 
 
+class MissingSchema(QueryError):
+    pass
+
+
 class MissingRelation(QueryError):
     pass
 
@@ -129,14 +133,20 @@ class InvalidDatetimeFormat(QueryError):
     pass
 
 
+class DuplicateObject(QueryError):
+    pass
+
+
 QUERY_ERROR_CLASSES = {
     b'55V03': LockFailure,
     b'53000': InsufficientResources,
     b'53200': OutOfMemory,
     b'42601': VerticaSyntaxError,
+    b'3F000': MissingSchema,
     b'42V01': MissingRelation,
     b'42703': MissingColumn,
     b'22V04': CopyRejected,
     b'42501': PermissionDenied,
-    b'22007': InvalidDatetimeFormat
+    b'22007': InvalidDatetimeFormat,
+    b'42710': DuplicateObject
 }

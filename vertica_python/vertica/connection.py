@@ -113,7 +113,7 @@ class Connection(object):
             from ssl import CertificateError, SSLError
             raw_socket.sendall(messages.SslRequest().to_bytes())
             response = raw_socket.recv(1)
-            if response == 'S':
+            if response in ('S', b'S'):
                 try:
                     if isinstance(ssl_options, ssl.SSLContext):
                         raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=host)

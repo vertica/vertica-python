@@ -2,7 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/vertica-python.png)](http://badge.fury.io/py/vertica-python)
 
-0.6.x adds python3 support
+0.6.x adds python3 support (namedparams support is currently broken in python3, see issue 112)
 
 0.5.x changes the connection method to accept kwargs instead of a dict to be more dbapi compliant.
       copy methods improved and consolidated in 0.5.1

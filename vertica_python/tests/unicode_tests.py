@@ -14,6 +14,7 @@ class UnicodeTestCase(VerticaTestCase):
 
             assert res[0] == value
 
+    # this test is broken on python3: see issue #112
     def test_unicode_named_parameter_binding(self):
         key = u'\u16a0'
         value = u'\u16b1'

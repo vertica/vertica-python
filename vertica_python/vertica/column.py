@@ -124,7 +124,7 @@ class Column(object):
         return map(lambda x: x[0], Column.data_type_conversions())
 
     def __init__(self, col, unicode_error=None):
-        self.name = col['name']
+        self.name = col['name'].decode()
         self.type_code = col['data_type_oid']
         self.display_size = None
         self.internal_size = col['data_type_size']
@@ -143,7 +143,7 @@ class Column(object):
             self.type_code = 0
 
         #self.props = ColumnTuple(col['name'], col['data_type_oid'], None, col['data_type_size'], None, None, None)
-        self.props = ColumnTuple(col['name'], self.type_code, None, col['data_type_size'], None, None, None)
+        self.props = ColumnTuple(self.name, self.type_code, None, col['data_type_size'], None, None, None)
 
         #self.converter = self.data_type_conversions[col['data_type_oid']][1]
         self.converter = self.data_type_conversions[self.type_code][1]

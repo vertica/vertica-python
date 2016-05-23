@@ -240,7 +240,7 @@ cur.nextset()
 
 ## UTF-8 encoding issues
 
-While Vertica expects varchars stored to be UTF-8 encoded, sometimes invalid stirngs get intot the database. You can specify how to handle reading these characters using the unicode_error conneciton option. This uses the same values as the unicode type (https://docs.python.org/2/library/functions.html#unicode)
+While Vertica expects varchars stored to be UTF-8 encoded, sometimes invalid strings get into the database. You can specify how to handle reading these characters using the unicode_error connection option. This uses the same values as the unicode type (https://docs.python.org/2/library/functions.html#unicode)
 
 ```python
 cur = vertica_python.Connection({..., 'unicode_error': 'strict'}).cursor()

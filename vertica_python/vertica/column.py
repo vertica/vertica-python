@@ -116,7 +116,7 @@ class Column(object):
             ('timestamp_tz', timestamp_tz_parse),
             ('interval', None),
             ('time_tz', None),
-            ('numeric', lambda s: Decimal(s)),
+            ('numeric', lambda s: Decimal(str(s, 'utf-8', unicode_error))),
             ('bytea', None),
             ('rle_tuple', None),
         ]

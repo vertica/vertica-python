@@ -130,7 +130,7 @@ class Connection(object):
         return self.socket
 
     def ssl(self):
-        return self.socket is not None and isinstance(ssl.SSLSocket, self.socket)
+        return self.socket is not None and isinstance(self.socket, ssl.SSLSocket)
 
     def opened(self):
         return (self.socket is not None

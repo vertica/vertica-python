@@ -21,7 +21,6 @@ setup(
     install_requires=[
         'python-dateutil>=1.5',
         'pytz',
-        'ordereddict==1.1',
         'future'
     ],
     extras_require={'namedparams': ['psycopg2>=2.5.1']},

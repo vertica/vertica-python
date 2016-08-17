@@ -32,14 +32,22 @@ class Password(FrontendMessage):
         elif self.auth_method == Authentication.CRYPT_PASSWORD:
             return crypt.crypt(self.password, self.options['salt'])
         elif self.auth_method == Authentication.MD5_PASSWORD:
-            m = hashlib.md5()
-            m.update(self.password + self.options['user'])
-            self.password = m.hexdigest()
+            for key in 'user', 'salt':
+                m = hashlib.md5()
+                m.update(self.password + self.options[key])
+                hexdigest = m.hexdigest()
+                if six.PY3:
+                    # In python3 the output of m.hexdigest() is a unicode string,
+                    # so has to be converted to bytes before concat'ing with
+                    # the password bytes.
+                    hexdigest  = bytes(hexdigest, 'ascii')
+                self.password = hexdigest
 
-            m = hashlib.md5()
-            m.update(self.password + self.options['salt'])
-            self.password = m.hexdigest()
-            return 'md5' + self.password
+            prefix = 'md5'
+            if six.PY3:
+                # Same workaround for bytes here.
+                prefix = bytes(prefix, 'ascii')
+            return prefix + self.password
         else:
             raise ValueError("unsupported authentication method: {0}".format(self.auth_method))
 

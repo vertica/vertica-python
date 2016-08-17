@@ -10,15 +10,9 @@ import hashlib
 
 from struct import pack
 
+import six
 from vertica_python.vertica.messages.message import FrontendMessage
 from vertica_python.vertica.messages.backend_messages.authentication import Authentication
-
-
-try:
-    basestring
-    PY3 = False
-except NameError:
-    PY3 = True
 
 
 class Password(FrontendMessage):

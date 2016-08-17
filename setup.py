@@ -10,10 +10,10 @@ opts = ReqOpts(None, 'git')
 # version should use the format 'x.x.x' (instead of 'vx.x.x')
 setup(
     name='vertica-python',
-    version='0.6.5',
+    version='0.6.6',
     description='A native Python client for the Vertica database.',
-    author='Justin Berka, Alex Kim, Kenneth Tran',
-    author_email='justin.berka@gmail.com, alex.kim@uber.com, tran@uber.com',
+    author='Justin Berka, Alex Kim',
+    author_email='justin.berka@gmail.com, alex.kim@uber.com',
     url='https://github.com/uber/vertica-python/',
     keywords="database vertica",
     packages=find_packages(),
@@ -21,7 +21,8 @@ setup(
     install_requires=[
         'python-dateutil>=1.5',
         'pytz',
-        'future'
+        'future',
+        'six>=1.10.0'
     ],
     extras_require={'namedparams': ['psycopg2>=2.5.1']},
     classifiers=[

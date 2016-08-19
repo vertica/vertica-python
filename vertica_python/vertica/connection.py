@@ -106,6 +106,7 @@ class Connection(object):
         host = self.options.get('host')
         port = self.options.get('port')
         raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        raw_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         raw_socket.connect((host, port))
 
         ssl_options = self.options.get('ssl')

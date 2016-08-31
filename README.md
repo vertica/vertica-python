@@ -71,7 +71,7 @@ conn_info = {'host': '127.0.0.1',
              # 10 minutes timeout on queries
              'read_timeout': 600,
              # default throw error on invalid UTF-8 results
-             'unicode_error': 'strict'
+             'unicode_error': 'strict',
              # SSL is disabled by default
              'ssl': False}
 

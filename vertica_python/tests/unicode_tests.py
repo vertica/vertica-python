@@ -26,3 +26,27 @@ class UnicodeTestCase(VerticaTestCase):
             res = cur.fetchone()
 
             assert res[0] == value
+
+    def test_string_query(self):
+        value = u'test'
+        query = u"SELECT '{}'".format(value)
+
+        with connect(**conn_info) as conn:
+            cur = conn.cursor()
+            cur.execute(query)
+            res = cur.fetchone()
+
+            assert res[0] == value
+
+    # this test is broken on python3: see issue #112
+    def test_string_named_parameter_binding(self):
+        key = u'test'
+        value = u'value'
+        query = u"SELECT :{}".format(key)
+
+        with connect(**conn_info) as conn:
+            cur = conn.cursor()
+            cur.execute(query, {key: value})
+            res = cur.fetchone()
+
+            assert res[0] == value

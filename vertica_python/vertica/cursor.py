@@ -54,16 +54,16 @@ class Cursor(object):
 
         if parameters:
             # # optional requirement
+            import six
             from psycopg2.extensions import adapt
 
             if isinstance(parameters, dict):
                 for key in parameters:
                     param = parameters[key]
                     # Make sure adapt() behaves properly
-                    if isinstance(param, str):
-                        v = adapt(param.encode('utf8')).getquoted()
-                    else:
-                        v = adapt(param).getquoted()
+                    if six.PY2:
+                        param = param.encode('utf8')
+                    v = adapt(param).getquoted()
 
                     # Using a regex with word boundary to correctly handle params with similar names
                     # such as :s and :start

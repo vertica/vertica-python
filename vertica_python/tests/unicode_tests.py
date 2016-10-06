@@ -15,17 +15,41 @@ class UnicodeTestCase(VerticaTestCase):
             assert res[0] == value
 
     # this test is broken on python3: see issue #112
-    def test_unicode_named_parameter_binding(self):
-        key = u'\u16a0'
-        value = u'\u16b1'
-        query = u"SELECT :{}".format(key)
+    def test_unicode_list_parameter(self):
+        v1 = u'\u00f1'
+        v2 = 'foo'
+        v3 = 3
+        query = u"SELECT %s, %s, %s"
 
         with connect(**conn_info) as conn:
             cur = conn.cursor()
-            cur.execute(query, {key: value})
+            cur.execute(query, (v1, v2, v3))
             res = cur.fetchone()
 
-            assert res[0] == value
+            assert res[0] == v1
+            assert res[1] == v2
+            assert res[2] == v3
+
+    # this test is broken on python3: see issue #112
+    def test_unicode_named_parameter_binding(self):
+        k1 = u'\u16a0'
+        k2 = 'foo'
+        k3 = 3
+
+        v1 = u'\u16b1'
+        v2 = 'foo'
+        v3 = 3
+
+        query = u"SELECT :{}, :{}, :{}".format(k1, k2, k3)
+
+        with connect(**conn_info) as conn:
+            cur = conn.cursor()
+            cur.execute(query, {k1: v1, k2: v2, k3: v3})
+            res = cur.fetchone()
+
+            assert res[0] == v1
+            assert res[1] == v2
+            assert res[2] == v3
 
     def test_string_query(self):
         value = u'test'
@@ -38,7 +62,6 @@ class UnicodeTestCase(VerticaTestCase):
 
             assert res[0] == value
 
-    # this test is broken on python3: see issue #112
     def test_string_named_parameter_binding(self):
         key = u'test'
         value = u'value'

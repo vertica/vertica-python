@@ -61,7 +61,7 @@ class Cursor(object):
                 for key in parameters:
                     param = parameters[key]
                     # Make sure adapt() behaves properly
-                    if six.PY2:
+                    if self.is_stringy(param) and six.PY2:
                         param = param.encode('utf8')
                     v = adapt(param).getquoted()
 
@@ -71,11 +71,12 @@ class Cursor(object):
                     operation = re.sub(match_str, v.decode('utf-8'), operation, flags=re.UNICODE)
             elif isinstance(parameters, tuple):
                 tlist = []
-                for p in parameters:
-                    if isinstance(p, str):
-                        tlist.append(adapt(p.encode('utf8')).getquoted())
-                    else:
-                        tlist.append(adapt(p).getquoted())
+                for param in parameters:
+                    if self.is_stringy(param) and six.PY2:
+                        param = param.encode('utf8')
+                    v = adapt(param).getquoted()
+                    tlist.append(v.decode('utf-8'))
+
                 operation = operation % tuple(tlist)
             else:
                 raise errors.Error("Argument 'parameters' must be dict or tuple")
@@ -99,6 +100,15 @@ class Cursor(object):
                 break
             else:
                 self.connection.process_message(message)
+
+
+    def is_stringy(self, s):
+        try:
+            # python 2 case
+            return isinstance(s, basestring)
+        except NameError:
+            # python 3 case
+            return isinstance(s, str)
 
     def fetchone(self):
         if isinstance(self._message, messages.DataRow):

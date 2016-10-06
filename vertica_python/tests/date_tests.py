@@ -64,10 +64,10 @@ class TimestampParsingTestCase(VerticaTestCase):
         test_timestamp = '44841-05-05 22:07:58'.encode(encoding='utf-8', errors='strict')
         parsed_timestamp = timestamp_parse(test_timestamp)
         # Assert year was truncated properly
-        self.assertEqual(datetime(year=4841, month=5, day=5, hour=22, minute=7, second=58), parsed_timestamp)
+        self.assertEqual(datetime(year=9999, month=5, day=5, hour=22, minute=7, second=58), parsed_timestamp)
 
     def test_timestamp_with_year_over_9999_and_ms(self):
         test_timestamp = '124841-05-05 22:07:58.000003'.encode(encoding='utf-8', errors='strict')
         parsed_timestamp = timestamp_parse(test_timestamp)
         # Assert year was truncated properly
-        self.assertEqual(datetime(year=4841, month=5, day=5, hour=22, minute=7, second=58, microsecond=3), parsed_timestamp)
+        self.assertEqual(datetime(year=9999, month=5, day=5, hour=22, minute=7, second=58, microsecond=3), parsed_timestamp)

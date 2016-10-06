@@ -43,7 +43,7 @@ def timestamp_parse(s):
         if year_match:
             year = year_match.groups()[0]
             dt = _timestamp_parse_without_year(s[len(year) + 1:])
-            dt = dt.replace(year=int(year) % 10000)
+            dt = dt.replace(year=min(int(year), 9999))
         else:
             raise errors.DataError('Timestamp value not supported: %s' % s)
 

@@ -105,7 +105,7 @@ class Column(object):
             ('pos', None),
             ('record', None),
             ('unknown', None),
-            ('bool', lambda s: str(s, 'utf-8', unicode_error)),
+            ('bool', lambda s: 't' == str(s, 'utf-8', unicode_error)),
             ('integer', lambda s: int(s)),
             ('float', lambda s: float(s)),
             ('char', lambda s: str(s, 'utf-8', unicode_error)),

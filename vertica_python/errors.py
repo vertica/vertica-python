@@ -137,6 +137,10 @@ class DuplicateObject(QueryError):
     pass
 
 
+class QueryCanceled(QueryError):
+    pass
+
+
 QUERY_ERROR_CLASSES = {
     b'55V03': LockFailure,
     b'53000': InsufficientResources,
@@ -148,5 +152,6 @@ QUERY_ERROR_CLASSES = {
     b'22V04': CopyRejected,
     b'42501': PermissionDenied,
     b'22007': InvalidDatetimeFormat,
-    b'42710': DuplicateObject
+    b'42710': DuplicateObject,
+    b'57014': QueryCanceled
 }

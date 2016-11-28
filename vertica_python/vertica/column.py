@@ -105,7 +105,7 @@ class Column(object):
             ('pos', None),
             ('record', None),
             ('unknown', None),
-            ('bool', lambda s: s == 't'),
+            ('bool', lambda s: 't' == str(s, 'utf-8', unicode_error)),
             ('integer', lambda s: int(s)),
             ('float', lambda s: float(s)),
             ('char', lambda s: str(s, 'utf-8', unicode_error)),
@@ -122,7 +122,7 @@ class Column(object):
         ]
 
     @property
-    def data_types():
+    def data_types(self):
         return map(lambda x: x[0], Column.data_type_conversions())
 
     def __init__(self, col, unicode_error=None):

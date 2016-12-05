@@ -54,6 +54,7 @@ http://tox.readthedocs.io
 
 Edit `tox.ini` envlist property to list the version(s) of python you have installed
 
+Run tox:
 ```bash
 tox
 ```

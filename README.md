@@ -40,20 +40,23 @@ Source code for vertica-python can be found at:
 
 ## Run unit tests
 
-To run the tests, you must have access to a Vertica database. You can
-spin one up with Vagrant that uses the default credentials using
-`vagrant up`. If you want to run it against an existing database
-instead; you can set the environment variables seen in
-`tests/test_commons.py`.
+To run the tests, you must have access to a Vertica database. Heres one way to go about it:
 
-Assuming you have [tox](http://tox.readthedocs.io/) installed, all you
-have to do is run `tox`. It will run the unit tests using both python 2 and 3.
+Download docker kitematic:
+https://kitematic.com/
 
-If you run into an error like:
-```ERROR: InterpreterNotFound: python3.4```
+Spin up a vertica container (i use sumitchawla/vertica)
 
-Edit the envlist property of tox.ini to use the version of python you have installed (eg py35)
+Edit the port number in `tests/test_commons.py` to match the container.
 
+Install tox:
+http://tox.readthedocs.io
+
+Edit `tox.ini` envlist property to list the version(s) of python you have installed
+
+```bash
+tox
+```
 
 ## Usage
 

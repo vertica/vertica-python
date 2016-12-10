@@ -33,6 +33,7 @@ class DateParsingTestCase(VerticaTestCase):
         self._assert_date('2000-01-01 AD', 'YYYY-MM-DD BC', date(2000, 1, 1))
         self._assert_date('2000-01-01 AD', 'YYYY-MM-DD AD', date(2000, 1, 1))
         self._assert_date('2000-01-01', 'YYYY-MM-DD', date(2000, 1, 1))
+        self._assert_date('10000-01-01', 'YYYY-MM-DD', date(9999, 1, 1))
 
     def test_before_christ_bc_indicator(self):
         try:
@@ -49,6 +50,7 @@ class DateParsingTestCase(VerticaTestCase):
             self.fail("Expected to see NotSupportedError when Before Christ date is encountered. Got: " + str(res))
         except errors.NotSupportedError:
             pass
+
 
 
 class TimestampParsingTestCase(VerticaTestCase):

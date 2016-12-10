@@ -84,7 +84,8 @@ def date_parse(s):
     if s.endswith(b' BC'):
         raise errors.NotSupportedError('Dates Before Christ are not supported. Got: ' + str(s, 'utf-8'))
 
-    return date(*map(lambda x: int(x), s.split(b'-')))
+    # Value error, year might be over 9999
+    return date(*map(lambda x: min(int(x), 9999), s.split(b'-')))
 
 ColumnTuple = namedtuple(
     'Column',

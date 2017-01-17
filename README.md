@@ -24,6 +24,10 @@ If you're using pip >= 1.4 and you don't already have pytz installed:
 
     pip install --pre pytz
 
+If you're using pip >= 1.4 and you don't already have python-dateutil installed:
+
+    pip install --pre python-dateutil
+
 To install vertica-python with pip:
 
     pip install vertica-python

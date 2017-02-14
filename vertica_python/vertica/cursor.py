@@ -1,17 +1,24 @@
-
-
-import re
+import csv
 import logging
-
+import re
 from collections import OrderedDict
+from csv import DictWriter, writer
+from io import BytesIO
+
 from builtins import str
 
 import vertica_python.errors as errors
-
 import vertica_python.vertica.messages as messages
 from vertica_python.vertica.column import Column
 
 logger = logging.getLogger('vertica')
+
+IDENTIFIER = r"[a-zA-Z_][a-zA-Z0-9_$]*"
+SIMPLE_INSERT_STATEMENT = (r"^\s*INSERT\s+INTO\s+"
+                           r"(?P<dest>((?P<schema>%(id)s)\.)?(?P<table>%(id)s))\s+"
+                           r"\((?P<fields>\s*(%(id)s)(\s*,\s*(%(id)s))*\s*)\)\s+"
+                           r"VALUES\s+\(.*\)\s*$") % {'id': IDENTIFIER}
+
 
 class Cursor(object):
     def __init__(self, connection, cursor_type=None, unicode_error='strict'):
@@ -46,40 +53,43 @@ class Cursor(object):
     def close(self):
         self._closed = True
 
+    def _apply_params(self, operation, parameters=None):
+        if parameters:
+            # # optional requirement
+            from six import u, b, string_types, iteritems
+            from psycopg2.extensions import adapt
+
+            if isinstance(parameters, dict):
+                for key, param in iteritems(parameters):
+                    # Make sure adapt() behaves properly
+                    if isinstance(param, string_types):
+                        param = b(param)
+                    v = adapt(param).getquoted()
+
+                    # Using a regex with word boundary to correctly handle params with similar names
+                    # such as :s and :start
+                    match_str = u':%s\\b' % str(key)
+                    operation = re.sub(match_str, u(v), operation, flags=re.UNICODE)
+            elif isinstance(parameters, tuple):
+                tlist = []
+                for param in parameters:
+                    if isinstance(param, string_types):
+                        param = b(param)
+                    v = adapt(param).getquoted()
+                    tlist.append(u(v))
+                operation = operation % tuple(tlist)
+            else:
+                raise errors.Error("Argument 'parameters' must be dict or tuple")
+
+        return operation
+
     def execute(self, operation, parameters=None):
         if self.closed():
             raise errors.Error('Cursor is closed')
 
         self.flush_to_query_ready()
 
-        if parameters:
-            # # optional requirement
-            import six
-            from psycopg2.extensions import adapt
-
-            if isinstance(parameters, dict):
-                for key in parameters:
-                    param = parameters[key]
-                    # Make sure adapt() behaves properly
-                    if self.is_stringy(param) and six.PY2:
-                        param = param.encode('utf8')
-                    v = adapt(param).getquoted()
-
-                    # Using a regex with word boundary to correctly handle params with similar names
-                    # such as :s and :start
-                    match_str = u':%s\\b' % str(key)
-                    operation = re.sub(match_str, v.decode('utf-8'), operation, flags=re.UNICODE)
-            elif isinstance(parameters, tuple):
-                tlist = []
-                for param in parameters:
-                    if self.is_stringy(param) and six.PY2:
-                        param = param.encode('utf8')
-                    v = adapt(param).getquoted()
-                    tlist.append(v.decode('utf-8'))
-
-                operation = operation % tuple(tlist)
-            else:
-                raise errors.Error("Argument 'parameters' must be dict or tuple")
+        operation = self._apply_params(operation, parameters=parameters)
 
         self.rowcount = -1
 
@@ -93,7 +103,8 @@ class Cursor(object):
             if isinstance(message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(message, operation)
             elif isinstance(message, messages.RowDescription):
-                self.description = list(map(lambda fd: Column(fd, self.unicode_error), message.fields))
+                self.description = list(
+                    map(lambda fd: Column(fd, self.unicode_error), message.fields))
             elif isinstance(message, messages.DataRow):
                 break
             elif isinstance(message, messages.ReadyForQuery):
@@ -101,14 +112,41 @@ class Cursor(object):
             else:
                 self.connection.process_message(message)
 
+    def executemany(self, operation, parameters=None):
+        if not isinstance(parameters, tuple):
+            raise errors.Error("Argument 'parameters' must be tuple")
+
+        m = re.match(SIMPLE_INSERT_STATEMENT, operation, flags=re.I)
+        if m:
+            if isinstance(parameters[0], dict):
+                writer_cls = DictWriter
+            elif isinstance(parameters[0], tuple):
+                writer_cls = writer
+            else:
+                raise errors.Error("Argument 'parameters' must be tuple of dict/tuple")
+
+            table_name = m.group('table')
+            schema = m.group('schema')
+            fields = tuple([field.strip() for field in m.group("fields").split(",")])
+            copy_sql = self._gen_copy_sql(table_name=table_name, schema=schema, fields=fields)
+
+            with BytesIO() as fs:
+                csv_writer = writer_cls(fs, fieldnames=fields, extrasaction='raise',
+                                        quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
+                csv_writer.writerows(parameters)
+                data = fs.getvalue()
+
+            self.copy(sql=copy_sql, data=data)
+
+        else:
+            operations = []
+            for params in parameters:
+                operations.append(self._apply_params(operation, parameters=params))
+            self.execute(";\n".join(operations))
 
     def is_stringy(self, s):
-        try:
-            # python 2 case
-            return isinstance(s, basestring)
-        except NameError:
-            # python 3 case
-            return isinstance(s, str)
+        from six import string_types
+        return isinstance(s, string_types)
 
     def fetchone(self):
         if isinstance(self._message, messages.DataRow):
@@ -166,13 +204,13 @@ class Cursor(object):
             elif isinstance(self._message, messages.ReadyForQuery):
                 return None
             else:
-                raise errors.Error('Unexpected nextset() state after CommandComplete: ' + str(self._message))
+                raise errors.Error(
+                    'Unexpected nextset() state after CommandComplete: ' + str(self._message))
         elif isinstance(self._message, messages.ReadyForQuery):
             # no more sets left to be read
             return None
         else:
             raise errors.Error('Unexpected nextset() state: ' + str(self._message))
-
 
     def setinputsizes(self):
         pass
@@ -185,8 +223,8 @@ class Cursor(object):
     #
     def flush_to_query_ready(self):
         # if the last message isnt empty or ReadyForQuery, read all remaining messages
-        if(self._message is None
-           or isinstance(self._message, messages.ReadyForQuery)):
+        if (self._message is None
+            or isinstance(self._message, messages.ReadyForQuery)):
             return
 
         while True:
@@ -198,9 +236,9 @@ class Cursor(object):
 
     def flush_to_command_complete(self):
         # if the last message isnt empty or CommandComplete, read messages until it is
-        if(self._message is None
-           or isinstance(self._message, messages.ReadyForQuery)
-           or isinstance(self._message, messages.CommandComplete)):
+        if (self._message is None
+            or isinstance(self._message, messages.ReadyForQuery)
+            or isinstance(self._message, messages.CommandComplete)):
             return
 
         while True:
@@ -209,14 +247,32 @@ class Cursor(object):
                 self._message = message
                 break
 
+    def _gen_copy_sql(self, table_name, fields, schema=None, delimiter=",", quotechar='"',
+                      **kwargs):
+        destination = ("%(schema)s.%(table)s" if schema is not None else "%(table)s") % \
+                      {"schema": schema, "table": table_name}
+        sql = "COPY %(destination)s (%(fields)s) FROM STDIN" % {"destination": destination,
+                                                                'fields': ",".join(fields)}
+        if delimiter:
+            sql += " DELIMITER '%(delimiter)s'" % {'delimiter': delimiter}
+        if quotechar:
+            quotechar = quotechar.replace(r"'", r"\'")
+            sql += " ENCLOSED BY '%(quotechar)s'" % {'quotechar': quotechar}
 
-    # example:
-    #
-    # with open("/tmp/file.csv", "rb") as fs:
-    #   cursor.copy("COPY table(field1,field2) FROM STDIN DELIMITER ',' ENCLOSED BY '\"'", fs, buffer_size=65536)
-    #
+        return sql
 
     def copy(self, sql, data, **kwargs):
+        """Copies data from a buffer to
+
+        Example:
+        >> with open("/tmp/file.csv", "rb") as fs:
+        >>     cursor.copy("COPY table(field1,field2) FROM STDIN DELIMITER ',' ENCLOSED BY '\"'",
+        >>                 fs, buffer_size=65536)
+
+        :param sql: copy query.
+        :param data: string or stream to read data from.
+        :param kwargs: additional named arguments.
+        """
 
         if self.closed():
             raise errors.Error('Cursor is closed')
@@ -236,7 +292,7 @@ class Cursor(object):
                 break
             elif isinstance(message, messages.CopyInResponse):
 
-                #write stuff
+                # write stuff
                 if not hasattr(data, "read"):
                     self.connection.write(messages.CopyData(data))
                 else:

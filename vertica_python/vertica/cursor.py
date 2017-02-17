@@ -13,7 +13,7 @@ from vertica_python.vertica.column import Column
 
 logger = logging.getLogger('vertica')
 
-IDENTIFIER = r"[a-zA-Z_][a-zA-Z0-9_$]*"
+IDENTIFIER = r"([a-zA-Z_][a-zA-Z0-9_$]*)|(\"[a-zA-Z_][a-zA-Z0-9_$]*\")"
 SIMPLE_INSERT_STATEMENT = (r"^\s*INSERT\s+INTO\s+"
                            r"(?P<dest>((?P<schema>%(id)s)\.)?(?P<table>%(id)s))\s+"
                            r"\((?P<fields>\s*(%(id)s)(\s*,\s*(%(id)s))*\s*)\)\s+"

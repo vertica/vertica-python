@@ -127,7 +127,7 @@ class Cursor(object):
 
             table_name = m.group('table')
             schema = m.group('schema')
-            fields = tuple([field.strip() for field in m.group("fields").split(",")])
+            fields = tuple([field.strip().strip('"') for field in m.group("fields").split(",")])
             copy_sql = self._gen_copy_sql(table_name=table_name, schema=schema, fields=fields)
 
             with BytesIO() as fs:
@@ -249,10 +249,13 @@ class Cursor(object):
 
     def _gen_copy_sql(self, table_name, fields, schema=None, delimiter=",", quotechar='"',
                       **kwargs):
-        destination = ("%(schema)s.%(table)s" if schema is not None else "%(table)s") % \
-                      {"schema": schema, "table": table_name}
-        sql = "COPY %(destination)s (%(fields)s) FROM STDIN" % {"destination": destination,
-                                                                'fields': ",".join(fields)}
+
+        fields = [field if field.startswith('"') else '"%s"' % field for field in fields]
+        destination = \
+            ("%(schema)s.%(table)s" if schema is not None else "%(table)s") \
+            % {"schema": schema, "table": table_name}
+        sql = "COPY %(destination)s (%(fields)s) FROM LOCAL STDIN" \
+              % {"destination": destination, 'fields': ",".join(fields)}
         if delimiter:
             sql += " DELIMITER '%(delimiter)s'" % {'delimiter': delimiter}
         if quotechar:

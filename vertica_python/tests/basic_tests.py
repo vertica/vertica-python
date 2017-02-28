@@ -409,3 +409,15 @@ class TestVerticaPython(unittest.TestCase):
 
         # no more data sets
         assert cur.nextset() is None
+
+    # unit test for #144
+    def test_empty_query(self):
+
+        conn = vertica_python.connect(**conn_info)
+        cur = conn.cursor()
+        init_table(cur)
+
+        cur.execute("")
+        res = cur.fetchall()
+
+        assert 0 == len(res)

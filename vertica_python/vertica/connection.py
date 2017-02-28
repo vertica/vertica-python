@@ -215,6 +215,8 @@ class Connection(object):
             #if hasattr(message, 'rows'):
             #    self.cursor.rowcount = message.rows
             pass
+        elif isinstance(message, messages.EmptyQueryResponse):
+            pass
         elif isinstance(message, messages.CopyInResponse):
             pass
         else:

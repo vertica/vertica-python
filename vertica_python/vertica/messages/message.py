@@ -45,7 +45,7 @@ class BackendMessage(Message):
         if klass is not None:
             return klass(data)
         else:
-            return messages.Unknown(type_, data)
+            return Unknown(type_, data)
 
     @classmethod
     def _message_id(cls, message_id):

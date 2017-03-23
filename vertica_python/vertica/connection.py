@@ -105,8 +105,11 @@ class Connection(object):
 
         host = self.options.get('host')
         port = self.options.get('port')
+        connection_timeout = self.options.get('connection_timeout')
         raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         raw_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        if connection_timeout is not None:
+            raw_socket.settimeout(connection_timeout)
         raw_socket.connect((host, port))
 
         ssl_options = self.options.get('ssl')

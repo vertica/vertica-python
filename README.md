@@ -81,7 +81,9 @@ conn_info = {'host': '127.0.0.1',
              # default throw error on invalid UTF-8 results
              'unicode_error': 'strict',
              # SSL is disabled by default
-             'ssl': False}
+             'ssl': False,
+             'connection_timeout': 5
+             # connection timeout is not enabled by default}
 
 # simple connection, with manual close
 connection = vertica_python.connect(**conn_info)

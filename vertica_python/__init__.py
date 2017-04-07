@@ -1,6 +1,10 @@
-
-
 from vertica_python.vertica.connection import Connection
+
+# Importing exceptions for compatibility with dbapi 2.0.
+# See: PEP 249 - Python Database API 2.0
+#      https://www.python.org/dev/peps/pep-0249/#exceptions
+from vertica_python.errors import DataError, DatabaseError, Error, IntegrityError, InterfaceError, \
+    InternalError, NotSupportedError, OperationalError, ProgrammingError, Warning
 
 
 # Main module for this library.
@@ -16,7 +20,6 @@ __license__ = 'MIT'
 
 # The protocol version (3.0.0) implemented in this library.
 PROTOCOL_VERSION = 3 << 16
-
 
 apilevel = 2.0
 

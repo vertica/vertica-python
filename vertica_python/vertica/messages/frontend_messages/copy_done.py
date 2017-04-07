@@ -1,10 +1,7 @@
+from __future__ import print_function, division, absolute_import
 
-
-from vertica_python.vertica.messages.message import FrontendMessage
+from ..message import FrontendMessage
 
 
 class CopyDone(FrontendMessage):
-    pass
-
-
-CopyDone._message_id(b'c')
+    message_id = b'c'

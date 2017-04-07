@@ -1,14 +1,12 @@
-
+from __future__ import print_function, division, absolute_import
 
 from struct import pack
 
-from vertica_python.vertica.messages.message import FrontendMessage
+from ..message import FrontendMessage
 
 
 class SslRequest(FrontendMessage):
+    message_id = None
 
     def to_bytes(self):
         return self.message_string(pack('!I', 80877103))
-
-
-SslRequest._message_id(None)

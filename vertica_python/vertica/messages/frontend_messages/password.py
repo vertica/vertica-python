@@ -1,23 +1,28 @@
-
+from __future__ import print_function, division, absolute_import
 
 import os
+import hashlib
+from struct import pack
+
+import six
+
+from ..message import FrontendMessage
+from ..backend_messages.authentication import Authentication
 
 if os.name == 'nt':
     from . import crypt_windows as crypt
 else:
     import crypt
-import hashlib
 
-from struct import pack
-
-import six
-from vertica_python.vertica.messages.message import FrontendMessage
-from vertica_python.vertica.messages.backend_messages.authentication import Authentication
+ASCII = 'ascii'
 
 
 class Password(FrontendMessage):
+    message_id = b'p'
 
     def __init__(self, password, auth_method=None, options=None):
+        FrontendMessage.__init__(self)
+
         self.password = password
         self.options = options or {}
         if auth_method is not None:
@@ -40,13 +45,13 @@ class Password(FrontendMessage):
                     # In python3 the output of m.hexdigest() is a unicode string,
                     # so has to be converted to bytes before concat'ing with
                     # the password bytes.
-                    hexdigest  = bytes(hexdigest, 'ascii')
+                    hexdigest = bytes(hexdigest, ASCII)
                 self.password = hexdigest
 
             prefix = 'md5'
             if six.PY3:
                 # Same workaround for bytes here.
-                prefix = bytes(prefix, 'ascii')
+                prefix = bytes(prefix, ASCII)
             return prefix + self.password
         else:
             raise ValueError("unsupported authentication method: {0}".format(self.auth_method))
@@ -54,6 +59,3 @@ class Password(FrontendMessage):
     def to_bytes(self):
         encoded_pw = self.encoded_password()
         return self.message_string(pack('{0}sx'.format(len(encoded_pw)), encoded_pw))
-
-
-Password._message_id(b'p')

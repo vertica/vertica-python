@@ -1,11 +1,12 @@
-
+from __future__ import print_function, division, absolute_import
 
 from struct import unpack
 
-from vertica_python.vertica.messages.message import BackendMessage
+from ..message import BackendMessage
 
 
 class Authentication(BackendMessage):
+    message_id = b'R'
 
     OK = 0
     KERBEROS_V5 = 2
@@ -18,6 +19,7 @@ class Authentication(BackendMessage):
     SSPI = 9
 
     def __init__(self, data):
+        BackendMessage.__init__(self)
         unpacked = unpack('!I{0}s'.format(len(data) - 4), data)
         self.code = unpacked[0]
         other = unpacked[1::][0]
@@ -27,4 +29,4 @@ class Authentication(BackendMessage):
             self.auth_data = other
 
 
-Authentication._message_id(b'R')
+BackendMessage.register(Authentication)

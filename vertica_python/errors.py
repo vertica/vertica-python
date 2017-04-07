@@ -1,16 +1,17 @@
+from __future__ import print_function, division, absolute_import
 
-
-import sys
-if sys.version_info < (3,):
-    import exceptions
 import re
 
 
-class Error(Exception):
+#############################################
+# dbapi errors
+#############################################
+class Error(StandardError):
     pass
 
 
-class Warning(Exception):
+# noinspection PyShadowingBuiltins
+class Warning(StandardError):
     pass
 
 
@@ -75,9 +76,9 @@ class QueryError(ProgrammingError):
     def __init__(self, error_response, sql):
         self.error_response = error_response
         self.sql = sql
-        super(QueryError, self).__init__("{0}, SQL: {1}".format(
-            error_response.error_message(), repr(self.one_line_sql()))
-        )
+        ProgrammingError.__init__(self,
+                                  "{0}, SQL: {1}".format(error_response.error_message(),
+                                                         repr(self.one_line_sql())))
 
     def one_line_sql(self):
         if self.sql:

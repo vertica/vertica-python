@@ -126,9 +126,9 @@ class Connection:
                     else:
                         raw_socket = ssl.wrap_socket(raw_socket)
                 except CertificateError as e:
-                    raise errors.ConnectionError('SSL: %s' % (e.message,))
+                    raise errors.ConnectionError('SSL: %s' % (e,))
                 except SSLError as e:
-                    raise errors.ConnectionError('SSL: %s' % (e.message,))
+                    raise errors.ConnectionError('SSL: %s' % (e,))
             else:
                 raise SSLNotSupported("SSL requested but not supported by server")
 

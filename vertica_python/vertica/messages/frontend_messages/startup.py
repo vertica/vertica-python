@@ -9,38 +9,39 @@ from struct import pack
 from six.moves.builtins import str
 
 import vertica_python
-from ..message import FrontendMessage
+from ..message import BulkFrontendMessage
 
 ASCII = 'ascii'
 
 
-class Startup(FrontendMessage):
+class Startup(BulkFrontendMessage):
     message_id = None
 
     def __init__(self, user, database, options=None):
-        FrontendMessage.__init__(self)
+        BulkFrontendMessage.__init__(self)
 
-        self.user = user
-        self.database = database
-        self.options = options
-        self.type = b'vertica-python'
-        self.version = vertica_python.__version__.encode(ASCII)
-        self.platform = platform.platform().encode(ASCII)
-        self.pid = '{0}'.format(os.getpid()).encode(ASCII)
-        self.label = self.type + b'-' + self.version + b'-' + str(uuid.uuid1()).encode(ASCII)
+        self._user = user
+        self._database = database
+        self._options = options
+        self._type = b'vertica-python'
+        self._version = vertica_python.__version__.encode(ASCII)
+        self._platform = platform.platform().encode(ASCII)
+        self._pid = '{0}'.format(os.getpid()).encode(ASCII)
+        self._label = self._type + b'-' + self._version + b'-' + str(uuid.uuid1()).encode(ASCII)
 
-    def to_bytes(self):
-        startstr = pack('!I', vertica_python.PROTOCOL_VERSION)
-        if self.user is not None:
-            startstr += pack('4sx{0}sx'.format(len(self.user)), b'user', self.user)
-        if self.database is not None:
-            startstr += pack('8sx{0}sx'.format(len(self.database)), b'database', self.database)
-        if self.options is not None:
-            startstr += pack('7sx{0}sx'.format(len(self.options)), b'options', self.options)
-        startstr += pack('12sx{0}sx'.format(len(self.label)), b'client_label', self.label)
-        startstr += pack('11sx{0}sx'.format(len(self.type)), b'client_type', self.type)
-        startstr += pack('14sx{0}sx'.format(len(self.version)), b'client_version', self.version)
-        startstr += pack('9sx{0}sx'.format(len(self.platform)), b'client_os', self.platform)
-        startstr += pack('10sx{0}sx'.format(len(self.pid)), b'client_pid', self.pid)
-        startstr += pack('x')
-        return self.message_string(startstr)
+    def read_bytes(self):
+        bytes_ = pack('!I', vertica_python.PROTOCOL_VERSION)
+        if self._user is not None:
+            bytes_ += pack('4sx{0}sx'.format(len(self._user)), b'user', self._user)
+        if self._database is not None:
+            bytes_ += pack('8sx{0}sx'.format(len(self._database)), b'database', self._database)
+        if self._options is not None:
+            bytes_ += pack('7sx{0}sx'.format(len(self._options)), b'options', self._options)
+        bytes_ += pack('12sx{0}sx'.format(len(self._label)), b'client_label', self._label)
+        bytes_ += pack('11sx{0}sx'.format(len(self._type)), b'client_type', self._type)
+        bytes_ += pack('14sx{0}sx'.format(len(self._version)), b'client_version', self._version)
+        bytes_ += pack('9sx{0}sx'.format(len(self._platform)), b'client_os', self._platform)
+        bytes_ += pack('10sx{0}sx'.format(len(self._pid)), b'client_pid', self._pid)
+        bytes_ += pack('x')
+
+        return bytes_

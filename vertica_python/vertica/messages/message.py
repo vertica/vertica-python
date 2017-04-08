@@ -1,11 +1,14 @@
 from __future__ import print_function, division, absolute_import
 
+from abc import ABCMeta
 from struct import pack
 
 from ..messages import *
 
 
 class Message:
+    __metaclass__ = ABCMeta
+
     def __init__(self):
         pass
 
@@ -13,7 +16,7 @@ class Message:
     def message_id(self):
         raise NotImplementedError("no default message_id")
 
-    def message_string(self, msg):
+    def _bytes_to_message(self, msg):
 
         if isinstance(msg, list):
             msg = ''.join(msg)
@@ -32,12 +35,12 @@ class Message:
         return msg_with_size
 
 
-# noinspection PyAbstractClass
 class BackendMessage(Message):
+    __metaclass__ = ABCMeta
     _message_id_map = {}
 
     @classmethod
-    def factory(cls, type_, data):
+    def from_type(cls, type_, data):
         klass = cls._message_id_map.get(type_)
         if klass is not None:
             return klass(data)
@@ -55,7 +58,37 @@ class BackendMessage(Message):
         BackendMessage._message_id_map[cls.message_id] = cls
 
 
-# noinspection PyAbstractClass
 class FrontendMessage(Message):
-    def to_bytes(self):
-        return self.message_string(b'')
+    __metaclass__ = ABCMeta
+
+    def fetch_message(self):
+        raise NotImplementedError("fetch_bytes has no default implementation")
+
+
+class BulkFrontendMessage(FrontendMessage):
+    __metaclass__ = ABCMeta
+
+    def read_bytes(self):
+        return b''
+
+    def get_message(self):
+        bytes_ = self.read_bytes()
+        return self._bytes_to_message(bytes_)
+
+    def fetch_message(self):
+        yield self.get_message()
+
+
+class StreamFrontendMessage(FrontendMessage):
+    __metaclass__ = ABCMeta
+
+    def stream_bytes(self):
+        raise NotImplementedError("stream_bytes has no default implementation")
+
+    def stream_message(self):
+        for bytes_ in self.stream_bytes():
+            yield self._bytes_to_message(bytes_)
+
+    def fetch_message(self):
+        for message in self.stream_message():
+            yield message

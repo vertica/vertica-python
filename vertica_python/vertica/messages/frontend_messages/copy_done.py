@@ -1,7 +1,8 @@
 from __future__ import print_function, division, absolute_import
 
-from ..message import FrontendMessage
+from ..message import BulkFrontendMessage
 
 
-class CopyDone(FrontendMessage):
+class CopyDone(BulkFrontendMessage):
     message_id = b'c'
+

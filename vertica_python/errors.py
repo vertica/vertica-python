@@ -6,12 +6,12 @@ import re
 #############################################
 # dbapi errors
 #############################################
-class Error(StandardError):
+class Error(Exception):
     pass
 
 
 # noinspection PyShadowingBuiltins
-class Warning(StandardError):
+class Warning(Exception):
     pass
 
 

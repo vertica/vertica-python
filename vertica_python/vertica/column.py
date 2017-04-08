@@ -6,15 +6,12 @@ from datetime import date, datetime
 from decimal import Decimal
 
 import pytz
-# noinspection PyUnresolvedReferences
-from six.moves.builtins import str
 from dateutil import parser
 
 from vertica_python import errors
+from .utils import s2u, s2b
 
 YEARS_RE = re.compile(r"^([0-9]+)-")
-
-UTF_8 = 'utf-8'
 
 
 # these methods are bad...
@@ -36,7 +33,7 @@ UTF_8 = 'utf-8'
 # timestamptz type stores: 2013-01-01 05:00:00.01+00
 #       select t AT TIMEZONE 'America/New_York' returns: 2012-12-31 19:00:00.01
 def timestamp_parse(s):
-    s = str(s).decode(encoding=UTF_8)
+    s = s2b(s)
     try:
         dt = _timestamp_parse(s)
     except ValueError:
@@ -65,7 +62,7 @@ def _timestamp_parse_without_year(s):
 
 
 def timestamp_tz_parse(s):
-    s = str(s).decode(encoding=UTF_8)
+    s = s2b(s)
     # if timezone is simply UTC...
     if s.endswith('+00'):
         # remove time zone
@@ -83,12 +80,13 @@ def date_parse(s):
     :return: an instance of datetime.date
     :raises NotSupportedError when a date Before Christ is encountered
     """
-    if s.endswith(b' BC'):
+    s = s2u(s)
+    if s.endswith(' BC'):
         raise errors.NotSupportedError(
-            'Dates Before Christ are not supported. Got: ' + str(s, UTF_8))
+            'Dates Before Christ are not supported. Got: ' + s)
 
     # Value error, year might be over 9999
-    return date(*map(lambda x: min(int(x), 9999), s.split(b'-')))
+    return date(*map(lambda x: min(int(x), 9999), s.split('-')))
 
 
 ColumnTuple = namedtuple('Column', ['name', 'type_code', 'display_size', 'internal_size',
@@ -97,7 +95,7 @@ ColumnTuple = namedtuple('Column', ['name', 'type_code', 'display_size', 'intern
 
 class Column:
     def __init__(self, col, unicode_error=None):
-        self.name = col['name'].decode()
+        self.name = s2u(col['name'])
         self.type_code = col['data_type_oid']
         self.display_size = None
         self.internal_size = col['data_type_size']
@@ -142,18 +140,19 @@ class Column:
             ('pos', None),
             ('record', None),
             ('unknown', None),
-            ('bool', lambda s: 't' == str(s).decode(encoding=UTF_8, errors=unicode_error)),
+            ('bool', lambda s: 't' == s2u(s, unicode_error)),
             ('integer', lambda s: int(s)),
             ('float', lambda s: float(s)),
-            ('char', lambda s: str(s).decode(encoding=UTF_8, errors=unicode_error)),
-            ('varchar', lambda s: str(s).decode(encoding=UTF_8, errors=unicode_error)),
+            ('char', lambda s: s2u(s, unicode_error)),
+            ('varchar', lambda s: s2u(s, unicode_error)),
             ('date', date_parse),
             ('time', None),
             ('timestamp', timestamp_parse),
             ('timestamp_tz', timestamp_tz_parse),
             ('interval', None),
             ('time_tz', None),
-            ('numeric', lambda s: Decimal(str(s).decode(encoding=UTF_8, errors=unicode_error))),
+            ('numeric',
+             lambda s: Decimal(s2u(s, unicode_error))),
             ('bytea', None),
             ('rle_tuple', None),
         ]
@@ -171,7 +170,7 @@ class Column:
         return self.props.__str__()
 
     def __unicode__(self):
-        return str(self.props.__str__())
+        return s2u(self.props.__str__())
 
     def __repr__(self):
         return self.props.__str__()

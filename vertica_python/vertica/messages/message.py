@@ -35,6 +35,7 @@ class Message:
         return msg_with_size
 
 
+# noinspection PyAbstractClass
 class BackendMessage(Message):
     __metaclass__ = ABCMeta
     _message_id_map = {}
@@ -58,6 +59,7 @@ class BackendMessage(Message):
         BackendMessage._message_id_map[cls.message_id] = cls
 
 
+# noinspection PyAbstractClass
 class FrontendMessage(Message):
     __metaclass__ = ABCMeta
 
@@ -65,6 +67,7 @@ class FrontendMessage(Message):
         raise NotImplementedError("fetch_bytes has no default implementation")
 
 
+# noinspection PyAbstractClass
 class BulkFrontendMessage(FrontendMessage):
     __metaclass__ = ABCMeta
 
@@ -79,6 +82,7 @@ class BulkFrontendMessage(FrontendMessage):
         yield self.get_message()
 
 
+# noinspection PyAbstractClass
 class StreamFrontendMessage(FrontendMessage):
     __metaclass__ = ABCMeta
 

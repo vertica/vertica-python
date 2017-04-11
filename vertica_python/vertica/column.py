@@ -1,18 +1,21 @@
+from __future__ import print_function, division, absolute_import
 
-
-from collections import namedtuple
 import re
-
-from builtins import str
+from collections import namedtuple
+from datetime import date, datetime
 from decimal import Decimal
-from datetime import date
-from datetime import datetime
-from dateutil import parser
-from vertica_python import errors
 
 import pytz
+# noinspection PyCompatibility,PyUnresolvedReferences
+from builtins import str
+from dateutil import parser
 
-years_re = re.compile(r'^([0-9]+)-')
+from .. import errors
+from ..compat import as_str, as_text
+
+YEARS_RE = re.compile(r"^([0-9]+)-")
+
+UTF_8 = 'utf-8'
 
 
 # these methods are bad...
@@ -34,12 +37,12 @@ years_re = re.compile(r'^([0-9]+)-')
 # timestamptz type stores: 2013-01-01 05:00:00.01+00
 #       select t AT TIMEZONE 'America/New_York' returns: 2012-12-31 19:00:00.01
 def timestamp_parse(s):
-    s = str(s, 'utf-8')
+    s = as_str(s)
     try:
         dt = _timestamp_parse(s)
     except ValueError:
         # Value error, year might be over 9999
-        year_match = years_re.match(s)
+        year_match = YEARS_RE.match(s)
         if year_match:
             year = year_match.groups()[0]
             dt = _timestamp_parse_without_year(s[len(year) + 1:])
@@ -63,11 +66,11 @@ def _timestamp_parse_without_year(s):
 
 
 def timestamp_tz_parse(s):
-    s = str(s, 'utf-8')
-    # if timezome is simply UTC...
+    s = as_str(s)
+    # if timezone is simply UTC...
     if s.endswith('+00'):
         # remove time zone
-        ts = timestamp_parse(s[:-3].encode(encoding='utf-8', errors='strict'))
+        ts = timestamp_parse(s[:-3].encode(encoding=UTF_8, errors='strict'))
         ts = ts.replace(tzinfo=pytz.UTC)
         return ts
     # other wise do a real parse (slower)
@@ -81,51 +84,19 @@ def date_parse(s):
     :return: an instance of datetime.date
     :raises NotSupportedError when a date Before Christ is encountered
     """
-    if s.endswith(b' BC'):
-        raise errors.NotSupportedError('Dates Before Christ are not supported. Got: ' + str(s, 'utf-8'))
+    s = as_str(s)
+    if s.endswith(' BC'):
+        raise errors.NotSupportedError('Dates Before Christ are not supported. Got: {0}'.format(s))
 
     # Value error, year might be over 9999
-    return date(*map(lambda x: min(int(x), 9999), s.split(b'-')))
+    return date(*map(lambda x: min(int(x), 9999), s.split('-')))
 
-ColumnTuple = namedtuple(
-    'Column',
-    ['name', 'type_code', 'display_size', 'internal_size',
-     'precision', 'scale', 'null_ok']
-)
+
+ColumnTuple = namedtuple('Column', ['name', 'type_code', 'display_size', 'internal_size',
+                                    'precision', 'scale', 'null_ok'])
 
 
 class Column(object):
-
-    @classmethod
-    def data_type_conversions(cls, unicode_error=None):
-        if unicode_error is None:
-            unicode_error = 'strict'
-        return [
-            ('unspecified', None),
-            ('tuple', None),
-            ('pos', None),
-            ('record', None),
-            ('unknown', None),
-            ('bool', lambda s: 't' == str(s, 'utf-8', unicode_error)),
-            ('integer', lambda s: int(s)),
-            ('float', lambda s: float(s)),
-            ('char', lambda s: str(s, 'utf-8', unicode_error)),
-            ('varchar', lambda s: str(s, 'utf-8', unicode_error)),
-            ('date', date_parse),
-            ('time', None),
-            ('timestamp', timestamp_parse),
-            ('timestamp_tz', timestamp_tz_parse),
-            ('interval', None),
-            ('time_tz', None),
-            ('numeric', lambda s: Decimal(str(s, 'utf-8', unicode_error))),
-            ('bytea', None),
-            ('rle_tuple', None),
-        ]
-
-    @property
-    def data_types(self):
-        return map(lambda x: x[0], Column.data_type_conversions())
-
     def __init__(self, col, unicode_error=None):
         self.name = col['name'].decode()
         self.type_code = col['data_type_oid']
@@ -135,7 +106,7 @@ class Column(object):
         self.scale = None
         self.null_ok = None
         self.unicode_error = unicode_error
-        self.data_type_conversions = Column.data_type_conversions(unicode_error=self.unicode_error)
+        self.data_type_conversions = Column._data_type_conversions(unicode_error=self.unicode_error)
 
         # WORKAROUND: Treat LONGVARCHAR as VARCHAR
         if self.type_code == 115:
@@ -145,20 +116,53 @@ class Column(object):
         if self.type_code >= len(self.data_type_conversions):
             self.type_code = 0
 
-        #self.props = ColumnTuple(col['name'], col['data_type_oid'], None, col['data_type_size'], None, None, None)
-        self.props = ColumnTuple(self.name, self.type_code, None, col['data_type_size'], None, None, None)
+        # self.props = ColumnTuple(col['name'], col['data_type_oid'], None, col['data_type_size'],
+        #                          None, None, None)
+        self.props = ColumnTuple(self.name, self.type_code, None, col['data_type_size'], None, None,
+                                 None)
 
-        #self.converter = self.data_type_conversions[col['data_type_oid']][1]
+        # self.converter = self.data_type_conversions[col['data_type_oid']][1]
         self.converter = self.data_type_conversions[self.type_code][1]
 
         # things that are actually sent
-#        self.name = col['name']
-#        self.data_type = self.data_type_conversions[col['data_type_oid']][0]
-#        self.type_modifier = col['type_modifier']
-#        self.format = 'text' if col['format_code'] == 0 else 'binary'
-#        self.table_oid = col['table_oid']
-#        self.attribute_number = col['attribute_number']
-#        self.size = col['data_type_size']
+        # self.name = col['name']
+        # self.data_type = self.data_type_conversions[col['data_type_oid']][0]
+        # self.type_modifier = col['type_modifier']
+        # self.format = 'text' if col['format_code'] == 0 else 'binary'
+        # self.table_oid = col['table_oid']
+        # self.attribute_number = col['attribute_number']
+        # self.size = col['data_type_size']
+
+    @classmethod
+    def _data_type_conversions(cls, unicode_error=None):
+        if unicode_error is None:
+            unicode_error = 'strict'
+        return [
+            ('unspecified', None),
+            ('tuple', None),
+            ('pos', None),
+            ('record', None),
+            ('unknown', None),
+            ('bool', lambda s: 't' == str(s, encoding=UTF_8, errors=unicode_error)),
+            ('integer', lambda s: int(s)),
+            ('float', lambda s: float(s)),
+            ('char', lambda s: str(s, encoding=UTF_8, errors=unicode_error)),
+            ('varchar', lambda s: str(s, encoding=UTF_8, errors=unicode_error)),
+            ('date', date_parse),
+            ('time', None),
+            ('timestamp', timestamp_parse),
+            ('timestamp_tz', timestamp_tz_parse),
+            ('interval', None),
+            ('time_tz', None),
+            ('numeric',
+             lambda s: Decimal(str(s, encoding=UTF_8, errors=unicode_error))),
+            ('bytea', None),
+            ('rle_tuple', None),
+        ]
+
+    @classmethod
+    def data_types(cls):
+        return tuple([name for name, value in cls._data_type_conversions()])
 
     def convert(self, s):
         if s is None:
@@ -166,13 +170,13 @@ class Column(object):
         return self.converter(s) if self.converter is not None else s
 
     def __str__(self):
-        return self.props.__str__()
+        return as_str(str(self.props))
 
     def __unicode__(self):
-        return str(self.props.__str__())
+        return as_text(str(self.props))
 
     def __repr__(self):
-        return self.props.__str__()
+        return as_str(str(self.props))
 
     def __iter__(self):
         for prop in self.props:

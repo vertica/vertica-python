@@ -1,16 +1,17 @@
-
+from __future__ import print_function, division, absolute_import
 
 import re
 
 from struct import unpack
 
-from vertica_python.vertica.messages.message import BackendMessage
+from ..message import BackendMessage
 
 
 class CommandComplete(BackendMessage):
+    message_id = b'C'
 
     def __init__(self, data):
-
+        BackendMessage.__init__(self)
         data = unpack('{0}sx'.format(len(data) - 1), data)[0]
 
         if re.match(b"INSERT", data) is not None:
@@ -29,4 +30,4 @@ class CommandComplete(BackendMessage):
             self.tag = data
 
 
-CommandComplete._message_id(b'C')
+BackendMessage.register(CommandComplete)

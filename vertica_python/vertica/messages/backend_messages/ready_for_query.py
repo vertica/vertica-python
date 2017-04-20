@@ -1,11 +1,12 @@
-
+from __future__ import print_function, division, absolute_import
 
 from struct import unpack
 
-from vertica_python.vertica.messages.message import BackendMessage
+from ..message import BackendMessage
 
 
 class ReadyForQuery(BackendMessage):
+    message_id = b'Z'
 
     STATUSES = {
         b'I': 'no_transaction',
@@ -14,7 +15,8 @@ class ReadyForQuery(BackendMessage):
     }
 
     def __init__(self, data):
+        BackendMessage.__init__(self)
         self.transaction_status = self.STATUSES[unpack('c', data)[0]]
 
 
-ReadyForQuery._message_id(b'Z')
+BackendMessage.register(ReadyForQuery)

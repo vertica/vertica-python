@@ -1,10 +1,10 @@
+from __future__ import print_function, division, absolute_import
 
-
-from vertica_python.vertica.messages.message import BackendMessage
+from ..message import BackendMessage
 
 
 class PortalSuspended(BackendMessage):
-    pass
+    message_id = b's'
 
 
-PortalSuspended._message_id(b's')
+BackendMessage.register(PortalSuspended)

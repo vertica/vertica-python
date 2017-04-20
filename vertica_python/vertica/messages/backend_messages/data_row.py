@@ -1,14 +1,17 @@
+from __future__ import print_function, division, absolute_import
 
-
-from builtins import range
 from struct import unpack, unpack_from
 
-from vertica_python.vertica.messages.message import BackendMessage
+from six.moves import range
+
+from ..message import BackendMessage
 
 
 class DataRow(BackendMessage):
+    message_id = b'D'
 
     def __init__(self, data):
+        BackendMessage.__init__(self)
         self.values = []
         field_count = unpack('!H', data[0:2])[0]
         pos = 2
@@ -26,4 +29,4 @@ class DataRow(BackendMessage):
             pos += (4 + max(size, 0))
 
 
-DataRow._message_id(b'D')
+BackendMessage.register(DataRow)

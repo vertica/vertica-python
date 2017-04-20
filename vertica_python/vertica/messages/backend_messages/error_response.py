@@ -1,11 +1,11 @@
+from __future__ import print_function, division, absolute_import
 
-
-from vertica_python.vertica.messages.message import BackendMessage
+from ..message import BackendMessage
 from vertica_python.vertica.messages.backend_messages.notice_response import NoticeResponse
 
 
 class ErrorResponse(NoticeResponse, BackendMessage):
-    pass
+    message_id = b'E'
 
 
-ErrorResponse._message_id(b'E')
+BackendMessage.register(ErrorResponse)

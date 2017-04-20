@@ -1,19 +1,26 @@
+from __future__ import print_function, division, absolute_import
+
+from six import text_type, binary_type
+
+from ..message import BulkFrontendMessage
+
+UTF_8 = 'utf-8'
 
 
-from struct import pack
+class CopyData(BulkFrontendMessage):
+    message_id = b'd'
 
-from vertica_python.vertica.messages.message import FrontendMessage
+    def __init__(self, data, unicode_error='strict'):
+        BulkFrontendMessage.__init__(self)
+        self._unicode_error = unicode_error
+        if isinstance(data, text_type):
+            self._data = self._data.encode(encoding=UTF_8, errors=self._unicode_error)
+        elif isinstance(data, binary_type):
+            self._data = data
+        else:
+            raise TypeError("should be string or bytes")
 
-
-class CopyData(FrontendMessage):
-
-    def __init__(self, data):
-        self.data = data
-
-    def to_bytes(self):
+    def read_bytes(self):
         # to deal with unicode strings
-        encoded = self.data.encode('utf-8')
-        return self.message_string(pack('{0}s'.format(len(encoded)), encoded))
-
-
-CopyData._message_id(b'd')
+        bytes_ = self._data
+        return bytes_

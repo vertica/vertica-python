@@ -1,11 +1,14 @@
+from __future__ import print_function, division, absolute_import
 
-
-from vertica_python.vertica.messages.message import BackendMessage
+from ..message import BackendMessage
 
 
 class EmptyQueryResponse(BackendMessage):
+    message_id = b'I'
+
     def __init__(self, data=None):
+        BackendMessage.__init__(self)
         self.data = data
 
 
-EmptyQueryResponse._message_id(b'I')
+BackendMessage.register(EmptyQueryResponse)

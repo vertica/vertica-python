@@ -1,10 +1,7 @@
+from __future__ import print_function, division, absolute_import
+
+from ..message import BulkFrontendMessage
 
 
-from vertica_python.vertica.messages.message import FrontendMessage
-
-
-class Terminate(FrontendMessage):
-    pass
-
-
-Terminate._message_id(b'X')
+class Terminate(BulkFrontendMessage):
+    message_id = b'X'

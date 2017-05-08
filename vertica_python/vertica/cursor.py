@@ -4,6 +4,11 @@ import re
 import logging
 
 from collections import OrderedDict
+try:
+    from collections import OrderedDict  # python 2.7+ / 3
+except ImportError:
+    from ordereddict import OrderedDict  # python 2.6
+
 from builtins import str
 
 import vertica_python.errors as errors

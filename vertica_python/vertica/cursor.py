@@ -2,7 +2,11 @@ from __future__ import print_function, division, absolute_import
 
 import logging
 import re
-from collections import OrderedDict
+try:
+    from collections import OrderedDict  # python 2.7+ / 3
+except ImportError:
+    from ordereddict import OrderedDict  # python 2.6
+
 from io import IOBase
 
 import six

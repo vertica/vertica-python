@@ -1,10 +1,10 @@
+from __future__ import print_function, division, absolute_import
 
-
-from vertica_python.vertica.messages.message import BackendMessage
+from ..message import BackendMessage
 
 
 class NoData(BackendMessage):
-    pass
+    message_id = b'n'
 
 
-NoData._message_id(b'n')
+BackendMessage.register(NoData)

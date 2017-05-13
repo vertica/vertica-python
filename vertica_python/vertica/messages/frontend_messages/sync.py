@@ -1,10 +1,7 @@
+from __future__ import print_function, division, absolute_import
+
+from ..message import BulkFrontendMessage
 
 
-from vertica_python.vertica.messages.message import FrontendMessage
-
-
-class Sync(FrontendMessage):
-    pass
-
-
-Sync._message_id(b'S')
+class Sync(BulkFrontendMessage):
+    message_id = b'S'

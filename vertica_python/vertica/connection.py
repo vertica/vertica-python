@@ -13,6 +13,7 @@ from .. import errors
 from ..vertica import messages
 from ..vertica.cursor import Cursor
 from ..vertica.messages.message import BackendMessage, FrontendMessage
+from ..vertica.messages.frontend_messages import CancelRequest
 
 logger = logging.getLogger('vertica')
 
@@ -67,6 +68,12 @@ class Connection(object):
             self.write(messages.Terminate())
         finally:
             self.close_socket()
+
+    def cancel(self):
+        if self.closed():
+            raise errors.ConnectionError('Connection is closed')
+
+        self.write(CancelRequest(backend_pid=self.backend_pid, backend_key=self.backend_key))
 
     def commit(self):
         if self.closed():

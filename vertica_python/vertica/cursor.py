@@ -2,6 +2,7 @@ from __future__ import print_function, division, absolute_import
 
 import logging
 import re
+
 try:
     from collections import OrderedDict  # python 2.7+ / 3
 except ImportError:
@@ -80,6 +81,12 @@ class Cursor(object):
 
     def close(self):
         self._closed = True
+
+    def cancel(self):
+        if self.closed():
+            raise errors.Error('Cursor is closed')
+
+        self.connection.close()
 
     def execute(self, operation, parameters=None):
         self.operation = as_text(operation)

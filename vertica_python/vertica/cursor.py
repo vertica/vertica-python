@@ -51,6 +51,7 @@ class Cursor(object):
         self.unicode_error = unicode_error if unicode_error is not None else 'strict'
         self._closed = False
         self._message = None
+        self.operation = None
 
         self.error = None
 
@@ -81,7 +82,7 @@ class Cursor(object):
         self._closed = True
 
     def execute(self, operation, parameters=None):
-        operation = as_text(operation)
+        self.operation = as_text(operation)
 
         if self.closed():
             raise errors.Error('Cursor is closed')
@@ -203,6 +204,8 @@ class Cursor(object):
                 return True
             elif isinstance(self._message, messages.ReadyForQuery):
                 return False
+            elif isinstance(self._message, messages.ErrorResponse):
+                raise errors.QueryError.from_error_response(self._message, self.operation)
             else:
                 raise errors.Error(
                     'Unexpected nextset() state after CommandComplete: {0}'.format(self._message))

@@ -327,6 +327,22 @@ class CursorTestCase(VerticaPythonTestCase):
             self.assertIsNone(cur.fetchone())
             self.assertFalse(cur.nextset())
 
+    # unit test for #124
+    def test_nextset_with_error(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            cur.execute("SELECT 1; SELECT a; SELECT 2")
+
+            # verify data from first query
+            res1 = cur.fetchall()
+            self.assertListOfListsEqual(res1, [[1]])
+            self.assertIsNone(cur.fetchone())
+
+            # second statement results in a query error
+            with self.assertRaises(errors.MissingColumn):
+                cur.nextset()
+
     # unit test for #144
     def test_empty_query(self):
         with self._connect() as conn:

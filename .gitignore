@@ -40,7 +40,7 @@ nosetests.xml
 .vagrant
 
 # pycharm
-/.idea/
+.idea
 
 # default virtual environment
 /env/

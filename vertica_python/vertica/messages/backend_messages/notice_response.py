@@ -1,11 +1,12 @@
-
+from __future__ import print_function, division, absolute_import
 
 from struct import unpack_from
 
-from vertica_python.vertica.messages.message import BackendMessage
+from ..message import BackendMessage
 
 
 class NoticeResponse(BackendMessage):
+    message_id = b'N'
 
     FIELDS_DEFINITIONS = [
         {'type': b'q', 'name': "Internal Query", 'method': 'internal_query'},
@@ -22,13 +23,8 @@ class NoticeResponse(BackendMessage):
         {'type': b'L', 'name': "Line", 'method': 'line'}
     ]
 
-    def FIELDS(self):
-        pairs = []
-        for field in self.FIELDS_DEFINITIONS:
-            pairs.append((field['type'], field['name']))
-        return dict(pairs)
-
     def __init__(self, data):
+        BackendMessage.__init__(self)
         self.values = {}
 
         pos = 0
@@ -40,13 +36,21 @@ class NoticeResponse(BackendMessage):
             key = unpacked[0]
             value = unpacked[1]
 
-            self.values[self.FIELDS()[key]] = value
+            self.values[self.fields()[key]] = value
             pos += (len(value) + 2)
 
         # May want to break out into a function at some point
         for field_def in self.FIELDS_DEFINITIONS:
             if self.values.get(field_def['name'], None) is not None:
                 setattr(self, field_def['method'], self.values[field_def['name']])
+
+    def fields(self):
+        # was FIELDS before
+        # TODO verify that it doesn't break anything
+        pairs = []
+        for field in self.FIELDS_DEFINITIONS:
+            pairs.append((field['type'], field['name']))
+        return dict(pairs)
 
     def error_message(self):
         ordered = []
@@ -56,4 +60,4 @@ class NoticeResponse(BackendMessage):
         return ', '.join(ordered)
 
 
-NoticeResponse._message_id(b'N')
+BackendMessage.register(NoticeResponse)

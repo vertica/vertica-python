@@ -13,7 +13,7 @@ DEFAULT_VP_TEST_PORT = 5433
 DEFAULT_VP_TEST_USER = 'dbadmin'
 DEFAULT_VP_TEST_PASSWD = ''
 DEFAULT_VP_TEST_DB = 'docker'
-DEFAULT_VP_TEST_TABLE = 'tests.vertica_python_unit_test'
+DEFAULT_VP_TEST_TABLE = 'vertica_python_unit_test'
 
 
 class VerticaPythonTestCase(unittest.TestCase):

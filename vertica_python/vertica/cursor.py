@@ -34,6 +34,7 @@ elif six.PY3:
 
 
 class Cursor(object):
+    # NOTE: this is used in executemany and is here for pandas compatibility
     _insert_statement = re.compile(
         u"INSERT\\s+INTO"
         "\\s+((?P<schema>{id})\\.)?(?P<table>{id})"

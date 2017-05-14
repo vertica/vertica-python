@@ -46,6 +46,7 @@ class BackendMessage(Message):
         if klass is not None:
             return klass(data)
         else:
+            from .backend_messages import Unknown
             return Unknown(type_, data)
 
     @staticmethod

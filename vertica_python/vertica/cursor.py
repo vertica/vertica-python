@@ -196,6 +196,11 @@ class Cursor(object):
     def fetchall(self):
         return list(self.iterate())
 
+    def dataframe(self):
+    	from pandas import DataFrame  # pylint: disable=import-error
+    	columns = [column.name for column in self.description]
+    	return DataFrame.from_records(self.fetchall(), columns=columns)
+
     def nextset(self):
         # skip any data for this set if exists
         self.flush_to_command_complete()

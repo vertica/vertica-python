@@ -37,18 +37,14 @@ if six.PY2:
 elif six.PY3:
     file_type = (IOBase,)
 
-RE_NAME_BASE = u"[a-zA-Z_][\\w\\d\\$_]*"
-RE_NAME = u'("{0}")|({0})'.format(RE_NAME_BASE)
-RE_BASIC_INSERT_STAT = (
-    u"INSERT\\s+INTO"
-    "\\s+(?P<target>(({0})\\.)?({0}))"
-    "\\s*\\(\\s*(?P<variables>({0}(\\s*,\\s*{0})*)?\\s*)\\)"
-    "\\s+VALUES\\s*\\(\\s*(?P<values>.*)\\)").format(RE_NAME)
-
 
 class Cursor(object):
     # NOTE: this is used in executemany and is here for pandas compatibility
-    _insert_statement = re.compile(RE_BASIC_INSERT_STAT, re.U | re.I)
+    _insert_statement = re.compile(
+        u"INSERT\\s+INTO"
+        "\\s+((?P<schema>{id})\\.)?(?P<table>{id})"
+        "\\s*\\(\\s*(?P<variables>({id}(\\s*,\\s*{id})*)?\\s*)\\)"
+        "\\s+VALUES\\s*\\(\\s*(?P<values>.*)\\)".format(id=u"[a-zA-Z_][\\w\\d\\$_]*"), re.U | re.I)
 
     def __init__(self, connection, cursor_type=None, unicode_error=None):
         self.connection = connection
@@ -134,20 +130,23 @@ class Cursor(object):
 
         m = self._insert_statement.match(operation)
         if m:
-            target = as_text(m.group('target'))
-
+            schema = as_text(m.group('schema'))
+            table = as_text(m.group('table'))
             variables = as_text(m.group('variables'))
-            variables = ",".join([variable.strip().strip('"') for variable in variables.split(",")])
-
             values = as_text(m.group('values'))
-            values = ",".join([value.strip().strip('"') for value in values.split(",")])
+            if schema is not None:
+                table = "%s.%s" % (schema, table)
+
+            variables = ",".join([variable.strip() for variable in variables.split(",")])
+
+            values = ",".join([value.strip() for value in values.split(",")])
             seq_of_values = [self.format_operation_with_parameters(values, parameters)
                              for parameters in seq_of_parameters]
             data = "\n".join(seq_of_values)
 
             copy_statement = (
-                "COPY {0} ({1}) FROM STDIN DELIMITER ',' ENCLOSED BY '\"' "
-                "ENFORCELENGTH ABORT ON ERROR").format(target, variables)
+                "COPY {table} ({variables}) FROM STDIN DELIMITER ',' ENCLOSED BY '\"' "
+                "ENFORCELENGTH ABORT ON ERROR").format(table=table, variables=variables)
 
             self.copy(copy_statement, data)
 

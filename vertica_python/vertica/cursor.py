@@ -362,7 +362,7 @@ class Cursor(object):
 
                 tlist.append(value)
 
-            operation = operation % tuple(tlist)
+            operation = operation.format(tuple(tlist))
         else:
             raise errors.Error("Argument 'parameters' must be dict or tuple")
 

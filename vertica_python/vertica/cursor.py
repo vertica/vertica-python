@@ -340,6 +340,8 @@ class Cursor(object):
                     param = as_text(param)
                     if quote:
                         param = self.format_quote(param)
+                elif param is None:
+                    param = 'NULL'
                 else:
                     param = str(param)
                 value = as_text(param)
@@ -356,6 +358,8 @@ class Cursor(object):
                     param = as_text(param)
                     if quote:
                         param = self.format_quote(param)
+                elif param is None:
+                    param = 'NULL'
                 else:
                     param = str(param)
                 value = as_text(param)

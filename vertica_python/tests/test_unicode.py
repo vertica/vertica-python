@@ -63,3 +63,29 @@ class UnicodeTestCase(VerticaPythonTestCase):
             res = cur.fetchone()
 
         self.assertResultEqual(value, res[0])
+
+    # unit test for issue #160
+    def test_null_named_parameter_binding(self):
+        key = u'test'
+        value = None
+        query = u"SELECT :{0}".format(key)
+
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(query, {key: value})
+            res = cur.fetchone()
+
+        self.assertResultEqual(value, res[0])
+
+    # unit test for issue #160
+    def test_null_list_parameter(self):
+        values = [u'\u00f1', 'foo', None]
+        query = u"SELECT {0}".format(", ".join(["%s"] * len(values)))
+
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(query, tuple(values))
+            results = cur.fetchone()
+
+        for val, res in zip(values, results):
+            self.assertResultEqual(val, res)

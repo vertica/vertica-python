@@ -37,14 +37,19 @@ if six.PY2:
 elif six.PY3:
     file_type = (IOBase,)
 
+NULL = "NULL"
+
+RE_NAME_BASE = u"[a-zA-Z_][\\w\\d\\$_]*"
+RE_NAME = u'(("{0}")|({0}))'.format(RE_NAME_BASE)
+RE_BASIC_INSERT_STAT = (
+    u"INSERT\\s+INTO\\s+(?P<target>({0}\\.)?{0})"
+    u"\\s*\\(\\s*(?P<variables>{0}(\\s*,\\s*{0})*)\\s*\\)"
+    u"\\s+VALUES\\s*\\(\\s*(?P<values>.*)\\s*\\)").format(RE_NAME)
+
 
 class Cursor(object):
     # NOTE: this is used in executemany and is here for pandas compatibility
-    _insert_statement = re.compile(
-        u"INSERT\\s+INTO"
-        "\\s+((?P<schema>{id})\\.)?(?P<table>{id})"
-        "\\s*\\(\\s*(?P<variables>({id}(\\s*,\\s*{id})*)?\\s*)\\)"
-        "\\s+VALUES\\s*\\(\\s*(?P<values>.*)\\)".format(id=u"[a-zA-Z_][\\w\\d\\$_]*"), re.U | re.I)
+    _insert_statement = re.compile(RE_BASIC_INSERT_STAT, re.U | re.I)
 
     def __init__(self, connection, cursor_type=None, unicode_error=None):
         self.connection = connection
@@ -98,7 +103,7 @@ class Cursor(object):
 
         if parameters:
             # TODO: quote = True for backward compatibility. see if should be False.
-            operation = self.format_operation_with_parameters(operation, parameters, quote=True)
+            operation = self.format_operation_with_parameters(operation, parameters)
 
         self.rowcount = -1
 
@@ -130,23 +135,20 @@ class Cursor(object):
 
         m = self._insert_statement.match(operation)
         if m:
-            schema = as_text(m.group('schema'))
-            table = as_text(m.group('table'))
+            target = as_text(m.group('target'))
+
             variables = as_text(m.group('variables'))
+            variables = ",".join([variable.strip().strip('"') for variable in variables.split(",")])
+
             values = as_text(m.group('values'))
-            if schema is not None:
-                table = "%s.%s" % (schema, table)
-
-            variables = ",".join([variable.strip() for variable in variables.split(",")])
-
-            values = ",".join([value.strip() for value in values.split(",")])
-            seq_of_values = [self.format_operation_with_parameters(values, parameters)
+            values = ",".join([value.strip().strip('"') for value in values.split(",")])
+            seq_of_values = [self.format_operation_with_parameters(values, parameters, is_csv=True)
                              for parameters in seq_of_parameters]
             data = "\n".join(seq_of_values)
 
             copy_statement = (
-                "COPY {table} ({variables}) FROM STDIN DELIMITER ',' ENCLOSED BY '\"' "
-                "ENFORCELENGTH ABORT ON ERROR").format(table=table, variables=variables)
+                u"COPY {0} ({1}) FROM STDIN DELIMITER ',' ENCLOSED BY '\"' "
+                u"ENFORCELENGTH ABORT ON ERROR").format(target, variables)
 
             self.copy(copy_statement, data)
 
@@ -261,7 +263,7 @@ class Cursor(object):
         
         EXAMPLE:
         >> with open("/tmp/file.csv", "rb") as fs:
-        >>     cursor.copy("COPY table(field1,field2) FROM STDIN DELIMITER ',' ENCLOSED BY '\"'",
+        >>     cursor.copy("COPY table(field1,field2) FROM STDIN DELIMITER ',' ENCLOSED BY ''''",
         >>                 fs, buffer_size=65536)
 
         """
@@ -327,7 +329,7 @@ class Cursor(object):
                 for idx, value in enumerate(row_data.values)]
 
     # noinspection PyArgumentList
-    def format_operation_with_parameters(self, operation, parameters, quote=True):
+    def format_operation_with_parameters(self, operation, parameters, is_csv=False):
         operation = as_text(operation)
 
         if isinstance(parameters, dict):
@@ -337,11 +339,9 @@ class Cursor(object):
                 key = as_text(key)
 
                 if isinstance(param, string_types):
-                    param = as_text(param)
-                    if quote:
-                        param = self.format_quote(param)
+                    param = self.format_quote(as_text(param), is_csv)
                 elif param is None:
-                    param = 'NULL'
+                    param = NULL
                 else:
                     param = str(param)
                 value = as_text(param)
@@ -355,11 +355,9 @@ class Cursor(object):
             tlist = []
             for param in parameters:
                 if isinstance(param, string_types):
-                    param = as_text(param)
-                    if quote:
-                        param = self.format_quote(param)
+                    param = self.format_quote(as_text(param), is_csv)
                 elif param is None:
-                    param = 'NULL'
+                    param = NULL
                 else:
                     param = str(param)
                 value = as_text(param)
@@ -372,6 +370,9 @@ class Cursor(object):
 
         return operation
 
-    def format_quote(self, param):
+    def format_quote(self, param, is_csv):
         # TODO Make sure adapt() behaves properly
-        return QuotedString(param.encode(UTF_8, self.unicode_error)).getquoted()
+        if is_csv:
+            return '"{0}"'.format(re.escape(param))
+        else:
+            return QuotedString(param.encode(UTF_8, self.unicode_error)).getquoted()

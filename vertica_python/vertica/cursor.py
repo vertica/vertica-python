@@ -209,6 +209,7 @@ class Cursor(object):
             self._message = self.connection.read_message()
             if isinstance(self._message, messages.RowDescription):
                 # next row will be either a DataRow or CommandComplete
+                self.description = [Column(fd, self.unicode_error) for fd in self._message.fields]
                 self._message = self.connection.read_message()
                 return True
             elif isinstance(self._message, messages.ReadyForQuery):

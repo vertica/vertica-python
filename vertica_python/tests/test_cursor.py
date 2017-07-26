@@ -348,6 +348,27 @@ class CursorTestCase(VerticaPythonTestCase):
             with self.assertRaises(errors.MissingColumn):
                 cur.nextset()
 
+    def test_nextset_with_different_columns(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            cur.execute("SELECT 1 AS foo; SELECT 1 AS bar, 2 AS baz")
+
+            # verify data from first query
+            res1 = cur.fetchall()
+            self.assertListOfListsEqual(res1, [[1]])
+            self.assertEqual([col.name for col in cur.description], ['foo'])
+            self.assertIsNone(cur.fetchone())
+            self.assertTrue(cur.nextset())
+
+            # verify data from second query
+            res2 = cur.fetchall()
+            self.assertListOfListsEqual(res2, [[1, 2]])
+            self.assertEqual([col.name for col in cur.description], ['bar', 'baz'])
+            self.assertIsNone(cur.fetchone())
+            self.assertFalse(cur.nextset())
+
+
     # unit test for #144
     def test_empty_query(self):
         with self._connect() as conn:

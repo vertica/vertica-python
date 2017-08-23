@@ -62,6 +62,7 @@ Run all tests using tox:
 ```bash
 tox
 ```
+Run an individual test on specified python versions:
 
 Run a test suite on specified python versions:
 

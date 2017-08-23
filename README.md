@@ -58,11 +58,24 @@ http://tox.readthedocs.io
 
 Edit `tox.ini` envlist property to list the version(s) of python you have installed
 
-Run tox:
+Run all tests using tox:
 ```bash
 tox
 ```
 
+Run a test suite on specified python versions:
+
+Run all tests under `test_case.py` on the python versions 2.7 and 3.5
+```bash
+tox -e py27,py35 -- vertica_python/tests/test_cases.py
+```
+
+Run an individual test on specified python versions:
+
+Run the test `test_case` under `test_cases.py` on the python versions 2.7 and 3.5
+```bash
+tox -e py27,py35 -- vertica_python/tests/test_cases.py:TestCaseClass.test_case
+```
 ## Usage
 
 

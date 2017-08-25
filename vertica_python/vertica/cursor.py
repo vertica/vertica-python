@@ -127,6 +127,8 @@ class Cursor(object):
 
             self._message = self.connection.read_message()
 
+        return self
+
     def executemany(self, operation, seq_of_parameters):
         operation = as_text(operation)
 

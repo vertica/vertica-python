@@ -1,0 +1,69 @@
+vertica-python was originally created in 2013 at Uber Technologies, Inc.
+This is a non-exhaustive list of vertica-python contributors.
+This does not necessarily list everyone who has contributed code.
+To see the full list of contributors, see the revision history in source control
+
+Aditya Sarawgi <aditya@uber.com>
+Aiden Scandella <aiden@uber.com>
+Aiden Scandella <sc@ndella.com>
+Alex Kim <alex.ji.kim@gmail.com>
+Alex Kim <alex.kim@uber.com>
+Alvin Wu <tsungju@gmail.com>
+asamasoma <amasa.amos@intentmedia.com>
+Ben Feinstein <feinsteinben@gmail.com>
+Berton Earnshaw <berton.earnshaw@gmail.com>
+Brad Hurley <bradh@us.ibm.com>
+Carl Ekerot <carl.ekerot@proceranetworks.com>
+Conrad Whelan <conrad@uber.com>
+Deepak Prakash <dp@deepakprakash.com>
+Dennis O'Brien <dennis@dennisobrien.net>
+Eric Sayle <esayle@uber.com>
+esmioley <esmioley@users.noreply.github.com>
+Flo <flo@nigsch.eu>
+Fredrik Appelros <fredrik.appelros@proceranetworks.com>
+Gabriel Haim <gabriel@uber.com>
+Heli Wang <heli.h101@gmail.com>
+Heli Wang <heli@uber.com>
+Ian Zelikman <Ian.Zelikman@ibm.com>
+Jakub Jedelsky <jakub.jedelsky@gooddata.com>
+James Brown <jbrown@uber.com>
+James Brown <roguelazer@roguelazer.com>
+jberka <justin.berka@gmail.com>
+Jean Baptiste Favre <debian@jbfavre.org>
+Jeff Kim <jkim@etsy.com>
+Johan Olofsson <johano99@hotmail.com>
+Josh Varner <jvarner@twitter.com>
+jsingh3 <jsingh3@users.noreply.github.com>
+Justin Berka <justin@anki.com>
+Justin Berka <justin@uber.com>
+Kenneth Tran <one@kentran.net>
+kennethdamica <k.damica@gmail.com>
+Kevin Sweeney <kevin.t.sweeney@gmail.com>
+Konstantin <phpconf@gmail.com>
+lemeryfertitta <luke.emery-fertitta@mail.mcgill.ca>
+Lubo <lubomir.slivka@gooddata.com>
+Lubo Slivka <lubomir.slivka@gooddata.com>
+luke <luke.emery-fertitta@locusenergy.com>
+Mark R. <github@mark.org.il>
+nchammas <nicholas.chammas@gmail.com>
+Nicholas Travers <nickt@squareup.com>
+Paulius Šileikis <psileikis@kayak.com>
+Peder Andersen <peder@uber.com>
+pedercandersen <peder@uber.com>
+Peter M. Landwehr <plandweh@cs.cmu.edu>
+Praveen Jain <praveenj@uber.com>
+Rahul Agarwal <ragarwal@palantir.com>
+rforgione <rforgione@etsy.com>
+Richard Tom <superbeefy@gmail.com>
+Ruwen Jin <ruwen.jin@aurumio.com>
+Sevag Hanssian <sevag.hanssian@gmail.com>
+Shiva M <shivamy@gmail.com>
+Steven van Stiphout <steven.vanstiphout@deltadna.com>
+Thom Neale <tneale@massmutual.com>
+Thom Neale <twneale@gmail.com>
+Timothy Heys <theys@kayak.com>
+tudit <udittumuluri@gmail.com>
+tumuluru <udit.tumuluri@hpe.com>
+twneale <twneale@gmail.com>
+Udit Tumuluri <udittumuluri@gmail.com>
+zer0n <one@kentran.net>

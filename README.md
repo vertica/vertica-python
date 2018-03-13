@@ -289,7 +289,7 @@ MIT License, please see `LICENSE` for details.
 
 ## Acknowledgements
 
-Many thanks go to the contributors to the Ruby Vertica gem (https://github.com/sprsquish/vertica), since they did all of the wrestling with Vertica's protocol and have kept the gem updated. They are:
+We would like to thank the contributors to the Ruby Vertica gem (https://github.com/sprsquish/vertica), as this project gave us inspiration and help in understanding Vertica's wire protocol. These contributors are:
 
  * [Matt Bauer](http://github.com/mattbauer)
  * [Jeff Smick](http://github.com/sprsquish)

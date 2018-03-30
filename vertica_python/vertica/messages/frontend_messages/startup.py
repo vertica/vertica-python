@@ -37,7 +37,7 @@ ASCII = 'ascii'
 class Startup(BulkFrontendMessage):
     message_id = None
 
-    def __init__(self, user, database, options=None):
+    def __init__(self, user, database, label=None, options=None):
         BulkFrontendMessage.__init__(self)
 
         self._user = user
@@ -47,7 +47,7 @@ class Startup(BulkFrontendMessage):
         self._version = vertica_python.__version__.encode(ASCII)
         self._platform = platform.platform().encode(ASCII)
         self._pid = '{0}'.format(os.getpid()).encode(ASCII)
-        self._label = self._type + b'-' + self._version + b'-' + str(uuid.uuid1()).encode(ASCII)
+        self._label = self._type + b'-' + self._version + b'-' + str(uuid.uuid1()).encode(ASCII) if label is None else label
 
     def read_bytes(self):
         bytes_ = pack('!I', vertica_python.PROTOCOL_VERSION)

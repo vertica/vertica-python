@@ -119,3 +119,8 @@ _allowed_symbols = [
     'as_str',
     'bytes_or_text_types',
 ]
+
+if _six.PY2:
+    from urlparse import parse_qs, urlparse
+else:
+    from urllib.parse import parse_qs, urlparse

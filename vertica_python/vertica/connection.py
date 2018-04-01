@@ -35,6 +35,7 @@ from ..vertica import messages
 from ..vertica.cursor import Cursor
 from ..vertica.messages.message import BackendMessage, FrontendMessage
 from ..vertica.messages.frontend_messages import CancelRequest
+from ..compat import urlparse, parse_qs
 
 logger = logging.getLogger('vertica')
 
@@ -64,6 +65,38 @@ class Connection(object):
         self.options.setdefault('port', 5433)
         self.options.setdefault('read_timeout', 600)
         self.startup_connection()
+
+    @classmethod
+    def from_url(cls, url, **kwargs):
+        """
+        Creates a connection using the specified connection string of the format
+        vertica://<user>:<password>@<hostname>:<port>/<database>.
+        """
+        url_string = url
+        url = urlparse(url)
+
+        # in python2.6, custom URL schemes don't recognize querystring values
+        # they're left as part of the url.path.
+        if '?' in url.path and not url.query:
+            # chop the querystring including the ? off the end of the url
+            # and reparse it.
+            qs = url.path.split('?', 1)[1]
+            url = urlparse(url_string[:-(len(qs) + 1)])
+
+        if url.scheme != 'vertica':
+            raise ValueError("Only vertica:// scheme is supported.")
+
+        options = dict(
+            host=url.hostname,
+            user=url.username,
+            password=url.password,
+            port=url.port,
+            database=url.path[1:]
+        )
+
+        options.update(kwargs)
+
+        return cls(options)
 
     def __enter__(self):
         return self

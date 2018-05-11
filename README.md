@@ -284,7 +284,7 @@ cur.fetchone()
 
 ## License
 
-Apache 2.0 License, please see `LICENSE` for details.
+MIT License, please see `LICENSE` for details.
 
 
 ## Acknowledgements

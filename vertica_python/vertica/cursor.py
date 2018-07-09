@@ -59,6 +59,7 @@ elif six.PY3:
     file_type = (IOBase,)
 
 NULL = "NULL"
+EMPTY = ''
 
 RE_NAME_BASE = u"[a-zA-Z_][\\w\\d\\$_]*"
 RE_NAME = u'(("{0}")|({0}))'.format(RE_NAME_BASE)
@@ -364,7 +365,7 @@ class Cursor(object):
                 if isinstance(param, string_types):
                     param = self.format_quote(as_text(param), is_csv)
                 elif param is None:
-                    param = NULL
+                    param = EMPTY if is_csv else NULL
                 else:
                     param = str(param)
                 value = as_text(param)
@@ -380,7 +381,7 @@ class Cursor(object):
                 if isinstance(param, string_types):
                     param = self.format_quote(as_text(param), is_csv)
                 elif param is None:
-                    param = NULL
+                    param = EMPTY if is_csv else NULL
                 else:
                     param = str(param)
                 value = as_text(param)

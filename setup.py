@@ -51,7 +51,7 @@ setup(
     url='https://github.com/uber/vertica-python/',
     keywords="database vertica",
     packages=find_packages(),
-    license="MIT",
+    license="Apache License 2.0",
     install_requires=[
         'python-dateutil>=1.5',
         'pytz',
@@ -62,7 +62,7 @@ setup(
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache License 2.0",
         "Programming Language :: Python",
         "Topic :: Database",
         "Topic :: Database :: Database Engines/Servers",

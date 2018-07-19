@@ -20,7 +20,7 @@ matrix:
 before_install:
   - docker pull jbfavre/vertica:8.1.1-16_ubuntu-14.04
   - docker run -d -p 5433:5433 jbfavre/vertica:8.1.1-16_ubuntu-14.04
-
+  - sleep 30
 install:
   - pip install tox
 script:

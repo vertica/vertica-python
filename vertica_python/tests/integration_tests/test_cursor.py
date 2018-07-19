@@ -342,10 +342,10 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             cur = conn.cursor()
 
             # insert data
-
             cur.execute("INSERT INTO {0} (a, b) VALUES (1, 'aa')".format(self._table))
             cur.execute("INSERT INTO {0} (a, b) VALUES (2, 'bb')".format(self._table))
             conn.commit()
+
             cur.execute("""
                           SELECT * FROM {0} ORDER BY a ASC;
                           DELETE FROM {0};

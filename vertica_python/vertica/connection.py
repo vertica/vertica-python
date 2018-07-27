@@ -292,8 +292,9 @@ class Connection(object):
         user = self.options['user'].encode(ASCII)
         database = self.options['database'].encode(ASCII)
         password = self.options['password'].encode(ASCII)
+        label = self.options['label'].encode(ASCII) if 'label' in self.options else None
 
-        self.write(messages.Startup(user, database))
+        self.write(messages.Startup(user, database, label))
 
         while True:
             message = self.read_message()

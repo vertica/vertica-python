@@ -47,8 +47,8 @@ from .errors import (
 
 # Main module for this library.
 __author__ = 'Uber Technologies, Inc'
-__copyright__ = 'Copyright 2013, Uber Technologies, Inc.'
-__license__ = 'MIT'
+__copyright__ = 'Copyright (c) 2018 Micro Focus or one of its affiliates.'
+__license__ = 'Apache 2.0'
 
 __all__ = ['Connection', 'PROTOCOL_VERSION', 'version_info', 'apilevel', 'threadsafety',
            'paramstyle', 'connect', 'Error', 'Warning', 'DataError', 'DatabaseError',

@@ -42,7 +42,7 @@ To install vertica-python with pip (with optional namedparams dependencies):
 
 Source code for vertica-python can be found at:
 
-    http://github.com/uber/vertica-python
+    https://github.com/vertica/vertica-python
 
 
 ## Run unit tests

@@ -289,6 +289,9 @@ cur.fetchone()
 
 Apache 2.0 License, please see `LICENSE` for details.
 
+## Contributing guidelines
+
+Have a bug or an idea? Please see `CONTRIBUTING.md` for details.
 
 ## Acknowledgements
 

@@ -186,7 +186,7 @@ class Cursor(object):
 
             copy_statement = (
                 u"COPY {0} ({1}) FROM STDIN DELIMITER ',' ENCLOSED BY '\"' "
-                u"ENFORCELENGTH ABORT ON ERROR").format(target, variables)
+                u"ENFORCELENGTH ABORT ON ERROR NULL 'NULL'").format(target, variables)
 
             self.copy(copy_statement, data)
 
@@ -298,7 +298,7 @@ class Cursor(object):
 
     def copy(self, sql, data, **kwargs):
         """
-        
+
         EXAMPLE:
         >> with open("/tmp/file.csv", "rb") as fs:
         >>     cursor.copy("COPY table(field1,field2) FROM STDIN DELIMITER ',' ENCLOSED BY ''''",

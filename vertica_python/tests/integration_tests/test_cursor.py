@@ -191,7 +191,12 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             self.assertListOfListsEqual(res_from_cur2, [[2, 'bar']])
 
     def test_copy_with_file(self):
-        with tempfile.TemporaryFile() as f, self._connect() as conn1, self._connect() as conn2:
+        with tempfile.TemporaryFile() as tmpfile, self._connect() as conn1, self._connect() as conn2:
+            if _os.name != 'posix' or _os.sys.platform == 'cygwin':
+                f = getattr(tmpfile, 'file')
+            else:
+                f = tmpfile
+
             f.write(b"1,foo\n2,bar")
             # move rw pointer to top of file
             f.seek(0)

@@ -35,32 +35,22 @@
 
 from __future__ import print_function, division, absolute_import
 
-from .base import VerticaPythonTestCase
+from ..message import BackendMessage
+from struct import unpack
 
-from .. import errors
+class LoadBalanceResponse(BackendMessage):
+    message_id = b'Y'
 
+    def __init__(self, data):
+        BackendMessage.__init__(self)
+        unpacked = unpack('!I{0}sx'.format(len(data) - 5), data)
+        self.port = unpacked[0]
+        self.host = unpacked[1]
 
-class ErrorTestCase(VerticaPythonTestCase):
-    def setUp(self):
-        with self._connect() as conn:
-            cur = conn.cursor()
-            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
+    def get_port(self):
+        return self.port
 
-    def test_missing_schema(self):
-        with self._connect() as conn:
-            cur = conn.cursor()
-            with self.assertRaises(errors.MissingSchema):
-                cur.execute("SELECT 1 FROM missing_schema.table")
+    def get_host(self):
+        return self.host
 
-    def test_missing_relation(self):
-        with self._connect() as conn:
-            cur = conn.cursor()
-            with self.assertRaises(errors.MissingRelation):
-                cur.execute("SELECT 1 FROM missing_table")
-
-    def test_duplicate_object(self):
-        with self._connect() as conn:
-            cur = conn.cursor()
-            cur.execute("CREATE TABLE {0} (a BOOLEAN)".format(self._table))
-            with self.assertRaises(errors.DuplicateObject):
-                cur.execute("CREATE TABLE {0} (a BOOLEAN)".format(self._table))
+BackendMessage.register(LoadBalanceResponse)

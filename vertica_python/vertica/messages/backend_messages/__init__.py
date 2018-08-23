@@ -44,6 +44,7 @@ from .copy_in_response import CopyInResponse
 from .data_row import DataRow
 from .empty_query_response import EmptyQueryResponse
 from .error_response import ErrorResponse
+from .load_balance_response import LoadBalanceResponse
 from .no_data import NoData
 from .notice_response import NoticeResponse
 from .parameter_description import ParameterDescription
@@ -57,4 +58,4 @@ from .unknown import Unknown
 __all__ = ['RowDescription', 'ReadyForQuery', 'PortalSuspended', 'ParseComplete', 'ParameterStatus',
            'NoticeResponse', 'NoData', 'ErrorResponse', 'EmptyQueryResponse', 'DataRow',
            'CopyInResponse', 'CommandComplete', 'CloseComplete', 'BindComplete', 'Authentication',
-           'BackendKeyData', 'ParameterDescription', 'Unknown']
+           'BackendKeyData', 'ParameterDescription', 'Unknown', 'LoadBalanceResponse']

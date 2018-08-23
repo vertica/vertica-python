@@ -35,10 +35,10 @@
 
 from __future__ import print_function, division, absolute_import
 
-from .base import VerticaPythonTestCase
+from .base import VerticaPythonIntegrationTestCase
 
 
-class UnicodeTestCase(VerticaPythonTestCase):
+class UnicodeTestCase(VerticaPythonIntegrationTestCase):
     def test_unicode_query(self):
         value = u'\u16a0'
         query = u"SELECT '{0}'".format(value)

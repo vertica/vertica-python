@@ -1,0 +1,16 @@
+# To override default configuration information for the driver test system,
+# create a new file called 'vp_test.conf' in this directory with the following syntax
+
+[vp_test_config]
+
+# Connection information
+VP_TEST_HOST=10.0.0.2
+VP_TEST_PORT=5000
+VP_TEST_USER=dbadmin
+#VP_TEST_DATABASE=vdb1
+#VP_TEST_PASSWORD=abcdef1234
+
+# Logging information
+# Valid VP_TEST_LOG_LEVEL options: 'NOTSET', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+VP_TEST_LOG_LEVEL=DEBUG
+VP_TEST_LOG_DIR=mylog/vp_tox_tests_log

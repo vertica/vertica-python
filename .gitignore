@@ -1,6 +1,9 @@
 *.py[cod]
 test.py
 
+# Test configuration
+vp_test.conf
+
 # C extensions
 *.so
 

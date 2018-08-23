@@ -39,19 +39,15 @@ import logging
 import os as _os
 import tempfile
 
-from .base import VerticaPythonTestCase
-from .. import errors
-
-logger = logging.getLogger('vertica')
+from .base import VerticaPythonIntegrationTestCase
+from ... import errors
 
 
-class CursorTestCase(VerticaPythonTestCase):
+class CursorTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):
+        super(CursorTestCase, self).setUp()
+        self._table = 'cursor_test'
         self._init_table()
-
-    def tearDown(self):
-        # self._init_table()
-        pass
 
     def _init_table(self):
         with self._connect() as conn:
@@ -65,6 +61,12 @@ class CursorTestCase(VerticaPythonTestCase):
                                 b VARCHAR(32)
                            )
                         """.format(self._table))
+
+    def tearDown(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
+        super(CursorTestCase, self).tearDown()
 
     def test_inline_commit(self):
         with self._connect() as conn:
@@ -393,13 +395,11 @@ class CursorTestCase(VerticaPythonTestCase):
             self.assertListOfListsEqual(res, [])
 
 
-class TestExecutemany(VerticaPythonTestCase):
+class ExecutemanyTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):
+        super(ExecutemanyTestCase, self).setUp()
+        self._table = 'executemany_test'
         self._init_table()
-
-    def tearDown(self):
-        # self._init_table()
-        pass
 
     def _init_table(self):
         with self._connect() as conn:
@@ -413,6 +413,12 @@ class TestExecutemany(VerticaPythonTestCase):
                                 b VARCHAR(32)
                            )
                         """.format(self._table))
+
+    def tearDown(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
+        super(ExecutemanyTestCase, self).tearDown()
 
     def _test_executemany(self, table, seq_of_values):
         with self._connect() as conn:

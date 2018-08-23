@@ -37,6 +37,7 @@ from __future__ import print_function, division, absolute_import
 
 import platform
 import os
+import getpass
 import uuid
 from struct import pack
 
@@ -63,6 +64,7 @@ class Startup(BulkFrontendMessage):
         self._platform = platform.platform().encode(ASCII)
         self._pid = '{0}'.format(os.getpid()).encode(ASCII)
         self._label = self._type + b'-' + self._version + b'-' + str(uuid.uuid1()).encode(ASCII)
+        self._os_user_name = getpass.getuser().encode(ASCII)
 
     def read_bytes(self):
         bytes_ = pack('!I', vertica_python.PROTOCOL_VERSION)
@@ -76,6 +78,7 @@ class Startup(BulkFrontendMessage):
         bytes_ += pack('11sx{0}sx'.format(len(self._type)), b'client_type', self._type)
         bytes_ += pack('14sx{0}sx'.format(len(self._version)), b'client_version', self._version)
         bytes_ += pack('9sx{0}sx'.format(len(self._platform)), b'client_os', self._platform)
+        bytes_ += pack('19sx{0}sx'.format(len(self._os_user_name)), b'client_os_user_name', self._os_user_name)
         bytes_ += pack('10sx{0}sx'.format(len(self._pid)), b'client_pid', self._pid)
         bytes_ += pack('x')
 

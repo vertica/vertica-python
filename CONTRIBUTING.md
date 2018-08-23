@@ -60,13 +60,48 @@ git checkout -b my-fix-branch
 
 *vertica-python* comes with a test suite of its own, in the `vertica_python/tests` directory of the code base. It’s our policy to make sure all tests pass at all times.
 
-We appreciate any and all [contributions](#tests) to the test suite! These tests use a Python module: [nosetests](https://nose.readthedocs.io). You might want to check out the Python documentation for more details.
+We appreciate any and all [contributions to the test suite](#tests)! These tests use a Python module: [nosetests](https://nose.readthedocs.io). You might want to check out the Python documentation for more details.
 
-To run the tests, you must have access to a Vertica database. Heres one way to go about it:
+There are two types of tests: unit tests and integration tests. Unit tests do simple unit testing of individual classes and functions, which do not require database connection. Integration tests need to connect to a Vertica database to run stuffs, so you must have access to a Vertica database. Heres one way to go about it:
 - Download docker kitematic: https://kitematic.com/
 - Spin up a vertica container (e.g. sumitchawla/vertica)
 
-Set environment variables as needed by `vertica_python/tests/base.py` to match the database connection information.
+Spin up your Vertica database for integration tests and then config test settings:
+* Here are default settings:
+  ```sh
+  host: 'localhost'
+  port: 5433
+  user: <current OS login user>
+  database: <same as the value of user>
+  password: ''
+  log_dir: 'vp_test_log'  # all test logs would write to files under this directory
+  log_level: logging.WARNING
+  ```
+* Override with a configuration file called `vertica_python/tests/common/vp_test.conf`. This is a file that would be ignored by git. We created an example `vertica_python/tests/common/vp_test.conf.example` for your reference.
+  ```sh
+  # edit under [vp_test_config] section
+  VP_TEST_HOST=10.0.0.2
+  VP_TEST_PORT=5000
+  VP_TEST_USER=dbadmin
+  VP_TEST_DATABASE=vdb1
+  VP_TEST_PASSWORD=abcdef1234
+  VP_TEST_LOG_DIR=my_log/year/month/date
+  VP_TEST_LOG_LEVEL=DEBUG
+  ```
+* Override again with VP_TEST_* environment variables
+  ```shell
+  # Set environment variables in linux
+  $ export VP_TEST_HOST=10.0.0.2
+  $ export VP_TEST_PORT=5000
+  $ export VP_TEST_USER=dbadmin
+  $ export VP_TEST_DATABASE=vdb1
+  $ export VP_TEST_PASSWORD=abcdef1234
+  $ export VP_TEST_LOG_DIR=my_log/year/month/date
+  $ export VP_TEST_LOG_LEVEL=DEBUG
+
+  # Delete your environment variables after tests
+  $ unset VP_TEST_PASSWORD
+  ```
 
 Tox (https://tox.readthedocs.io) is a tool for running those tests in different Python environments. *vertica-python* includes a `tox.ini` file that lists all Python versions we test.
 
@@ -76,7 +111,7 @@ pip install tox
 ```
 
 Edit `tox.ini` envlist property to list the version(s) of Python you have installed.
-Then you can run the **tox** command from any place in the *vertica-python* source tree.
+Then you can run the **tox** command from any place in the *vertica-python* source tree. If VP_TEST_LOG_DIR sets to a relative path, it will be in the *vertica-python* directory no matter where you run the **tox** command.
 
 1. Run all tests using tox:
    ```bash
@@ -87,16 +122,28 @@ Then you can run the **tox** command from any place in the *vertica-python* sour
 
    Run all tests under `test_case.py` on the python versions 2.7 and 3.5
    ```bash
-   tox -e py27,py35 -- vertica_python/tests/test_cases.py
+   tox -e py27,py35 -- vertica_python/tests/integration_tests/test_cases.py
+   ```
+
+1. Run all unit tests on the python version 3.6:
+   ```bash
+   tox -e py36 -- -a unit_tests
+   ```
+
+1. Run all integration tests on the python version 3.4 with verbose result outputs and print any stdout immediately:
+   ```bash
+   tox -e py34 -- -v -s -a integration_tests
    ```
 
 1. Run an individual test on specified python versions:
 
    Run the test `test_case` under `test_cases.py` on the python versions 2.7 and 3.5
    ```bash
-   tox -e py27,py35 -- vertica_python/tests/test_cases.py:TestCaseClass.test_case
+   tox -e py27,py35 -- vertica_python/tests/integration_tests/test_cases.py:TestCaseClass.test_case
    ```
 
+The arguments after the `--` will be substituted everywhere where you specify `{posargs}` in your test *commands* of `tox.ini`.
+Run `$ nosetests --help` to see all arguments you can specify after the `--`.
 For more usages about [tox](https://tox.readthedocs.io), see the Python documentation.
 
 
@@ -139,7 +186,7 @@ When writing the commit message, try to describe precisely what the commit does.
 
 Add appropriate tests for the bug’s or feature's behavior, run the test suite again and ensure that all tests pass. Here is the guideline for writing test:
  - Tests should be easy for any contributor to run. Contributors may not get complete access to their Vertica database, for example, they may only have a non-admin user with write privileges to a single schema, and the database may not be the latest version. We encourage tests to use only what they need and nothing more.
- - If there are requirements to the database for running a test, the test should adapt to different situations and never report a failure. For example, if a test depends on a multi-node database, it should check the number of DB nodes first, and skip itself when it connects to a single-node database.
+ - If there are requirements to the database for running a test, the test should adapt to different situations and never report a failure. For example, if a test depends on a multi-node database, it should check the number of DB nodes first, and skip itself when it connects to a single-node database (see helper function `require_DB_nodes_at_least()` in `vertica_python/tests/integration_tests/base.py`).
 
 ## Step 5: Push and Rebase
 

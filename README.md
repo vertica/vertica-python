@@ -135,6 +135,87 @@ connection = vertica_python.connect(**conn_info)
 
 See more on SSL options [here](https://docs.python.org/2/library/ssl.html).
 
+Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.6/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. For example,
+
+```python
+import vertica_python
+import logging
+
+## Example 1: write DEBUG level logs to './vertica_python.log'
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'log_level': logging.DEBUG}
+with vertica_python.connect(**conn_info) as connection:
+    # do things
+
+## Example 2: write WARNING level logs to './path/to/logs/client.log'
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'log_path': 'path/to/logs/client.log'}
+with vertica_python.connect(**conn_info) as connection:
+   # do things
+
+## Example 3: write INFO level logs to '/home/admin/logs/vClient.log'
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'log_level': logging.INFO,
+             'log_path': '/home/admin/logs/vClient.log'}
+with vertica_python.connect(**conn_info) as connection:
+   # do things
+```
+
+Connection Failover: Supply a list of backup hosts to ```backup_server_node``` for the client to try if the primary host you specify in the connection parameters (```host```, ```port```) is unreachable. Each item in the list should be either a host string (using default port 5433) or a (host, port) tuple. A host can be a host name or an IP address.
+
+```python
+import vertica_python
+
+conn_info = {'host': 'unreachable.server.com',
+             'port': 888,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'backup_server_node': ['123.456.789.123', 'invalid.com', ('10.20.82.77', 6000)]}
+connection = vertica_python.connect(**conn_info)
+```
+
+Connection Load Balancing helps automatically spread the overhead caused by client connections across the cluster by having hosts redirect client connections to other hosts. Both the server and the client need to enable load balancing for it to function. If the server disables connection load balancing, the load balancing request from client will be ignored.
+
+```python
+import vertica_python
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'vdb',
+             'connection_load_balance': True}
+
+# Server enables load balancing
+with connect(**conn_info) as conn:
+    cur = conn.cursor()
+    cur.execute("SELECT NODE_NAME FROM V_MONITOR.CURRENT_SESSION")
+    print("Client connects to primary node:", cur.fetchone()[0])
+    cur.execute("SELECT SET_LOAD_BALANCE_POLICY('ROUNDROBIN')")
+
+with connect(**conn_info) as conn:
+    cur = conn.cursor()
+    cur.execute("SELECT NODE_NAME FROM V_MONITOR.CURRENT_SESSION")
+    print("Client redirects to node:", cur.fetchone()[0])
+
+## Output
+#  Client connects to primary node: v_vdb_node0003
+#  Client redirects to node: v_vdb_node0005
+```
+
 **Stream query results**:
 
 ```python

@@ -70,6 +70,9 @@ class Message(object):
 
         return msg_with_size
 
+    def __str__(self):
+        return self.__class__.__name__
+
 
 # noinspection PyAbstractClass
 class BackendMessage(Message):

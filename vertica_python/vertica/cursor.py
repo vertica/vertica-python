@@ -36,7 +36,6 @@
 
 from __future__ import print_function, division, absolute_import
 
-import logging
 import re
 
 try:
@@ -63,7 +62,6 @@ from ..compat import as_text
 from ..vertica import messages
 from ..vertica.column import Column
 
-logger = logging.getLogger('vertica')
 
 UTF_8 = 'utf-8'
 
@@ -87,8 +85,9 @@ class Cursor(object):
     # NOTE: this is used in executemany and is here for pandas compatibility
     _insert_statement = re.compile(RE_BASIC_INSERT_STAT, re.U | re.I)
 
-    def __init__(self, connection, cursor_type=None, unicode_error=None):
+    def __init__(self, connection, logger, cursor_type=None, unicode_error=None):
         self.connection = connection
+        self._logger = logger
         self.cursor_type = cursor_type
         self.unicode_error = unicode_error if unicode_error is not None else 'strict'
         self._closed = False

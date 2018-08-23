@@ -36,25 +36,36 @@
 
 from __future__ import print_function, division, absolute_import
 
-from .bind import Bind
-from .cancel_request import CancelRequest
-from .close import Close
-from .copy_data import CopyData
-from .copy_stream import CopyStream
-from .copy_done import CopyDone
-from .copy_fail import CopyFail
-from .describe import Describe
-from .execute import Execute
-from .flush import Flush
-from .load_balance_request import LoadBalanceRequest
-from .parse import Parse
-from .password import Password
-from .query import Query
-from .ssl_request import SslRequest
-from .startup import Startup
-from .sync import Sync
-from .terminate import Terminate
+import os
+import logging
 
-__all__ = ['Bind', 'Query', 'CancelRequest', 'Close', 'CopyData', 'CopyDone', 'CopyFail',
-           'CopyStream', 'Describe', 'Execute', 'Flush', 'LoadBalanceRequest', 'Parse',
-           'Password', 'SslRequest', 'Startup', 'Sync', 'Terminate']
+class VerticaLogging(object):
+
+    @classmethod
+    def setup_file_logging(cls, logger_name, logfile, log_level=logging.INFO, context=''):
+        logger = logging.getLogger(logger_name)
+        formatter = logging.Formatter(
+            fmt=('%(asctime)s.%(msecs)03d [%(module)s] '
+                 '{}/%(process)d:0x%(thread)x <%(levelname)s> '
+                 '%(message)s'.format(context)),
+            datefmt='%Y-%m-%d %H:%M:%S')
+        cls.ensure_dir_exists(logfile)
+        file_handler = logging.FileHandler(logfile)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        logger.setLevel(log_level)
+
+    @classmethod
+    def ensure_dir_exists(cls, filepath):
+        """Ensure that a directory exists
+
+        If it doesn't exist, try to create it and protect against a race condition
+        if another process is doing the same.
+        """
+        directory = os.path.dirname(filepath)
+        if directory != '' and not os.path.exists(directory):
+            try:
+                os.makedirs(directory)
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    raise

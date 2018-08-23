@@ -33,28 +33,30 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-
 from __future__ import print_function, division, absolute_import
 
-from .bind import Bind
-from .cancel_request import CancelRequest
-from .close import Close
-from .copy_data import CopyData
-from .copy_stream import CopyStream
-from .copy_done import CopyDone
-from .copy_fail import CopyFail
-from .describe import Describe
-from .execute import Execute
-from .flush import Flush
-from .load_balance_request import LoadBalanceRequest
-from .parse import Parse
-from .password import Password
-from .query import Query
-from .ssl_request import SslRequest
-from .startup import Startup
-from .sync import Sync
-from .terminate import Terminate
+import getpass
+from .base import VerticaPythonIntegrationTestCase
 
-__all__ = ['Bind', 'Query', 'CancelRequest', 'Close', 'CopyData', 'CopyDone', 'CopyFail',
-           'CopyStream', 'Describe', 'Execute', 'Flush', 'LoadBalanceRequest', 'Parse',
-           'Password', 'SslRequest', 'Startup', 'Sync', 'Terminate']
+
+class ConnectionTestCase(VerticaPythonIntegrationTestCase):
+    def test_client_os_user_name_metadata(self):
+        value = getpass.getuser()
+
+        # Metadata client_os_user_name sent from client should be captured into system tables
+        query = 'SELECT client_os_user_name FROM v_monitor.current_session'
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], value)
+
+        query = 'SELECT client_os_user_name FROM v_monitor.sessions WHERE session_id=(SELECT current_session())'
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], value)
+
+        query = 'SELECT client_os_user_name FROM v_monitor.user_sessions WHERE session_id=(SELECT current_session())'
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], value)
+
+        query = 'SELECT client_os_user_name FROM v_internal.dc_session_starts WHERE session_id=(SELECT current_session())'
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], value)
+

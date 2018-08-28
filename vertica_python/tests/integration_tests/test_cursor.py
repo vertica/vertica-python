@@ -37,6 +37,7 @@ from __future__ import print_function, division, absolute_import
 
 import logging
 import os as _os
+import re
 import tempfile
 
 from .base import VerticaPythonIntegrationTestCase
@@ -394,6 +395,13 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             res = cur.fetchall()
             self.assertListOfListsEqual(res, [])
 
+    def test_format_quote_unicode(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            bad_word = u'Fr\xfchst\xfcck'
+            formatted_word = u''.join((u'"', re.escape(bad_word), u'"'))
+            self.assertEqual(formatted_word, cur.format_quote(bad_word, True))
+
 
 class ExecutemanyTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):
@@ -442,3 +450,6 @@ class ExecutemanyTestCase(VerticaPythonIntegrationTestCase):
     def test_executemany_quoted_path(self):
         table = '.'.join(['"{}"'.format(s.strip('"')) for s in self._table.split('.')])
         self._test_executemany(table, [(1, 'aa'), (2, 'bb')])
+
+    def test_executemany_utf8(self):
+        self._test_executemany(self._table, [(1, u'a\xfc'), (2, u'bb')])

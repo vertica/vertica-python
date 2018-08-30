@@ -91,6 +91,7 @@ class Cursor(object):
         self.cursor_type = cursor_type
         self.unicode_error = unicode_error if unicode_error is not None else 'strict'
         self._closed = False
+        self._datarows = []
         self._message = None
         self.operation = None
 
@@ -152,7 +153,7 @@ class Cursor(object):
             elif isinstance(self._message, messages.RowDescription):
                 self.description = [Column(fd, self.unicode_error) for fd in self._message.fields]
             elif isinstance(self._message, messages.DataRow):
-                break
+                self._datarows.append(self._message)
             elif isinstance(self._message, messages.ReadyForQuery):
                 break
             elif isinstance(self._message, messages.CommandComplete):
@@ -161,7 +162,6 @@ class Cursor(object):
                 self.connection.process_message(self._message)
 
             self._message = self.connection.read_message()
-
         return self
 
     def executemany(self, operation, seq_of_parameters):
@@ -194,24 +194,18 @@ class Cursor(object):
                 "executemany is implemented for simple INSERT statements only")
 
     def fetchone(self):
-        while True:
+        if len(self._datarows) == 0:
+            return None
+        self._message = self._datarows.pop(0)
             if isinstance(self._message, messages.DataRow):
                 if self.rowcount == -1:
                     self.rowcount = 1
                 else:
                     self.rowcount += 1
                 row = self.row_formatter(self._message)
-                # fetch next message
-                self._message = self.connection.read_message()
                 return row
-            elif isinstance(self._message, messages.ReadyForQuery):
+        else:
                 return None
-            elif isinstance(self._message, messages.CommandComplete):
-                return None
-            else:
-                self.connection.process_message(self._message)
-
-            self._message = self.connection.read_message()
 
     def iterate(self):
         row = self.fetchone()

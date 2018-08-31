@@ -197,15 +197,15 @@ class Cursor(object):
         if len(self._datarows) == 0:
             return None
         self._message = self._datarows.pop(0)
-            if isinstance(self._message, messages.DataRow):
-                if self.rowcount == -1:
-                    self.rowcount = 1
-                else:
-                    self.rowcount += 1
-                row = self.row_formatter(self._message)
-                return row
-        else:
-                return None
+        if isinstance(self._message, messages.DataRow):
+		if self.rowcount == -1:
+			self.rowcount = 1
+		else:
+			self.rowcount += 1
+		row = self.row_formatter(self._message)
+		return row
+	else:
+	return None
 
     def iterate(self):
         row = self.fetchone()

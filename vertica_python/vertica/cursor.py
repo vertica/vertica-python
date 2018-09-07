@@ -36,6 +36,7 @@
 
 from __future__ import print_function, division, absolute_import
 
+import datetime
 import re
 
 try:
@@ -382,7 +383,8 @@ class Cursor(object):
                 else:
                     param = str(param)
                 value = as_text(param)
-
+                elif isinstance(param, datetime.datetime):
+                    param = self.format_quote(as_text(param.strftime("%Y-%m-%d %H:%M:%S")), is_csv)
                 # Using a regex with word boundary to correctly handle params with similar names
                 # such as :s and :start
                 match_str = u":{0}\\b".format(key)

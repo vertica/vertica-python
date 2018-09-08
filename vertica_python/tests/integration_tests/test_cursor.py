@@ -425,13 +425,13 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
                             {'n': 10, 's': 'aa',
                              'dt': datetime.datetime(2018, 9, 7, 15, 38, 19, 769000),
                              'd': datetime.date(2018, 9, 7),
-                             't': datetime.time(13,50,9)})
+                             't': datetime.time(13, 50, 9)})
             conn.commit()
 
             cur.execute("SELECT a, b, c, d, e FROM {0}".format(self._table))
             res = cur.fetchall()
             self.assertListOfListsEqual(res, [[10, 'aa', datetime.datetime(2018, 9, 7, 15, 38, 19, 769000),
-                                               datetime.date(2018, 9, 7), datetime.time(13,50,9)]])
+                                               datetime.date(2018, 9, 7), datetime.time(13, 50, 9)]])
 
             # clean up
             cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))

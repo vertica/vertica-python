@@ -129,6 +129,7 @@ def date_parse(s):
 
 
 def time_parse(s):
+    s = as_str(s)
     if len(s) == 8:
         return datetime.strptime(s, '%H:%M:%S').time()
     return datetime.strptime(s, '%H:%M:%S.%f').time()

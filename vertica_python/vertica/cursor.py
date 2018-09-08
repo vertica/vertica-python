@@ -36,6 +36,7 @@
 
 from __future__ import print_function, division, absolute_import
 
+import datetime
 import re
 
 try:
@@ -377,6 +378,8 @@ class Cursor(object):
 
                 if isinstance(param, string_types):
                     param = self.format_quote(as_text(param), is_csv)
+                elif isinstance(param, (datetime.datetime, datetime.date, datetime.time)):
+                    param = self.format_quote(as_text(str(param)), is_csv)
                 elif param is None:
                     param = NULL
                 else:
@@ -393,6 +396,8 @@ class Cursor(object):
             for param in parameters:
                 if isinstance(param, string_types):
                     param = self.format_quote(as_text(param), is_csv)
+                elif isinstance(param, (datetime.datetime, datetime.date, datetime.time)):
+                    param = self.format_quote(as_text(str(param)), is_csv)
                 elif param is None:
                     param = NULL
                 else:

@@ -35,6 +35,7 @@
 
 from __future__ import print_function, division, absolute_import
 
+import datetime
 import logging
 import os as _os
 import re
@@ -401,6 +402,39 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             bad_word = u'Fr\xfchst\xfcck'
             formatted_word = u''.join((u'"', re.escape(bad_word), u'"'))
             self.assertEqual(formatted_word, cur.format_quote(bad_word, True))
+            
+    # unit test for #175
+    def test_datetime_types(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            # clean old table
+            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
+
+            # create test table
+            cur.execute("""CREATE TABLE {0} (
+                                a INT,
+                                b VARCHAR(32),
+                                c TIMESTAMP,
+                                d DATE,
+                                e TIME
+                           )
+                        """.format(self._table))
+
+            cur.execute("INSERT INTO {0} (a, b, c, d, e) VALUES (:n, :s, :dt, :d, :t)".format(self._table),
+                            {'n': 10, 's': 'aa',
+                             'dt': datetime.datetime(2018, 9, 7, 15, 38, 19, 769000),
+                             'd': datetime.date(2018, 9, 7),
+                             't': datetime.time(13, 50, 9)})
+            conn.commit()
+
+            cur.execute("SELECT a, b, c, d, e FROM {0}".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [[10, 'aa', datetime.datetime(2018, 9, 7, 15, 38, 19, 769000),
+                                               datetime.date(2018, 9, 7), datetime.time(13, 50, 9)]])
+
+            # clean up
+            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
 
 
 class ExecutemanyTestCase(VerticaPythonIntegrationTestCase):

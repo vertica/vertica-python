@@ -403,6 +403,7 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             formatted_word = u''.join((u'"', re.escape(bad_word), u'"'))
             self.assertEqual(formatted_word, cur.format_quote(bad_word, True))
             
+    # unit test for #175
     def test_datetime_types(self):
         with self._connect() as conn:
             cur = conn.cursor()
@@ -415,17 +416,25 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
                                 a INT,
                                 b VARCHAR(32),
                                 c TIMESTAMP,
-                                d DATE
+                                d DATE,
+                                e TIME
                            )
                         """.format(self._table))
 
-            cur.execute("INSERT INTO {0} (a, b, c, d) VALUES (:n, :s, :t, :d)".format(self._table),
-                            {'n': 10, 's': 'aa', 't': datetime.datetime(2018, 9, 7, 15, 38, 19, 769000), 'd': datetime.date(2018, 9, 7)})
+            cur.execute("INSERT INTO {0} (a, b, c, d, e) VALUES (:n, :s, :dt, :d, :t)".format(self._table),
+                            {'n': 10, 's': 'aa',
+                             'dt': datetime.datetime(2018, 9, 7, 15, 38, 19, 769000),
+                             'd': datetime.date(2018, 9, 7),
+                             't': datetime.time(13,50,9)})
             conn.commit()
 
-            cur.execute("SELECT a, b, c, d FROM {0} ORDER BY a ASC".format(self._table))
+            cur.execute("SELECT a, b, c, d, e FROM {0}".format(self._table))
             res = cur.fetchall()
-            self.assertListOfListsEqual(res, [[1, 'aa', datetime.datetime(2018, 9, 7, 15, 38, 19, 769000), datetime.date(2018, 9, 7)]])
+            self.assertListOfListsEqual(res, [[1, 'aa', datetime.datetime(2018, 9, 7, 15, 38, 19, 769000),
+                                               datetime.date(2018, 9, 7), datetime.time(13,50,9)]])
+
+            # clean up
+            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
 
 
 class ExecutemanyTestCase(VerticaPythonIntegrationTestCase):

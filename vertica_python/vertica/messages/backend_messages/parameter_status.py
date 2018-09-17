@@ -46,9 +46,12 @@ class ParameterStatus(BackendMessage):
     def __init__(self, data):
         BackendMessage.__init__(self)
         null_byte = data.find(b'\x00')
-        unpacked = unpack('{0}sx{1}sx'.format(null_byte - 1, len(data) - null_byte - 1), data)
+        unpacked = unpack('{0}sx{1}sx'.format(null_byte, len(data) - null_byte - 2), data)
         self.name = unpacked[0]
         self.value = unpacked[1]
+
+    def __str__(self):
+        return "ParameterStatus: {} = {}".format(self.name, self.value)
 
 
 BackendMessage.register(ParameterStatus)

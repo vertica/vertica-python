@@ -1,0 +1,29 @@
+dist: trusty
+language: python
+
+services:
+  - docker
+
+matrix:
+  include:
+    - python: 3.6
+      env: TOXENV=py36
+    - python: 3.5
+      env: TOXENV=py35
+    - python: 3.4
+      env: TOXENV=py34
+    - python: 2.7
+      env: TOXENV=py27
+
+before_install:
+  - git clone https://github.com/jbfavre/docker-vertica.git
+  - wget $VERTICA_CE_URL -O docker-vertica/packages/vertica-ce.latest.rpm
+  - docker build -f docker-vertica/Dockerfile.centos.7_9.0 --build-arg VERTICA_PACKAGE=vertica-ce.latest.rpm -t jbfavre/vertica docker-vertica
+  - docker images
+  - docker run -d -p 5433:5433 jbfavre/vertica
+  - sleep 30
+install:
+  - pip install tox
+script:
+  - export VP_TEST_USER=dbadmin
+  - tox

@@ -233,6 +233,43 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             res = cur.fetchall()
             self.assertListOfListsEqual(res, [[1]])
 
+    # unit test for #213
+    def test_cmd_after_invalid_copy_stmt(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            cur.execute("SELECT 1;")
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [[1]])
+
+            res = [[]]
+            try:
+                cur.copy("COPY non_existing_tab(a, b) FROM STDIN DELIMITER ','", "FAIL")
+            except errors.Error as e:
+                cur.execute("SELECT 1;")
+                res = cur.fetchall()
+
+            self.assertListOfListsEqual(res, [[1]])
+
+    # unit test for #213
+    def test_cmd_after_rejected_copy_data(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            cur.execute("SELECT 1;")
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [[1]])
+
+            res = [[]]
+            try:
+                cur.copy("COPY {0} (a, b) FROM STDIN DELIMITER ',' ABORT ON ERROR".format(self._table),
+                         "FAIL")
+            except errors.Error as e:
+                cur.execute("SELECT 1;")
+                res = cur.fetchall()
+
+            self.assertListOfListsEqual(res, [[1]])
+
     def test_with_conn(self):
         with self._connect() as conn:
             cur = conn.cursor()

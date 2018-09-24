@@ -326,6 +326,7 @@ class Cursor(object):
         while True:
             message = self.connection.read_message()
 
+            self._message = message
             if isinstance(message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(message, sql)
 

@@ -382,7 +382,7 @@ class Cursor(object):
                 elif isinstance(param, (datetime.datetime, datetime.date, datetime.time)):
                     param = self.format_quote(as_text(str(param)), is_csv)
                 elif param is None:
-                    param = NULL
+                    param = '' if is_csv else NULL
                 else:
                     param = str(param)
                 value = as_text(param)
@@ -400,7 +400,7 @@ class Cursor(object):
                 elif isinstance(param, (datetime.datetime, datetime.date, datetime.time)):
                     param = self.format_quote(as_text(str(param)), is_csv)
                 elif param is None:
-                    param = NULL
+                    param = '' if is_csv else NULL
                 else:
                     param = str(param)
                 value = as_text(param)

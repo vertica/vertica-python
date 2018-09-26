@@ -176,6 +176,15 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             res = cur.fetchall()
             self.assertListOfListsEqual(res, [[5, 'ff']])
 
+    def test_copy_null(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.copy("COPY {0} (a, b) FROM STDIN DELIMITER ','".format(self._table),
+                     "1,\n,foo")
+            cur.execute("SELECT a, b FROM {0} ORDER BY a ASC".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [[None, 'foo'], [1, None]])
+
     def test_copy_with_string(self):
         with self._connect() as conn1, self._connect() as conn2:
             cur1 = conn1.cursor()
@@ -524,3 +533,22 @@ class ExecutemanyTestCase(VerticaPythonIntegrationTestCase):
 
     def test_executemany_utf8(self):
         self._test_executemany(self._table, [(1, u'a\xfc'), (2, u'bb')])
+
+    def test_executemany_null(self):
+        seq_of_values_1 = ((None, 'foo'), [2, None])
+        seq_of_values_2 = ({'a': None, 'b': 'bar'}, {'a': 4, 'b': None})
+        seq_of_values_to_compare = [[None, 'bar'], [None, 'foo'], [2, None], [4, None]]
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            cur.executemany("INSERT INTO {0} (a, b) VALUES (%s, %s)".format(self._table),
+                            seq_of_values_1)
+            conn.commit()
+            cur.executemany("INSERT INTO {0} (a, b) VALUES (:a, :b)".format(self._table),
+                            seq_of_values_2)
+            conn.commit()
+
+            cur.execute("SELECT * FROM {0} ORDER BY a ASC, b ASC".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, seq_of_values_to_compare)
+            self.assertIsNone(cur.fetchone())

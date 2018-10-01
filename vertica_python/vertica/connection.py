@@ -68,7 +68,23 @@ ASCII = 'ascii'
 
 
 def connect(**kwargs):
-    """Opens a new connection to a Vertica database."""
+    """Opens a new connection to a vertica database.
+    
+    Parameters
+    ----------
+    connection_info : dict
+        A dictionary to provide options for the connection. The available options
+        are described in the `Connection` class.
+
+    Returns
+    -------
+    Connection
+        An instance of the `Connection` class
+        
+    See Also
+    --------
+    Connection : The implementation of the connection class.
+    """
     return Connection(kwargs)
 
 
@@ -166,7 +182,67 @@ class _AddressList(object):
 
 
 class Connection(object):
+    """The connection class handles the establishment of connections to the database
+    and offers methods to handle connection-specific tasks such as commits, rollbacks etc.
+    """
     def __init__(self, options=None):
+        """
+        A connection object is being created by passing a `options` dictionary
+        into this method. This dictionary holds the parameters as defined below.
+        
+        Parameters
+        ----------
+        options : dict
+            All following parameters are meant to be given inside the `options`
+            dictionary as key:value pairs, such as 'host':'127.0.0.1'
+        - host : string
+            The ip adress or hostname of the database. Default is 'localhost'.
+        - port : int
+            The port of the database. Defaults to 5433.
+        - database : str
+            The name of the database to connect to. Default is the same as for `user`.
+        - user : str
+            The username under which to connect to the database. Defaults to the
+            logged in system user as returned by ``getpass.getuser()`` which checks 
+            the environment variables LOGNAME, USER, LNAME and USERNAME, in order,
+            and returns the value of the first one which is set to a non-empty string. 
+            If none are set, the login name from the password database is returned 
+            on systems which support the pwd module, otherwise, an exception is raised.
+        - password : str
+            The password associated with `user` to connect to the database. 
+            Defaults to an empty string.
+        - read_timeout : int
+            The period (in seconds) after which a timeout exeption is raised. 
+            Defaults to 600
+        - log_level : int
+            The severity level of messages to be logged. Available logging levels
+            and their corresponding integer values are:
+            CRITICAL 50
+            ERROR	 40
+            WARNING	 30
+            INFO	 20
+            DEBUG	 10
+            NOTSET	 0
+            
+            Default is `WARNING`.
+        - log_path : str
+            Path to the file, in which the log is stored. Defaults to 'vertica_python.log'.
+        - backup_server_node : list
+            A list of servernames that can be used as a backup in the case of 
+            a connection failure. The entries in the list are strings of IPs
+            or hostname or tuples in the form ``(hostname, port)`` where port is
+            an integer.
+            Example: ``['123.456.789.123', 'invalid.com', ('10.20.82.77', 6000)]``
+        - ssl : 
+            An SSL context as returned by e.g. ``ssl.SSLContext(ssl.PROTOCOL_SSLv23)``
+        - unicode_error : {'strict', 'replace', 'ignore'}
+            The mode to handle unicode errors as described in 
+            https://docs.python.org/2/library/functions.html#unicode
+            Default is 'strict'.
+        - connection_load_balance : bool
+            Indicate if load balance should be used for this connection. This 
+            has to be enabled in the server as well.
+        """
         self.parameters = {}
         self.session_id = None
         self.backend_pid = None

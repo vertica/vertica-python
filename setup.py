@@ -57,7 +57,8 @@ setup(
         'python-dateutil>=1.5',
         'pytz',
         'future',
-        'six>=1.10.0'
+        'six>=1.10.0',
+        'numpydoc'
     ],
     extras_require={'namedparams': ['psycopg2>=2.5.1']},
     classifiers=[

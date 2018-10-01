@@ -66,6 +66,6 @@ class VerticaLogging(object):
         if directory != '' and not os.path.exists(directory):
             try:
                 os.makedirs(directory)
-            except OSError as e:
-                if e.errno != errno.EEXIST:
+            except OSError as error:
+                if error.errno != errno.EEXIST:
                     raise

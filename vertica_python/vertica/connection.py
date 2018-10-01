@@ -72,9 +72,67 @@ def connect(**kwargs):
     
     Parameters
     ----------
-    connection_info : dict
-        A dictionary to provide options for the connection. The available options
-        are described in the `Connection` class.
+    options : dict
+        All following parameters are meant to be given inside the `options`
+        dictionary as key:value pairs, such as 'host':'127.0.0.1'. The available 
+        options are in alphabetical order:
+        
+    - backup_server_node : list
+        A list of servernames that can be used as a backup in the case of 
+        a connection failure. The entries in the list are strings of IPs
+        or hostname or tuples in the form ``(hostname, port)`` where port is
+        an integer.
+        
+        Example: ``['123.456.789.123', 'invalid.com', ('10.20.82.77', 6000)]``    
+    - connection_load_balance : bool
+        Indicate if load balance should be used for this connection. This 
+        has to be enabled in the server as well.
+    - connection_timeout : int
+        The timeout for the underlying socket connection in seconds.
+    - database : str
+        The name of the database to connect to. Default is the same as for `user`.
+    - host : string
+        The ip adress or hostname of the database. Default is 'localhost'.
+    - log_level : int
+        The severity level of messages to be logged. Available logging levels
+        and their corresponding integer values are:
+            =============  =======
+            Logging Level  Integer
+            =============  =======
+            CRITICAL        50
+            ERROR	        40
+            WARNING	        30
+            INFO	        20
+            DEBUG	        10
+            NOTSET	         0
+            =============  =======
+        
+        Default is `WARNING`.
+    - log_path : str
+        Path to the file, in which the log is stored. Defaults to 'vertica_python.log'.
+    - password : str
+        The password associated with `user` to connect to the database. 
+        Defaults to an empty string.
+    - port : int
+        The port of the database. Defaults to 5433.
+    - read_timeout : int
+        The period (in seconds) after which a timeout exeption is raised. 
+        Defaults to 600
+    - ssl : 
+        An SSL context as returned by e.g. ``ssl.SSLContext(ssl.PROTOCOL_SSLv23)``
+    - unicode_error : {'strict', 'replace', 'ignore'}
+        The mode to handle unicode errors as described in 
+        https://docs.python.org/2/library/functions.html#unicode
+        
+        Default is 'strict'.
+    - user : str
+        The username under which to connect to the database. Defaults to the
+        logged in system user as returned by ``getpass.getuser()`` which checks 
+        the environment variables LOGNAME, USER, LNAME and USERNAME, in order,
+        and returns the value of the first one which is set to a non-empty string. 
+        If none are set, the login name from the password database is returned 
+        on systems which support the pwd module, otherwise, an exception is raised.
+
 
     Returns
     -------
@@ -191,57 +249,67 @@ class Connection(object):
         into this method. This dictionary holds the parameters as defined below.
         
         Parameters
-        ----------
-        options : dict
-            All following parameters are meant to be given inside the `options`
-            dictionary as key:value pairs, such as 'host':'127.0.0.1'
-        - host : string
-            The ip adress or hostname of the database. Default is 'localhost'.
-        - port : int
-            The port of the database. Defaults to 5433.
-        - database : str
-            The name of the database to connect to. Default is the same as for `user`.
-        - user : str
-            The username under which to connect to the database. Defaults to the
-            logged in system user as returned by ``getpass.getuser()`` which checks 
-            the environment variables LOGNAME, USER, LNAME and USERNAME, in order,
-            and returns the value of the first one which is set to a non-empty string. 
-            If none are set, the login name from the password database is returned 
-            on systems which support the pwd module, otherwise, an exception is raised.
-        - password : str
-            The password associated with `user` to connect to the database. 
-            Defaults to an empty string.
-        - read_timeout : int
-            The period (in seconds) after which a timeout exeption is raised. 
-            Defaults to 600
-        - log_level : int
-            The severity level of messages to be logged. Available logging levels
-            and their corresponding integer values are:
-            CRITICAL 50
-            ERROR	 40
-            WARNING	 30
-            INFO	 20
-            DEBUG	 10
-            NOTSET	 0
-            
-            Default is `WARNING`.
-        - log_path : str
-            Path to the file, in which the log is stored. Defaults to 'vertica_python.log'.
-        - backup_server_node : list
-            A list of servernames that can be used as a backup in the case of 
-            a connection failure. The entries in the list are strings of IPs
-            or hostname or tuples in the form ``(hostname, port)`` where port is
-            an integer.
-            Example: ``['123.456.789.123', 'invalid.com', ('10.20.82.77', 6000)]``
-        - ssl : 
-            An SSL context as returned by e.g. ``ssl.SSLContext(ssl.PROTOCOL_SSLv23)``
-        - unicode_error : {'strict', 'replace', 'ignore'}
-            The mode to handle unicode errors as described in 
-            https://docs.python.org/2/library/functions.html#unicode
-            Default is 'strict'.
-        - connection_load_balance : bool
-            Indicate if load balance should be used for this connection. This 
-            has to be enabled in the server as well.
+    ----------
+    options : dict
+        All following parameters are meant to be given inside the `options`
+        dictionary as key:value pairs, such as 'host':'127.0.0.1'. The available 
+        options are in alphabetical order:
+        
+    - backup_server_node : list
+        A list of servernames that can be used as a backup in the case of 
+        a connection failure. The entries in the list are strings of IPs
+        or hostname or tuples in the form ``(hostname, port)`` where port is
+        an integer.
+        
+        Example: ``['123.456.789.123', 'invalid.com', ('10.20.82.77', 6000)]``    
+    - connection_load_balance : bool
+        Indicate if load balance should be used for this connection. This 
+        has to be enabled in the server as well.
+    - connection_timeout : int
+        The timeout for the underlying socket connection in seconds.
+    - database : str
+        The name of the database to connect to. Default is the same as for `user`.
+    - host : string
+        The ip adress or hostname of the database. Default is 'localhost'.
+    - log_level : int
+        The severity level of messages to be logged. Available logging levels
+        and their corresponding integer values are:
+            =============  =======
+            Logging Level  Integer
+            =============  =======
+            CRITICAL        50
+            ERROR	        40
+            WARNING	        30
+            INFO	        20
+            DEBUG	        10
+            NOTSET	         0
+            =============  =======
+        
+        Default is `WARNING`.
+    - log_path : str
+        Path to the file, in which the log is stored. Defaults to 'vertica_python.log'.
+    - password : str
+        The password associated with `user` to connect to the database. 
+        Defaults to an empty string.
+    - port : int
+        The port of the database. Defaults to 5433.
+    - read_timeout : int
+        The period (in seconds) after which a timeout exeption is raised. 
+        Defaults to 600
+    - ssl : 
+        An SSL context as returned by e.g. ``ssl.SSLContext(ssl.PROTOCOL_SSLv23)``
+    - unicode_error : {'strict', 'replace', 'ignore'}
+        The mode to handle unicode errors as described in 
+        https://docs.python.org/2/library/functions.html#unicode
+        
+        Default is 'strict'.
+    - user : str
+        The username under which to connect to the database. Defaults to the
+        logged in system user as returned by ``getpass.getuser()`` which checks 
+        the environment variables LOGNAME, USER, LNAME and USERNAME, in order,
+        and returns the value of the first one which is set to a non-empty string. 
+        If none are set, the login name from the password database is returned 
+        on systems which support the pwd module, otherwise, an exception is raised.
         """
         self.parameters = {}
         self.session_id = None
@@ -307,18 +375,26 @@ class Connection(object):
     # dbapi methods
     #############################################
     def close(self):
+        """Close the connection to the database.
+        """
         try:
             self.write(messages.Terminate())
         finally:
             self.close_socket()
 
     def cancel(self):
+        """Cancel the last query sent to the database inside this connection.
+            Raises an error if the connection is closed.
+        """
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
         self.write(CancelRequest(backend_pid=self.backend_pid, backend_key=self.backend_key))
 
     def commit(self):
+        """Commit all changes done in this connection. Per default, all Vertica
+        client drivers connect in AUTOCOMMIT mode.
+        """
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
@@ -326,6 +402,11 @@ class Connection(object):
         cur.execute('COMMIT;')
 
     def rollback(self):
+        """Rollback all changes inside this connection since the last checkpoint.
+        Note that, per default, all Vertica client drivers connect in AUTOCOMMIT
+        mode. If Rollbacks are needed in a transaction scope, the AUTOCOMMIT setting
+        has to be turned off manually.
+        """
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
@@ -333,6 +414,9 @@ class Connection(object):
         cur.execute('ROLLBACK;')
 
     def cursor(self, cursor_type=None):
+        """Returns an instance of `Cursor` on the connection. 
+        Raises an error, if connection is closed.
+        """
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 

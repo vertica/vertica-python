@@ -68,7 +68,81 @@ ASCII = 'ascii'
 
 
 def connect(**kwargs):
-    """Opens a new connection to a Vertica database."""
+    """Opens a new connection to a vertica database.
+
+    Parameters
+    ----------
+    options : dict
+        All following parameters are meant to be given inside the `options`
+        dictionary as key:value pairs, such as 'host':'127.0.0.1'. The available
+        options are in alphabetical order:
+
+    - backup_server_node : list
+        A list of servernames that can be used as a backup in the case of
+        a connection failure. The entries in the list are strings of IPs
+        or hostname or tuples in the form ``(hostname, port)`` where port is
+        an integer.
+
+        Example: ``['123.456.789.123', 'invalid.com', ('10.20.82.77', 6000)]``
+    - connection_load_balance : bool
+        Indicate if load balance should be used for this connection. This
+        has to be enabled in the server as well.
+    - connection_timeout : int
+        The timeout for the underlying socket connection in seconds.
+    - database : str
+        The name of the database to connect to. Default is the same as for `user`.
+    - host : string
+        The ip adress or hostname of the database. Default is 'localhost'.
+    - log_level : int
+        The severity level of messages to be logged. Available logging levels
+        and their corresponding integer values are:
+            =============  =======
+            Logging Level  Integer
+            =============  =======
+            CRITICAL        50
+            ERROR	        40
+            WARNING	        30
+            INFO	        20
+            DEBUG	        10
+            NOTSET	         0
+            =============  =======
+
+        Default is `WARNING`.
+    - log_path : str
+        Path to the file, in which the log is stored. Defaults to 'vertica_python.log'.
+    - password : str
+        The password associated with `user` to connect to the database.
+        Defaults to an empty string.
+    - port : int
+        The port of the database. Defaults to 5433.
+    - read_timeout : int
+        The period (in seconds) after which a timeout exeption is raised.
+        Defaults to 600
+    - ssl :
+        An SSL context as returned by e.g. ``ssl.SSLContext(ssl.PROTOCOL_SSLv23)``
+    - unicode_error : {'strict', 'replace', 'ignore'}
+        The mode to handle unicode errors as described in
+        https://docs.python.org/2/library/functions.html#unicode
+
+        Default is 'strict'.
+    - user : str
+        The username under which to connect to the database. Defaults to the
+        logged in system user as returned by ``getpass.getuser()`` which checks
+        the environment variables LOGNAME, USER, LNAME and USERNAME, in order,
+        and returns the value of the first one which is set to a non-empty string.
+        If none are set, the login name from the password database is returned
+        on systems which support the pwd module, otherwise, an exception is raised.
+
+
+    Returns
+    -------
+    Connection
+        An instance of the `Connection` class
+
+    See Also
+    --------
+    Connection : The implementation of the connection class.
+    """
     return Connection(kwargs)
 
 
@@ -103,7 +177,7 @@ class _AddressList(object):
                            ' must be a host string or a (host, port) tuple')
                 self._logger.error(err_msg)
                 raise TypeError(err_msg)
-        
+
         self._logger.debug('Address list: {0}'.format(list(self.address_deque)))
 
     def _append(self, host, port):
@@ -119,8 +193,8 @@ class _AddressList(object):
         elif isinstance(port, string_types):
             try:
                 port = int(port)
-            except ValueError as e:
-                err_msg = 'Port "{0}" is not a valid string: {1}'.format(port, e)
+            except ValueError as error:
+                err_msg = 'Port "{0}" is not a valid string: {1}'.format(port, error)
                 self._logger.error(err_msg)
                 raise ValueError(err_msg)
 
@@ -139,10 +213,10 @@ class _AddressList(object):
 
     def peek(self):
         # do lazy DNS resolution, return the leftmost DNS-resolved address
-        if len(self.address_deque) == 0:
+        if not self.address_deque:
             return None
 
-        while len(self.address_deque) > 0:
+        while self.address_deque:
             host, port, is_dns_resolved = self.address_deque[0]
             if is_dns_resolved:
                 # return a resolved address
@@ -153,8 +227,8 @@ class _AddressList(object):
                 self.address_deque.popleft()
                 try:
                     resolved_hosts = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
-                except Exception as e:
-                    self._logger.warning('Error resolving host "{0}" on port {1}: {2}'.format(host, port, e))
+                except Exception as error:
+                    self._logger.warning('Error resolving host "{0}" on port {1}: {2}'.format(host, port, error))
                     continue
 
                 # add resolved IP addresses to deque
@@ -166,7 +240,77 @@ class _AddressList(object):
 
 
 class Connection(object):
+    """The connection class handles the establishment of connections to the database
+    and offers methods to handle connection-specific tasks such as commits, rollbacks etc.
+    """
     def __init__(self, options=None):
+        """
+        A connection object is being created by passing a `options` dictionary
+        into this method. This dictionary holds the parameters as defined below.
+
+        Parameters
+    ----------
+    options : dict
+        All following parameters are meant to be given inside the `options`
+        dictionary as key:value pairs, such as 'host':'127.0.0.1'. The available
+        options are in alphabetical order:
+
+    - backup_server_node : list
+        A list of servernames that can be used as a backup in the case of
+        a connection failure. The entries in the list are strings of IPs
+        or hostname or tuples in the form ``(hostname, port)`` where port is
+        an integer.
+
+        Example: ``['123.456.789.123', 'invalid.com', ('10.20.82.77', 6000)]``
+    - connection_load_balance : bool
+        Indicate if load balance should be used for this connection. This
+        has to be enabled in the server as well.
+    - connection_timeout : int
+        The timeout for the underlying socket connection in seconds.
+    - database : str
+        The name of the database to connect to. Default is the same as for `user`.
+    - host : string
+        The ip adress or hostname of the database. Default is 'localhost'.
+    - log_level : int
+        The severity level of messages to be logged. Available logging levels
+        and their corresponding integer values are:
+            =============  =======
+            Logging Level  Integer
+            =============  =======
+            CRITICAL        50
+            ERROR	        40
+            WARNING	        30
+            INFO	        20
+            DEBUG	        10
+            NOTSET	         0
+            =============  =======
+
+        Default is `WARNING`.
+    - log_path : str
+        Path to the file, in which the log is stored. Defaults to 'vertica_python.log'.
+    - password : str
+        The password associated with `user` to connect to the database.
+        Defaults to an empty string.
+    - port : int
+        The port of the database. Defaults to 5433.
+    - read_timeout : int
+        The period (in seconds) after which a timeout exeption is raised.
+        Defaults to 600
+    - ssl :
+        An SSL context as returned by e.g. ``ssl.SSLContext(ssl.PROTOCOL_SSLv23)``
+    - unicode_error : {'strict', 'replace', 'ignore'}
+        The mode to handle unicode errors as described in
+        https://docs.python.org/2/library/functions.html#unicode
+
+        Default is 'strict'.
+    - user : str
+        The username under which to connect to the database. Defaults to the
+        logged in system user as returned by ``getpass.getuser()`` which checks
+        the environment variables LOGNAME, USER, LNAME and USERNAME, in order,
+        and returns the value of the first one which is set to a non-empty string.
+        If none are set, the login name from the password database is returned
+        on systems which support the pwd module, otherwise, an exception is raised.
+        """
         self.parameters = {}
         self.session_id = None
         self.backend_pid = None
@@ -187,7 +331,7 @@ class Connection(object):
         # Set up connection logger
         logger_name = 'vertica_{0}_{1}'.format(id(self), str(uuid.uuid4())) # must be a unique value
         self._logger = logging.getLogger(logger_name)
-        
+
         if 'log_level' not in self.options and 'log_path' not in self.options:
             # logger is disabled by default
             self._logger.disabled = True
@@ -206,8 +350,8 @@ class Connection(object):
                               unicode_error=self.options['unicode_error'])
 
         self._logger.info('Connecting as user "{}" to database "{}" on host "{}" with port {}'.format(
-                     self.options['user'], self.options['database'],
-                     self.options['host'], self.options['port']))
+            self.options['user'], self.options['database'],
+            self.options['host'], self.options['port']))
         self.startup_connection()
         self._logger.info('Connection is ready')
 
@@ -231,18 +375,26 @@ class Connection(object):
     # dbapi methods
     #############################################
     def close(self):
+        """Close the connection to the database.
+        """
         try:
             self.write(messages.Terminate())
         finally:
             self.close_socket()
 
     def cancel(self):
+        """Cancel the last query sent to the database inside this connection.
+            Raises an error if the connection is closed.
+        """
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
         self.write(CancelRequest(backend_pid=self.backend_pid, backend_key=self.backend_key))
 
     def commit(self):
+        """Commit all changes done in this connection. Per default, all Vertica
+        client drivers connect in AUTOCOMMIT mode.
+        """
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
@@ -250,6 +402,11 @@ class Connection(object):
         cur.execute('COMMIT;')
 
     def rollback(self):
+        """Rollback all changes inside this connection since the last checkpoint.
+        Note that, per default, all Vertica client drivers connect in AUTOCOMMIT
+        mode. If Rollbacks are needed in a transaction scope, the AUTOCOMMIT setting
+        has to be turned off manually.
+        """
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
@@ -257,6 +414,9 @@ class Connection(object):
         cur.execute('ROLLBACK;')
 
     def cursor(self, cursor_type=None):
+        """Returns an instance of `Cursor` on the connection.
+        Raises an error, if connection is closed.
+        """
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
@@ -290,7 +450,7 @@ class Connection(object):
         # enable load balancing
         load_balance_options = self.options.get('connection_load_balance')
         self._logger.debug('Connection load balance option is {0}'.format(
-                     'enabled' if load_balance_options else 'disabled'))
+            'enabled' if load_balance_options else 'disabled'))
         if load_balance_options:
             raw_socket = self.balance_load(raw_socket)
 
@@ -357,10 +517,10 @@ class Connection(object):
                     raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=host)
                 else:
                     raw_socket = ssl.wrap_socket(raw_socket)
-            except CertificateError as e:
-                raise_from(errors.ConnectionError, e)
-            except SSLError as e:
-                raise_from(errors.ConnectionError, e)
+            except CertificateError as error:
+                raise_from(errors.ConnectionError, error)
+            except SSLError as error:
+                raise_from(errors.ConnectionError, error)
         else:
             err_msg = "SSL requested but not supported by server"
             self._logger.error(err_msg)
@@ -382,9 +542,9 @@ class Connection(object):
                 raw_socket = self.create_socket()
                 raw_socket.connect((host, port))
                 break
-            except Exception as e:
-                self._logger.info('Failed to connect to host "{0}" on port {1}: {2}'.format(host, port, e))
-                last_exception = e
+            except Exception as error:
+                self._logger.info('Failed to connect to host "{0}" on port {1}: {2}'.format(host, port, error))
+                last_exception = error
                 self.address_list.pop()
                 addr = self.address_list.peek()
                 raw_socket.close()
@@ -422,14 +582,14 @@ class Connection(object):
                     self._logger.error("couldn't send message")
                     raise
 
-        except Exception as e:
+        except Exception as error:
             self.close_socket()
-            if str(e) == 'unsupported authentication method: 9':
+            if str(error) == 'unsupported authentication method: 9':
                 raise errors.ConnectionError(
                     'Error during authentication. Your password might be expired.')
             else:
                 # noinspection PyTypeChecker
-                raise_from(errors.ConnectionError, e)
+                raise_from(errors.ConnectionError, error)
 
     def close_socket(self):
         try:
@@ -452,10 +612,10 @@ class Connection(object):
             message = BackendMessage.from_type(type_, self.read_bytes(size - 4))
             self._logger.debug('<= %s', message)
             return message
-        except (SystemError, IOError) as e:
+        except (SystemError, IOError) as error:
             self.close_socket()
             # noinspection PyTypeChecker
-            raise_from(errors.ConnectionError, e)
+            raise_from(errors.ConnectionError, error)
 
     def process_message(self, message):
         if isinstance(message, messages.ErrorResponse):
@@ -489,16 +649,16 @@ class Connection(object):
     def __str__(self):
         safe_options = {key: value for key, value in self.options.items() if key != 'password'}
 
-        s1 = "<Vertica.Connection:{0} parameters={1} backend_pid={2}, ".format(
+        string1 = "<Vertica.Connection:{0} parameters={1} backend_pid={2}, ".format(
             id(self), self.parameters, self.backend_pid)
-        s2 = "backend_key={0}, transaction_status={1}, socket={2}, options={3}>".format(
+        string2 = "backend_key={0}, transaction_status={1}, socket={2}, options={3}>".format(
             self.backend_key, self.transaction_status, self.socket, safe_options)
-        return ''.join([s1, s2])
+        return ''.join([string1, string2])
 
-    def read_bytes(self, n):
+    def read_bytes(self, num):
         results = bytes()
-        while len(results) < n:
-            bytes_ = self._socket().recv(n - len(results))
+        while len(results) < num:
+            bytes_ = self._socket().recv(num - len(results))
             if not bytes_:
                 raise errors.ConnectionError("Connection closed by Vertica")
             results += bytes_

@@ -348,10 +348,10 @@ class Connection(object):
         self.options.setdefault('unicode_error', None)
         self._cursor = Cursor(self, self._logger, cursor_type=None,
                               unicode_error=self.options['unicode_error'])
-
-        self._logger.info('Connecting as user "{}" to database "{}" on host "{}" with port {}'.format(
-            self.options['user'], self.options['database'],
-            self.options['host'], self.options['port']))
+        if self._logger.isEnabledFor(logging.INFO):
+            self._logger.info('Connecting as user "%s" to database "%s" on host "%s" with port %s',
+                self.options['user'], self.options['database'],
+                self.options['host'], self.options['port'])
         self.startup_connection()
         self._logger.info('Connection is ready')
 
@@ -449,14 +449,21 @@ class Connection(object):
 
         # enable load balancing
         load_balance_options = self.options.get('connection_load_balance')
-        self._logger.debug('Connection load balance option is {0}'.format(
-            'enabled' if load_balance_options else 'disabled'))
+        if self._logger.isEnabledFor(logging.DEBUG):
+            load = 'disabled'
+            if load_balance_options:
+                load = 'enabled'
+            self._logger.debug('Connection load balance option is %s', load)
         if load_balance_options:
             raw_socket = self.balance_load(raw_socket)
 
         # enable SSL
         ssl_options = self.options.get('ssl')
-        self._logger.debug('SSL option is {0}'.format('enabled' if ssl_options else 'disabled'))
+        if self._logger.isEnabledFor(logging.DEBUG):
+            ssl_state = 'disabled'
+            if ssl_options:
+                ssl_state = 'enabled'
+            self._logger.debug('SSL option is %s', ssl_state)
         if ssl_options:
             raw_socket = self.enable_ssl(raw_socket, ssl_options)
 
@@ -469,7 +476,7 @@ class Connection(object):
         raw_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         connection_timeout = self.options.get('connection_timeout')
         if connection_timeout is not None:
-            self._logger.debug('Set socket connection timeout: {0}'.format(connection_timeout))
+            self._logger.debug('Set socket connection timeout: %d',connection_timeout)
             raw_socket.settimeout(connection_timeout)
         return raw_socket
 
@@ -487,11 +494,13 @@ class Connection(object):
             res = BackendMessage.from_type(type_=response, data=raw_socket.recv(size-4))
             host = res.get_host()
             port = res.get_port()
-            self._logger.info('Load balancing to host "{0}" on port {1}'.format(host, port))
+            self._logger.info('Load balancing to host "%s" on port %d',
+                              host, port)
 
             socket_host, socket_port = raw_socket.getpeername()
             if host == socket_host and port == socket_port:
-                self._logger.info('Already connecting to host "{0}" on port {1}. Ignore load balancing.'.format(host, port))
+                self._logger.info('Already connecting to host "%s" on port %d. Ignore load balancing.',
+                                  host, port)
                 return raw_socket
 
             # Push the new host onto the address list before connecting again. Note that this
@@ -537,13 +546,15 @@ class Connection(object):
             last_exception = None
             host, port = addr
 
-            self._logger.info('Establishing connection to host "{0}" on port {1}'.format(host, port))
+            self._logger.info('Establishing connection to host "%s" on port %d',
+                              host, port)
             try:
                 raw_socket = self.create_socket()
                 raw_socket.connect((host, port))
                 break
             except Exception as error:
-                self._logger.info('Failed to connect to host "{0}" on port {1}: {2}'.format(host, port, error))
+                self._logger.info('Failed to connect to host "%s" on port %d: %s',
+                                  host, port, error)
                 last_exception = error
                 self.address_list.pop()
                 addr = self.address_list.peek()

@@ -50,6 +50,7 @@ from collections import deque
 from builtins import str
 from six import raise_from, string_types, integer_types
 
+import vertica_python
 from .. import errors
 from ..vertica import messages
 from ..vertica.cursor import Cursor
@@ -165,6 +166,14 @@ class _AddressList(object):
         return None
 
 
+def _generate_session_label():
+    return '{type}-{version}-{id}'.format(
+        type='vertica-python',
+        version=vertica_python.__version__,
+        id=uuid.uuid1()
+    )
+
+
 class Connection(object):
     def __init__(self, options=None):
         self.parameters = {}
@@ -183,6 +192,7 @@ class Connection(object):
         self.options.setdefault('database', self.options['user'])
         self.options.setdefault('password', DEFAULT_PASSWORD)
         self.options.setdefault('read_timeout', DEFAULT_READ_TIMEOUT)
+        self.options.setdefault('session_label', _generate_session_label())
 
         # Set up connection logger
         logger_name = 'vertica_{0}_{1}'.format(id(self), str(uuid.uuid4())) # must be a unique value
@@ -509,8 +519,9 @@ class Connection(object):
         user = self.options['user'].encode(ASCII)
         database = self.options['database'].encode(ASCII)
         password = self.options['password'].encode(ASCII)
+        session_label = self.options['session_label'].encode(ASCII)
 
-        self.write(messages.Startup(user, database))
+        self.write(messages.Startup(user, database, session_label))
 
         while True:
             message = self.read_message()

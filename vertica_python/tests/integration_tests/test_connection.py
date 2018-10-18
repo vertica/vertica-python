@@ -36,10 +36,17 @@
 from __future__ import print_function, division, absolute_import
 
 import getpass
+import uuid
 from .base import VerticaPythonIntegrationTestCase
 
 
 class ConnectionTestCase(VerticaPythonIntegrationTestCase):
+
+    def tearDown(self):
+        super(ConnectionTestCase, self).tearDown()
+        if 'session_label' in self._conn_info:
+            del self._conn_info['session_label']
+
     def test_client_os_user_name_metadata(self):
         value = getpass.getuser()
 
@@ -60,3 +67,22 @@ class ConnectionTestCase(VerticaPythonIntegrationTestCase):
         res = self._query_and_fetchone(query)
         self.assertEqual(res[0], value)
 
+    def test_session_label(self):
+        label = str(uuid.uuid1())
+        self._conn_info['session_label'] = label
+
+        query = 'SELECT client_label FROM v_monitor.current_session'
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], label)
+
+        query = 'SELECT client_label FROM v_monitor.sessions WHERE session_id=(SELECT current_session())'
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], label)
+
+        query = 'SELECT client_label FROM v_monitor.user_sessions WHERE session_id=(SELECT current_session())'
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], label)
+
+        query = 'SELECT client_label FROM v_internal.dc_session_starts WHERE session_id=(SELECT current_session())'
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], label)

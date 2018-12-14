@@ -452,32 +452,49 @@ class Connection(object):
         self.close()
         self.startup_connection()
 
-    def read_message(self):
-        try:
-            type_ = self.read_bytes(1)
-            size = unpack('!I', self.read_bytes(4))[0]
+    def is_asynchronous_message(self, message):
+        # Check if it is an asynchronous response message
+        # Note: ErrorResponse is a subclass of NoticeResponse
+        return (isinstance(message, messages.ParameterStatus) or
+            (isinstance(message, messages.NoticeResponse) and
+             not isinstance(message, messages.ErrorResponse)))
 
-            if size < 4:
-                raise errors.MessageError("Bad message size: {0}".format(size))
-            message = BackendMessage.from_type(type_, self.read_bytes(size - 4))
-            self._logger.debug('<= %s', message)
-            return message
-        except (SystemError, IOError) as e:
-            self.close_socket()
-            # noinspection PyTypeChecker
-            raise_from(errors.ConnectionError, e)
+    def handle_asynchronous_message(self, message):
+        if isinstance(message, messages.ParameterStatus):
+            self.parameters[message.name] = message.value
+        elif (isinstance(message, messages.NoticeResponse) and
+             not isinstance(message, messages.ErrorResponse)):
+            if getattr(self, 'notice_handler', None) is not None:
+                self.notice_handler(message)
+            else:
+                print('{}: {}'.format(message.values['Severity'],
+                                      message.values['Message']))
+
+    def read_message(self):
+        while True:
+            try:
+                type_ = self.read_bytes(1)
+                size = unpack('!I', self.read_bytes(4))[0]
+                if size < 4:
+                    raise errors.MessageError("Bad message size: {0}".format(size))
+                message = BackendMessage.from_type(type_, self.read_bytes(size - 4))
+                self._logger.debug('<= %s', message)
+                self.handle_asynchronous_message(message)
+            except (SystemError, IOError) as e:
+                self.close_socket()
+                # noinspection PyTypeChecker
+                self._logger.error(e)
+                raise_from(errors.ConnectionError, e)
+            if not self.is_asynchronous_message(message):
+                break
+        return message
 
     def process_message(self, message):
         if isinstance(message, messages.ErrorResponse):
             raise errors.ConnectionError(message.error_message())
-        elif isinstance(message, messages.NoticeResponse):
-            if getattr(self, 'notice_handler', None) is not None:
-                self.notice_handler(message)
         elif isinstance(message, messages.BackendKeyData):
             self.backend_pid = message.pid
             self.backend_key = message.key
-        elif isinstance(message, messages.ParameterStatus):
-            self.parameters[message.name] = message.value
         elif isinstance(message, messages.ReadyForQuery):
             self.transaction_status = message.transaction_status
         elif isinstance(message, messages.CommandComplete):

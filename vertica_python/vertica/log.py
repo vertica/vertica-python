@@ -36,7 +36,7 @@
 
 from __future__ import print_function, division, absolute_import
 
-import os
+import os, errno
 import logging
 
 class VerticaLogging(object):

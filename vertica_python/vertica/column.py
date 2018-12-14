@@ -47,7 +47,9 @@ from builtins import str
 from dateutil import parser
 
 from .. import errors
+from .. import datatypes
 from ..compat import as_str, as_text
+
 
 YEARS_RE = re.compile(r"^([0-9]+)-")
 
@@ -143,10 +145,10 @@ class Column(object):
     def __init__(self, col, unicode_error=None):
         self.name = col['name'].decode(UTF_8)
         self.type_code = col['data_type_oid']
-        self.display_size = None
+        self.display_size = datatypes.getDisplaySize(col['data_type_oid'], col['type_modifier'])
         self.internal_size = col['data_type_size']
-        self.precision = None
-        self.scale = None
+        self.precision = datatypes.getPrecision(col['data_type_oid'], col['type_modifier'])
+        self.scale = datatypes.getScale(col['data_type_oid'], col['type_modifier'])
         self.null_ok = None
         self.unicode_error = unicode_error
         self.data_type_conversions = Column._data_type_conversions(unicode_error=self.unicode_error)
@@ -159,10 +161,8 @@ class Column(object):
         if self.type_code >= len(self.data_type_conversions):
             self.type_code = 0
 
-        # self.props = ColumnTuple(col['name'], col['data_type_oid'], None, col['data_type_size'],
-        #                          None, None, None)
-        self.props = ColumnTuple(self.name, self.type_code, None, col['data_type_size'], None, None,
-                                 None)
+        self.props = ColumnTuple(self.name, self.type_code, self.display_size, self.internal_size,
+                                 self.precision, self.scale, self.null_ok)
 
         # self.converter = self.data_type_conversions[col['data_type_oid']][1]
         self.converter = self.data_type_conversions[self.type_code][1]

@@ -149,9 +149,13 @@ class Column(object):
         self.internal_size = col['data_type_size']
         self.precision = datatypes.getPrecision(col['data_type_oid'], col['type_modifier'])
         self.scale = datatypes.getScale(col['data_type_oid'], col['type_modifier'])
-        self.null_ok = None
+        self.null_ok = col['null_ok']
+        self.is_identity = col['is_identity']
         self.unicode_error = unicode_error
         self.data_type_conversions = Column._data_type_conversions(unicode_error=self.unicode_error)
+
+        self.props = ColumnTuple(self.name, self.type_code, self.display_size, self.internal_size,
+                                 self.precision, self.scale, self.null_ok)
 
         # WORKAROUND: Treat LONGVARCHAR as VARCHAR
         if self.type_code == 115:
@@ -160,9 +164,6 @@ class Column(object):
         # Mark type_code as unspecified if not within known data types
         if self.type_code >= len(self.data_type_conversions):
             self.type_code = 0
-
-        self.props = ColumnTuple(self.name, self.type_code, self.display_size, self.internal_size,
-                                 self.precision, self.scale, self.null_ok)
 
         # self.converter = self.data_type_conversions[col['data_type_oid']][1]
         self.converter = self.data_type_conversions[self.type_code][1]

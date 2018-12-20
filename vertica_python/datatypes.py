@@ -154,6 +154,47 @@ INTERVAL_MASK_HOUR2SEC = INTERVAL_MASK_HOUR | INTERVAL_MASK_MINUTE | INTERVAL_MA
 INTERVAL_MASK_MIN2SEC = INTERVAL_MASK_MINUTE | INTERVAL_MASK_SECOND
 
 
+def getTypeName(data_type_oid, type_modifier):
+    """Returns the base type name according to data_type_oid and type_modifier"""
+
+    if data_type_oid == VerticaType.BOOL:
+        return "Boolean"
+    elif data_type_oid == VerticaType.INT8:
+        return "Integer"
+    elif data_type_oid == VerticaType.FLOAT8:
+        return "Float"
+    elif data_type_oid == VerticaType.CHAR:
+        return "Char"
+    elif data_type_oid in (VerticaType.VARCHAR, VerticaType.UNKNOWN):
+        return "Varchar"
+    elif data_type_oid == VerticaType.LONGVARCHAR:
+        return "Long Varchar"
+    elif data_type_oid == VerticaType.DATE:
+        return "Date"
+    elif data_type_oid == VerticaType.TIME:
+        return "Time"
+    elif data_type_oid == VerticaType.TIMETZ:
+        return "TimeTz"
+    elif data_type_oid == VerticaType.TIMESTAMP:
+        return "Timestamp"
+    elif data_type_oid == VerticaType.TIMESTAMPTZ:
+        return "TimestampTz"
+    elif data_type_oid in (VerticaType.INTERVAL, VerticaType.INTERVALYM):
+        return "Interval " + getIntervalRange(data_type_oid, type_modifier)
+    elif data_type_oid == VerticaType.BINARY:
+        return "Binary"
+    elif data_type_oid == VerticaType.VARBINARY:
+        return "Varbinary"
+    elif data_type_oid == VerticaType.LONGVARBINARY:
+        return "Long Varbinary"
+    elif data_type_oid == VerticaType.NUMERIC:
+        return "Numeric"
+    elif data_type_oid == VerticaType.UUID:
+        return "Uuid"
+    else:
+        return "Unknown"
+
+
 def getIntervalRange(data_type_oid, type_modifier):
     """Extracts an interval's range from the bits set in its type_modifier"""
 

@@ -42,5 +42,8 @@ from vertica_python.vertica.messages.backend_messages.notice_response import Not
 class ErrorResponse(NoticeResponse, BackendMessage):
     message_id = b'E'
 
+    def __str__(self):
+        return "ErrorResponse: {}".format(self.error_message())
+
 
 BackendMessage.register(ErrorResponse)

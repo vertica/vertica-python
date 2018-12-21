@@ -54,13 +54,12 @@ from six import binary_type, text_type, string_types, BytesIO, StringIO
 try:
     from psycopg2.extensions import QuotedString
 except ImportError:
-    pass
-try:
-   from psycopg2._psycopg import QuotedString
-except ImportError:
-    class QuotedString(object):
-        def __init__(self, s):
-            raise ImportError("couldn't import psycopg2.extensions.QuotedString")
+    try:
+        from psycopg2._psycopg import QuotedString
+    except ImportError:
+        class QuotedString(object):
+            def __init__(self, s):
+                raise ImportError("couldn't import psycopg2.extensions.QuotedString")
 
 from .. import errors
 from ..compat import as_text

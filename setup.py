@@ -54,11 +54,11 @@ setup(
     packages=find_packages(),
     license="Apache License 2.0",
     install_requires=[
-        'psycopg2',
         'python-dateutil>=1.5',
         'pytz',
         'future',
-        'six>=1.10.0'
+        'six>=1.10.0',
+        'psycopg2'
     ],
     extras_require={'namedparams': ['psycopg2>=2.5.1']},
     classifiers=[

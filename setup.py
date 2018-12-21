@@ -54,6 +54,7 @@ setup(
     packages=find_packages(),
     license="Apache License 2.0",
     install_requires=[
+        'psycopg2',
         'python-dateutil>=1.5',
         'pytz',
         'future',

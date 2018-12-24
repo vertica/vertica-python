@@ -327,12 +327,12 @@ cur.fetchone()
 cur = vertica_python.Connection({..., 'unicode_error': 'replace'}).cursor()
 cur.execute(r"SELECT E'\xC2'")
 cur.fetchone()
-# �
+# 'utf8' codec can't decode byte 0xc2 in position 0，which is replace by the official Unicode replacement character, U+FFFD
 
 cur = vertica_python.Connection({..., 'unicode_error': 'ignore'}).cursor()
 cur.execute(r"SELECT E'\xC2'")
 cur.fetchone()
-# 
+# ignore silently 'utf8' codec can't decode byte 0xc2 in position 0
 ```
 
 ## License

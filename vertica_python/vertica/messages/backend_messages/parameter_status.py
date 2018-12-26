@@ -33,12 +33,30 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""
+ParameterStatus message
+
+A ParameterStatus message will be generated whenever the backend believes the
+frontend should know about a setting parameter value. For example, when you do
+SET SESSION AUTOCOMMIT ON | OFF, you get back a parameter status telling you the
+new value of autocommit.
+
+At present Vertica supports a handful of parameters, they are:
+  standard_conforming_strings, server_version, client_locale, client_label,
+  long_string_types, protocol_version, auto_commit, MARS
+
+More parameters would be added in the future. Accordingly, a frontend should
+simply ignore ParameterStatus for parameters that it does not understand or care
+about.
+"""
+
 from __future__ import print_function, division, absolute_import
 
 from struct import unpack
 
 from ..message import BackendMessage
 
+UTF_8 = 'utf-8'
 
 class ParameterStatus(BackendMessage):
     message_id = b'S'
@@ -47,8 +65,8 @@ class ParameterStatus(BackendMessage):
         BackendMessage.__init__(self)
         null_byte = data.find(b'\x00')
         unpacked = unpack('{0}sx{1}sx'.format(null_byte, len(data) - null_byte - 2), data)
-        self.name = unpacked[0]
-        self.value = unpacked[1]
+        self.name = unpacked[0].decode(UTF_8)
+        self.value = unpacked[1].decode(UTF_8)
 
     def __str__(self):
         return "ParameterStatus: {} = {}".format(self.name, self.value)

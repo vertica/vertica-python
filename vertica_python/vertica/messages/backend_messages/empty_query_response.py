@@ -41,9 +41,8 @@ from ..message import BackendMessage
 class EmptyQueryResponse(BackendMessage):
     message_id = b'I'
 
-    def __init__(self, data=None):
+    def __init__(self, data):
         BackendMessage.__init__(self)
-        self.data = data
 
 
 BackendMessage.register(EmptyQueryResponse)

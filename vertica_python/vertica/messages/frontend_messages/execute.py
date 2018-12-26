@@ -33,12 +33,26 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""
+Execute message
+
+In the extended query protocol, the frontend sends a Execute message once a
+portal exists. Execute doesn't cause RowDescription response message to be
+issued, so the frontend should issue Describe before issuing Execute, to ensure
+that it knows how to interpret the result rows it will get back.
+
+The Execute message specifies the portal name and a maximum result-row count
+(zero meaning "fetch all rows"). Currently, Vertica backend will ignore this
+result-row count and send all the rows regardless of what you put here.
+"""
+
 from __future__ import print_function, division, absolute_import
 
 from struct import pack
 
 from ..message import BulkFrontendMessage
 
+UTF_8 = 'utf-8'
 
 class Execute(BulkFrontendMessage):
     message_id = b'E'
@@ -49,5 +63,6 @@ class Execute(BulkFrontendMessage):
         self._max_rows = max_rows
 
     def read_bytes(self):
-        bytes_ = pack('!{0}sxI'.format(len(self._portal_name)), self._portal_name, self._max_rows)
+        utf_portal_name = self._portal_name.encode(UTF_8)
+        bytes_ = pack('!{0}sxI'.format(len(utf_portal_name)),utf_portal_name, self._max_rows)
         return bytes_

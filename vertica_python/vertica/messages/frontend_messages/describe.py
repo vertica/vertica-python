@@ -33,12 +33,27 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""
+Describe message
+
+In the extended query protocol, the frontend sends a Describe message, which
+specifies the name of an existing prepared statement.
+
+The first response is a ParameterDescription message describing the parameters
+needed by the statement. The second response is a RowDescription message
+describing the rows that will be returned when the statement is eventually
+executed (or a NoData message if the statement will not return rows). The third
+response is a CommandDescription message describing the type of command to be
+executed and any semantically-equivalent COPY statement.
+"""
+
 from __future__ import print_function, division, absolute_import
 
 from struct import pack
 
 from ..message import BulkFrontendMessage
 
+UTF_8 = 'utf-8'
 
 class Describe(BulkFrontendMessage):
     message_id = b'D'
@@ -49,14 +64,14 @@ class Describe(BulkFrontendMessage):
         self._describe_name = describe_name
 
         if describe_type == 'portal':
-            self._describe_type = 'P'
+            self._describe_type = b'P'
         elif describe_type == 'prepared_statement':
-            self._describe_type = 'S'
+            self._describe_type = b'S'
         else:
             raise ValueError("{0} is not a valid describe_type. "
                              "Must be either portal or prepared_statement".format(describe_type))
 
     def read_bytes(self):
-        bytes_ = pack('c{0}sx'.format(len(self._describe_name)), self._describe_type,
-                      self._describe_name)
+        utf_name = self._describe_name.encode(UTF_8)
+        bytes_ = pack('c{0}sx'.format(len(utf_name)), self._describe_type, utf_name)
         return bytes_

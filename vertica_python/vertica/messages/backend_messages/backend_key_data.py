@@ -49,5 +49,8 @@ class BackendKeyData(BackendMessage):
         self.pid = unpacked[0]
         self.key = unpacked[1]
 
+    def __str__(self):
+        return "BackendKeyData: pid = {}, key = {}".format(self.pid, self.key)
+
 
 BackendMessage.register(BackendKeyData)

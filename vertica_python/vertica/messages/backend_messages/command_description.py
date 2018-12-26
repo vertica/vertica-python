@@ -33,31 +33,39 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""
+CommandDescription message -- part of the response to a Describe request message.
+
+This response informs the client about the type of command being executed.
+If the command is a parameterized INSERT statement, the copy_rewrite field may 
+include a semantically-equivalent COPY STDIN statement. Clients can choose to 
+run this statement instead to achieve better performance when loading many 
+batches of parameters.
+"""
+
 from __future__ import print_function, division, absolute_import
 
-from .authentication import Authentication
-from .backend_key_data import BackendKeyData
-from .bind_complete import BindComplete
-from .close_complete import CloseComplete
-from .command_complete import CommandComplete
-from .command_description import CommandDescription
-from .copy_in_response import CopyInResponse
-from .data_row import DataRow
-from .empty_query_response import EmptyQueryResponse
-from .error_response import ErrorResponse
-from .load_balance_response import LoadBalanceResponse
-from .no_data import NoData
-from .notice_response import NoticeResponse
-from .parameter_description import ParameterDescription
-from .parameter_status import ParameterStatus
-from .parse_complete import ParseComplete
-from .portal_suspended import PortalSuspended
-from .ready_for_query import ReadyForQuery
-from .row_description import RowDescription
-from .unknown import Unknown
+from struct import unpack
 
-__all__ = ['RowDescription', 'ReadyForQuery', 'PortalSuspended', 'ParseComplete', 'ParameterStatus',
-           'ParameterDescription', 'NoticeResponse', 'NoData', 'LoadBalanceResponse',
-           'ErrorResponse', 'EmptyQueryResponse', 'DataRow', 'CopyInResponse', 'CommandDescription',
-           'CommandComplete', 'CloseComplete', 'BindComplete', 'BackendKeyData', 'Authentication',
-           'Unknown']
+from ..message import BackendMessage
+
+UTF_8 = 'utf-8'
+
+class CommandDescription(BackendMessage):
+    message_id = b'm'
+
+    def __init__(self, data):
+        BackendMessage.__init__(self)
+        pos = data.find(b'\x00')
+        unpacked = unpack("!{0}sxH{1}sx".format(pos, len(data) - pos - 4), data)
+
+        self.command_tag = unpacked[0].decode(UTF_8)
+        self.has_copy_rewrite = (unpacked[1] == 1)
+        self.copy_rewrite = unpacked[2].decode(UTF_8)
+
+    def __str__(self):
+        return ('CommandDescription: command_tag = "{}", has_copy_rewrite = {},'
+                ' copy_rewrite = "{}"'.format(
+                    self.command_tag, self.has_copy_rewrite, self.copy_rewrite))
+
+BackendMessage.register(CommandDescription)

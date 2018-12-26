@@ -33,6 +33,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""
+Flush message
+
+The Flush message does not cause any specific output to be generated, but forces
+the backend to deliver any data pending in its output buffers. For example, in
+the extended query protocol, a Flush must be sent after any extended-query
+command except Sync, if the frontend wishes to examine the results of that
+command before issuing more commands.
+"""
+
 from __future__ import print_function, division, absolute_import
 
 from ..message import BulkFrontendMessage

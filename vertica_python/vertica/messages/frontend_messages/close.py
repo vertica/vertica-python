@@ -33,12 +33,23 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""
+Close message
+
+In the extended query protocol, the frontend sends a Close message to close an
+existing prepared statement or portal and release resources.
+
+The response is either CloseComplete or ErrorResponse. It is not an error to
+issue Close against a nonexistent statement or portal name.
+"""
+
 from __future__ import print_function, division, absolute_import
 
 from struct import pack
 
 from ..message import BulkFrontendMessage
 
+UTF_8 = 'utf-8'
 
 class Close(BulkFrontendMessage):
     message_id = b'C'
@@ -49,13 +60,14 @@ class Close(BulkFrontendMessage):
         self._close_name = close_name
 
         if close_type == 'portal':
-            self._close_type = 'P'
+            self._close_type = b'P'
         elif close_type == 'prepared_statement':
-            self._close_type = 'S'
+            self._close_type = b'S'
         else:
             raise ValueError("{0} is not a valid close_type. "
                              "Must be either portal or prepared_statement".format(close_type))
 
     def read_bytes(self):
-        bytes_ = pack('c{0}sx'.format(len(self._close_name)), self._close_type, self._close_name)
+        utf_close_name = self._close_name.encode(UTF_8)
+        bytes_ = pack('c{0}sx'.format(len(utf_close_name)), self._close_type, utf_close_name)
         return bytes_

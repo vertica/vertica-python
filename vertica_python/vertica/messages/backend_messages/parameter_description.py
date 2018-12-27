@@ -61,7 +61,6 @@ class ParameterDescription(BackendMessage):
             pos += 4
             type_name = unpack_from("!{0}sx".format(data.find(b'\x00', pos) - pos), data, pos)[0]
             pos += len(type_name) + 1
-            # user_types.append(base_type_oid)
             user_types.append((base_type_oid, type_name))
 
         # read info of each parameter

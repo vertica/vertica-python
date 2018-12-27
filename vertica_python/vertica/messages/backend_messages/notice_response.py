@@ -55,7 +55,8 @@ class NoticeResponse(BackendMessage):
         {'type': b'p', 'name': "Internal Position", 'method': 'internal_position'},
         {'type': b'R', 'name': "Routine", 'method': 'routine'},
         {'type': b'F', 'name': "File", 'method': 'file'},
-        {'type': b'L', 'name': "Line", 'method': 'line'}
+        {'type': b'L', 'name': "Line", 'method': 'line'},
+        {'type': b'V', 'name': "Error Code", 'method': 'error_code'}
     ]
 
     def __init__(self, data):
@@ -93,6 +94,9 @@ class NoticeResponse(BackendMessage):
             if self.values.get(field['name']) is not None:
                 ordered.append("{0}: {1}".format(field['name'], self.values[field['name']]))
         return ', '.join(ordered)
+
+    def __str__(self):
+        return "NoticeResponse: {}".format(self.error_message())
 
 
 BackendMessage.register(NoticeResponse)

@@ -33,13 +33,21 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""
+RowDescription message
+
+RowDescription message describes the column layout of the rows that will be
+returned in response to a SELECT, FETCH, etc query.
+"""
+
 from __future__ import print_function, division, absolute_import
 
-from struct import unpack, unpack_from
+from struct import unpack, unpack_from, calcsize
 
 from six.moves import range
 
 from ..message import BackendMessage
+from ....datatypes import getTypeName
 
 
 class RowDescription(BackendMessage):
@@ -49,22 +57,64 @@ class RowDescription(BackendMessage):
         BackendMessage.__init__(self)
         self.fields = []
         field_count = unpack('!H', data[0:2])[0]
-        pos = 2
 
-        for i in range(field_count):
-            field_info = unpack_from("!{0}sxIHIHIH".format(data.find(b'\x00', pos) - pos), data,
-                                     pos)
+        if field_count == 0:
+            return
+
+        # read type pool
+        # used for special types e.g. GEOMETRY, GEOGRAPHY
+        user_types = []
+        type_pool_count = unpack('!I', data[2:6])[0]
+        pos = 6
+        for _ in range(type_pool_count):
+            base_type_oid = unpack('!I', data[pos:(pos + 4)])[0]
+            pos += 4
+            type_name = unpack_from("!{0}sx".format(data.find(b'\x00', pos) - pos), data, pos)[0]
+            pos += len(type_name) + 1
+            user_types.append((base_type_oid, type_name))
+
+        # read info of each field
+        offset = calcsize("!HBIHHHiH")
+        for _ in range(field_count):
+            field_name = unpack_from("!{0}sx".format(data.find(b'\x00', pos) - pos), data, pos)[0]
+            pos += len(field_name) + 1
+
+            table_oid = unpack('!Q', data[pos:(pos + 8)])[0]
+            pos += 8
+
+            schema_name, table_name = None, None
+            if table_oid != 0:
+                schema_name = unpack_from("!{0}sx".format(data.find(b'\x00', pos) - pos), data, pos)[0]
+                pos += len(schema_name) + 1
+                table_name = unpack_from("!{0}sx".format(data.find(b'\x00', pos) - pos), data, pos)[0]
+                pos += len(table_name) + 1
+
+            field_info = unpack_from("!HBIHHHiH", data, pos)
+            pos += offset
+
+            if field_info[1] == 1:
+                data_type_oid, data_type_name = user_types[field_info[2]]
+            else:
+                data_type_oid = field_info[2]
+                data_type_name = getTypeName(data_type_oid, field_info[6])
+
             self.fields.append({
-                'name': field_info[0],
-                'table_oid': field_info[1],
-                'attribute_number': field_info[2],
-                'data_type_oid': field_info[3],
-                'data_type_size': field_info[4],
-                'type_modifier': field_info[5],
-                'format_code': field_info[6],
+                'name': field_name,
+                'table_oid': table_oid,
+                'schema_name': schema_name,
+                'table_name': table_name,
+                'attribute_number': field_info[0],
+                'data_type_oid': data_type_oid,
+                'data_type_size': field_info[3],
+                'data_type_name': data_type_name,
+                'null_ok': field_info[4] == 1,
+                'is_identity': field_info[5] == 1,
+                'type_modifier': field_info[6],
+                'format_code': field_info[7],
             })
 
-            pos += 19 + len(field_info[0])
+    def __str__(self):
+        return "RowDescription: {}".format(self.fields)
 
 
 BackendMessage.register(RowDescription)

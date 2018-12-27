@@ -33,33 +33,72 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""
+Bind message
+
+In the extended query protocol, the frontend sends a Bind message to bind values
+to parameter placeholders present in an existing prepared statement.
+
+The response is either BindComplete or ErrorResponse.
+"""
 
 from __future__ import print_function, division, absolute_import
 
 from struct import pack
 
 from ..message import BulkFrontendMessage
+from ....datatypes import BINARY
 
+UTF_8 = 'utf-8'
 
 class Bind(BulkFrontendMessage):
     message_id = b'B'
 
-    def __init__(self, portal_name, prepared_statement_name, parameter_values):
+    def __init__(self, portal_name, prepared_statement_name, parameter_values, parameter_type_oids):
         BulkFrontendMessage.__init__(self)
         self._portal_name = portal_name
         self._prepared_statement_name = prepared_statement_name
         self._parameter_values = parameter_values
+        self._parameter_type_oids = parameter_type_oids
 
     def read_bytes(self):
-        bytes_ = pack('!{0}sx{1}sxHH'.format(
-            len(self._portal_name), len(self._prepared_statement_name)),
-            self._portal_name, self._prepared_statement_name, 0, len(self._parameter_values))
+        utf_portal_name = self._portal_name.encode(UTF_8)
+        utf_prepared_statement_name = self._prepared_statement_name.encode(UTF_8)
 
-        for val in self._parameter_values.values():
-            if val is None:
-                bytes_ += pack('!I', [-1])
+        bytes_ = pack('!{0}sx{1}sx'.format(len(utf_portal_name), len(utf_prepared_statement_name)),
+                      utf_portal_name, utf_prepared_statement_name)
+
+        # Parameter format codes -- use the default format (text)
+        bytes_ += pack('!H', 0)
+
+        # Number of parameters
+        bytes_ += pack('!H', len(self._parameter_type_oids))
+
+        param_bytes_ = b''
+        for oid, val in zip(self._parameter_type_oids, self._parameter_values):
+            # Parameter type oids
+            bytes_ += pack('!I', oid)
+
+            # Parameter values
+            if val is None:  # -1 indicates a NULL parameter value
+                param_bytes_ += pack('!i', -1)
+            elif oid == BINARY:
+                # TODO: encode binary data as UTF8 bytes
+                #       escape the byte value \ with "\134"(octal for backslash)
+                # Currently can only handle binary data without any backslashes
+                param_bytes_ += pack('!I{0}s'.format(len(val)), len(val), val)
             else:
-                bytes_ += pack('!I{0}s'.format(len(val)), len(val), val)
-        bytes_ += pack('!H', [0])
+                # convert input to string
+                if isinstance(val, bool):
+                    val = '1' if val else '0'
+                else:
+                    val = str(val)
+                val = val.encode(UTF_8)
+                param_bytes_ += pack('!I{0}s'.format(len(val)), len(val), val)
+
+        bytes_ += param_bytes_
+
+        # Result column format codes -- use the default format (text)
+        bytes_ += pack('!H', 0)
 
         return bytes_

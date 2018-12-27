@@ -40,6 +40,7 @@ from .backend_key_data import BackendKeyData
 from .bind_complete import BindComplete
 from .close_complete import CloseComplete
 from .command_complete import CommandComplete
+from .command_description import CommandDescription
 from .copy_in_response import CopyInResponse
 from .data_row import DataRow
 from .empty_query_response import EmptyQueryResponse
@@ -56,6 +57,7 @@ from .row_description import RowDescription
 from .unknown import Unknown
 
 __all__ = ['RowDescription', 'ReadyForQuery', 'PortalSuspended', 'ParseComplete', 'ParameterStatus',
-           'NoticeResponse', 'NoData', 'ErrorResponse', 'EmptyQueryResponse', 'DataRow',
-           'CopyInResponse', 'CommandComplete', 'CloseComplete', 'BindComplete', 'Authentication',
-           'BackendKeyData', 'ParameterDescription', 'Unknown', 'LoadBalanceResponse']
+           'ParameterDescription', 'NoticeResponse', 'NoData', 'LoadBalanceResponse',
+           'ErrorResponse', 'EmptyQueryResponse', 'DataRow', 'CopyInResponse', 'CommandDescription',
+           'CommandComplete', 'CloseComplete', 'BindComplete', 'BackendKeyData', 'Authentication',
+           'Unknown']

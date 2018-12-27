@@ -34,19 +34,38 @@
 # THE SOFTWARE.
 
 """
-Flush message
+CommandDescription message -- part of the response to a Describe request message.
 
-The Flush message does not cause any specific output to be generated, but forces
-the backend to deliver any data pending in its output buffers. For example, in
-the extended query protocol, a Flush must be sent after any extended-query
-command except Sync, if the frontend wishes to examine the results of that
-command before issuing more commands.
+This response informs the client about the type of command being executed.
+If the command is a parameterized INSERT statement, the copy_rewrite field may 
+include a semantically-equivalent COPY STDIN statement. Clients can choose to 
+run this statement instead to achieve better performance when loading many 
+batches of parameters.
 """
 
 from __future__ import print_function, division, absolute_import
 
-from ..message import BulkFrontendMessage
+from struct import unpack
 
+from ..message import BackendMessage
 
-class Flush(BulkFrontendMessage):
-    message_id = b'H'
+UTF_8 = 'utf-8'
+
+class CommandDescription(BackendMessage):
+    message_id = b'm'
+
+    def __init__(self, data):
+        BackendMessage.__init__(self)
+        pos = data.find(b'\x00')
+        unpacked = unpack("!{0}sxH{1}sx".format(pos, len(data) - pos - 4), data)
+
+        self.command_tag = unpacked[0].decode(UTF_8)
+        self.has_copy_rewrite = (unpacked[1] == 1)
+        self.copy_rewrite = unpacked[2].decode(UTF_8)
+
+    def __str__(self):
+        return ('CommandDescription: command_tag = "{}", has_copy_rewrite = {},'
+                ' copy_rewrite = "{}"'.format(
+                    self.command_tag, self.has_copy_rewrite, self.copy_rewrite))
+
+BackendMessage.register(CommandDescription)

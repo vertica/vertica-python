@@ -33,12 +33,26 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""
+Parse message
+
+In the extended query protocol, the frontend first sends a Parse message, which
+contains a textual query string. The query string leaves certain values
+unspecified with parameter placeholders (i.e. question mark '?').
+
+The response is either ParseComplete or ErrorResponse. The query string cannot
+include more than one SQL statement; else an ErrorResponse is reported. The
+error message would be something like
+  "Cannot insert multiple commands into a prepared statement"
+"""
+
 from __future__ import print_function, division, absolute_import
 
 from struct import pack
 
 from ..message import BulkFrontendMessage
 
+UTF_8 = 'utf-8'
 
 class Parse(BulkFrontendMessage):
     message_id = b'P'
@@ -51,11 +65,13 @@ class Parse(BulkFrontendMessage):
         self._param_types = param_types
 
     def read_bytes(self):
-        params = ""
-        for param in self._param_types:
-            params = params + param
+        utf_name = self._name.encode(UTF_8)
+        utf_query = self._query.encode(UTF_8)
 
-        bytes_ = pack('!{0}sx{1}sxH{2}I'.format(len(self._name), len(self._query),
-                                                len(self._param_types)),
-                      self._name, self._query, len(self._param_types), params)
+        bytes_ = pack('!{0}sx{1}sxH'.format(len(utf_name), len(utf_query)),
+                      utf_name, utf_query, len(self._param_types))
+
+        for param in self._param_types:
+            bytes_ += pack('!I', param)
+
         return bytes_

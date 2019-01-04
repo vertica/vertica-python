@@ -467,8 +467,7 @@ class Connection(object):
             if getattr(self, 'notice_handler', None) is not None:
                 self.notice_handler(message)
             else:
-                print('{}: {}'.format(message.values['Severity'],
-                                      message.values['Message']))
+                self._logger.warning(message.error_message())
 
     def read_message(self):
         while True:

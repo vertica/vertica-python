@@ -79,11 +79,15 @@ class _AddressList(object):
 
         self._logger = logger
 
-        # Format of items in deque: (host, port, is_dns_resolved)
+        # Format of items in deque: (host, port, hostname, is_dns_resolved)
+        # `hostname' is used to keep track of which (DNS) hostname `host' belongs to
+        # `host' will be replaced by ip addresses when it resolves to multiple ip addresses
+        # If `host' is an ip adress already, nothing should happen, because
+        # ssl_context.check_hostname can't work anyway
         self.address_deque = deque()
 
         # load primary host into address_deque
-        self._append(host, port)
+        self._append(host, port, host)
 
         # load backup nodes into address_deque
         if not isinstance(backup_nodes, list):
@@ -96,18 +100,18 @@ class _AddressList(object):
         # a (host, port) tuple
         for node in backup_nodes:
             if isinstance(node, string_types):
-                self._append(node, DEFAULT_PORT)
+                self._append(node, DEFAULT_PORT, node)
             elif isinstance(node, tuple) and len(node) == 2:
-                self._append(node[0], node[1])
+                self._append(node[0], node[1], node[0])
             else:
                 err_msg = ('Each item of connection option "backup_server_node"'
                            ' must be a host string or a (host, port) tuple')
                 self._logger.error(err_msg)
                 raise TypeError(err_msg)
-        
+
         self._logger.debug('Address list: {0}'.format(list(self.address_deque)))
 
-    def _append(self, host, port):
+    def _append(self, host, port, hostname):
         if not isinstance(host, string_types):
             err_msg = 'Host must be a string: invalid value: {0}'.format(host)
             self._logger.error(err_msg)
@@ -130,10 +134,10 @@ class _AddressList(object):
             self._logger.error(err_msg)
             raise ValueError(err_msg)
 
-        self.address_deque.append((host, port, False))
+        self.address_deque.append((host, port, hostname, False))
 
-    def push(self, host, port):
-        self.address_deque.appendleft((host, port, False))
+    def push(self, host, port, hostname):
+        self.address_deque.appendleft((host, port, hostname, False))
 
     def pop(self):
         self.address_deque.popleft()
@@ -144,11 +148,11 @@ class _AddressList(object):
             return None
 
         while len(self.address_deque) > 0:
-            host, port, is_dns_resolved = self.address_deque[0]
+            host, port, hostname, is_dns_resolved = self.address_deque[0]
             if is_dns_resolved:
                 # return a resolved address
                 self._logger.debug('Peek at address list: {0}'.format(list(self.address_deque)))
-                return (host, port)
+                return (host, port, hostname)
             else:
                 # DNS resolve a single host name to multiple IP addresses
                 self.address_deque.popleft()
@@ -161,7 +165,7 @@ class _AddressList(object):
                 # add resolved IP addresses to deque
                 for res in reversed(resolved_hosts):
                     family, socktype, proto, canonname, sockaddr = res
-                    self.address_deque.appendleft((sockaddr[0], sockaddr[1], True))
+                    self.address_deque.appendleft((sockaddr[0], sockaddr[1], host, True))
 
         return None
 
@@ -195,9 +199,9 @@ class Connection(object):
         self.options.setdefault('session_label', _generate_session_label())
 
         # Set up connection logger
-        logger_name = 'vertica_{0}_{1}'.format(id(self), str(uuid.uuid4())) # must be a unique value
+        logger_name = 'vertica_{0}_{1}'.format(id(self), str(uuid.uuid4()))  # must be a unique value
         self._logger = logging.getLogger(logger_name)
-        
+
         if 'log_level' not in self.options and 'log_path' not in self.options:
             # logger is disabled by default
             self._logger.disabled = True
@@ -216,8 +220,8 @@ class Connection(object):
                               unicode_error=self.options['unicode_error'])
 
         self._logger.info('Connecting as user "{}" to database "{}" on host "{}" with port {}'.format(
-                     self.options['user'], self.options['database'],
-                     self.options['host'], self.options['port']))
+            self.options['user'], self.options['database'],
+            self.options['host'], self.options['port']))
         self.startup_connection()
         self._logger.info('Connection is ready')
 
@@ -295,12 +299,12 @@ class Connection(object):
             return self.socket
 
         # the initial establishment of the client connection
-        raw_socket = self.establish_connection()
+        raw_socket, hostname = self.establish_connection()
 
         # enable load balancing
         load_balance_options = self.options.get('connection_load_balance')
         self._logger.debug('Connection load balance option is {0}'.format(
-                     'enabled' if load_balance_options else 'disabled'))
+            'enabled' if load_balance_options else 'disabled'))
         if load_balance_options:
             raw_socket = self.balance_load(raw_socket)
 
@@ -308,7 +312,7 @@ class Connection(object):
         ssl_options = self.options.get('ssl')
         self._logger.debug('SSL option is {0}'.format('enabled' if ssl_options else 'disabled'))
         if ssl_options:
-            raw_socket = self.enable_ssl(raw_socket, ssl_options)
+            raw_socket = self.enable_ssl(raw_socket, ssl_options, hostname)
 
         self.socket = raw_socket
         return self.socket
@@ -334,8 +338,8 @@ class Connection(object):
                 err_msg = "Bad message size: {0}".format(size)
                 self._logger.error(err_msg)
                 raise errors.MessageError(err_msg)
-            res = BackendMessage.from_type(type_=response, data=raw_socket.recv(size-4))
-            host = res.get_host()
+            res = BackendMessage.from_type(type_=response, data=raw_socket.recv(size - 4))
+            host = res.get_host()  # TODO
             port = res.get_port()
             self._logger.info('Load balancing to host "{0}" on port {1}'.format(host, port))
 
@@ -346,25 +350,26 @@ class Connection(object):
 
             # Push the new host onto the address list before connecting again. Note that this
             # will leave the originally-specified host as the first failover possibility.
-            self.address_list.push(host, port)
+            self.address_list.push(host, port, host)
             raw_socket.close()
-            raw_socket = self.establish_connection()
+            raw_socket, hostname = self.establish_connection()
         else:
             self._logger.warning("Load balancing requested but not supported by server")
 
         return raw_socket
 
-    def enable_ssl(self, raw_socket, ssl_options):
+    def enable_ssl(self, raw_socket, ssl_options, hostname):
         from ssl import CertificateError, SSLError
         # Send SSL request and read server response
         raw_socket.sendall(messages.SslRequest().get_message())
         response = raw_socket.recv(1)
         if response in ('S', b'S'):
             self._logger.info('Enabling SSL')
+            # SSL option check_hostname requires the DNS name in the server certicificate, not the ip address
             try:
                 if isinstance(ssl_options, ssl.SSLContext):
                     host, port = raw_socket.getpeername()
-                    raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=host)
+                    raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=hostname)
                 else:
                     raw_socket = ssl.wrap_socket(raw_socket)
             except CertificateError as e:
@@ -385,7 +390,7 @@ class Connection(object):
         # Failover: loop to try all addresses
         while addr:
             last_exception = None
-            host, port = addr
+            host, port, hostname = addr
 
             self._logger.info('Establishing connection to host "{0}" on port {1}'.format(host, port))
             try:
@@ -405,7 +410,7 @@ class Connection(object):
             self._logger.error(err_msg)
             raise errors.ConnectionError(err_msg)
 
-        return raw_socket
+        return raw_socket, hostname
 
     def ssl(self):
         return self.socket is not None and isinstance(self.socket, ssl.SSLSocket)
@@ -456,14 +461,14 @@ class Connection(object):
         # Check if it is an asynchronous response message
         # Note: ErrorResponse is a subclass of NoticeResponse
         return (isinstance(message, messages.ParameterStatus) or
-            (isinstance(message, messages.NoticeResponse) and
-             not isinstance(message, messages.ErrorResponse)))
+                (isinstance(message, messages.NoticeResponse) and
+                 not isinstance(message, messages.ErrorResponse)))
 
     def handle_asynchronous_message(self, message):
         if isinstance(message, messages.ParameterStatus):
             self.parameters[message.name] = message.value
         elif (isinstance(message, messages.NoticeResponse) and
-             not isinstance(message, messages.ErrorResponse)):
+              not isinstance(message, messages.ErrorResponse)):
             if getattr(self, 'notice_handler', None) is not None:
                 self.notice_handler(message)
             else:

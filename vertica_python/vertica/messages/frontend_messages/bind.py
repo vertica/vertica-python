@@ -45,11 +45,15 @@ The response is either BindComplete or ErrorResponse.
 from __future__ import print_function, division, absolute_import
 
 from struct import pack
+from six import string_types
 
 from ..message import BulkFrontendMessage
-from ....datatypes import BINARY
+from ....datatypes import VerticaType
+from ....compat import as_bytes
 
 UTF_8 = 'utf-8'
+BACKSLASH = b'\\'
+BACKSLASH_ESCAPE = b'\\134'
 
 class Bind(BulkFrontendMessage):
     message_id = b'B'
@@ -78,22 +82,23 @@ class Bind(BulkFrontendMessage):
         for oid, val in zip(self._parameter_type_oids, self._parameter_values):
             # Parameter type oids
             bytes_ += pack('!I', oid)
-
             # Parameter values
             if val is None:  # -1 indicates a NULL parameter value
                 param_bytes_ += pack('!i', -1)
-            elif oid == BINARY:
-                # TODO: encode binary data as UTF8 bytes
-                #       escape the byte value \ with "\134"(octal for backslash)
-                # Currently can only handle binary data without any backslashes
+            elif oid in (VerticaType.BINARY, VerticaType.VARBINARY, VerticaType.LONGVARBINARY):
+                # Encode binary data as UTF8 bytes
+                val = as_bytes(val)
+                # Escape the byte value \ with "\134"(octal for backslash)
+                val = val.replace(BACKSLASH, BACKSLASH_ESCAPE)
                 param_bytes_ += pack('!I{0}s'.format(len(val)), len(val), val)
             else:
-                # convert input to string
-                if isinstance(val, bool):
-                    val = '1' if val else '0'
-                else:
+                # Convert input to string
+                if oid == VerticaType.BOOL:
+                    val = '1' if str(val).lower() in ('t', 'true', 'y', 'yes', '1') else '0'
+                elif not isinstance(val, (string_types, bytes)):
                     val = str(val)
-                val = val.encode(UTF_8)
+                # Encode string as UTF8 bytes
+                val = val.encode(UTF_8) if not isinstance(val, bytes) else val
                 param_bytes_ += pack('!I{0}s'.format(len(val)), len(val), val)
 
         bytes_ += param_bytes_

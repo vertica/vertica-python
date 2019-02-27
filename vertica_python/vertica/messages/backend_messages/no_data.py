@@ -41,5 +41,8 @@ from ..message import BackendMessage
 class NoData(BackendMessage):
     message_id = b'n'
 
+    def __init__(self, data):
+        BackendMessage.__init__(self)
+
 
 BackendMessage.register(NoData)

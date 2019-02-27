@@ -85,3 +85,6 @@ class TimeZoneTestCase(VerticaPythonIntegrationTestCase):
             ),
         ]
         self._test_ts(test_cases=test_cases)
+
+
+exec(TimeZoneTestCase.createPrepStmtClass())

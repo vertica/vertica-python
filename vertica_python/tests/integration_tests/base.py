@@ -97,6 +97,17 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
             cur.execute("SELECT count(*) FROM nodes WHERE node_state='UP'")
             return cur.fetchone()[0]
 
+    @classmethod
+    def createPrepStmtClass(cls):
+        base_cls_name = cls.__name__
+        cls_name = 'PrepStmt' + base_cls_name
+        code = ('class '+cls_name+'('+base_cls_name+'):\n'
+                '  @classmethod\n'
+                '  def setUpClass(cls):\n'
+                '    super('+cls_name+', cls).setUpClass()\n'
+                "    cls._conn_info['use_prepared_statements'] = True")
+        return code
+
     def _query_and_fetchall(self, query):
         """Creates a new connection, executes a query and fetches all the results.
         

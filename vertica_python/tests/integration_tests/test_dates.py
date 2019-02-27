@@ -152,3 +152,5 @@ class DateParsingTestCase(VerticaPythonIntegrationTestCase):
         ]
         self._test_not_supported(test_cases=test_cases, msg='BC indicator -> BC indicator')
 
+
+exec(DateParsingTestCase.createPrepStmtClass())

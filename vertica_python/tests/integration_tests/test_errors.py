@@ -62,3 +62,6 @@ class ErrorTestCase(VerticaPythonIntegrationTestCase):
             with self.assertRaises(errors.DuplicateObject):
                 cur.execute(query)
             cur.execute("DROP TABLE IF EXISTS duplicate_table")
+
+
+exec(ErrorTestCase.createPrepStmtClass())

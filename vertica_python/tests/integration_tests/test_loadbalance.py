@@ -309,3 +309,6 @@ class LoadBalanceTestCase(VerticaPythonIntegrationTestCase):
             self.assertEqual(len(res), self.db_node_num)
             for i in res:
                 self.assertEqual(i, [True])
+
+
+exec(LoadBalanceTestCase.createPrepStmtClass())

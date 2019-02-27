@@ -35,7 +35,8 @@
 
 from __future__ import print_function, division, absolute_import
 
-import datetime
+from datetime import date, datetime, time
+from decimal import Decimal
 import logging
 import os as _os
 import re
@@ -69,21 +70,6 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             cur = conn.cursor()
             cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
         super(CursorTestCase, self).tearDown()
-
-    def test_inline_commit(self):
-        with self._connect() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                "INSERT INTO {0} (a, b) VALUES (1, 'aa'); COMMIT;".format(self._table))
-            cur.execute("SELECT a, b FROM {0} WHERE a = 1".format(self._table))
-
-            # unknown rowcount
-            self.assertEqual(cur.rowcount, -1)
-
-            res = cur.fetchall()
-            self.assertEqual(cur.rowcount, 1)
-
-            self.assertListOfListsEqual(res, [[1, 'aa']])
 
     def test_multi_inserts_and_transaction(self):
         with self._connect() as conn1, self._connect() as conn2:
@@ -283,7 +269,8 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
         with self._connect() as conn:
             cur = conn.cursor()
 
-            cur.execute("INSERT INTO {0} (a, b) VALUES (1, 'aa'); COMMIT;".format(self._table))
+            cur.execute("INSERT INTO {0} (a, b) VALUES (1, 'aa');".format(self._table))
+            conn.commit()
             cur.execute("SELECT a, b FROM {0} WHERE a = 1".format(self._table))
             res = cur.fetchall()
             self.assertListOfListsEqual(res, [[1, 'aa']])
@@ -294,8 +281,8 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             values = [[1, 'aa'], [2, 'bb'], [3, 'cc']]
 
             for n, s in values:
-                cur.execute("INSERT INTO {0} (a, b) VALUES (:n, :s)".format(self._table),
-                            {'n': n, 's': s})
+                cur.execute("INSERT INTO {} (a, b) VALUES ({}, '{}')"
+                            .format(self._table, n, s))
             conn.commit()
 
             cur.execute("SELECT a, b FROM {0} ORDER BY a ASC".format(self._table))
@@ -312,8 +299,8 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             values = [[1, 'aa'], [2, 'bb'], [3, 'cc']]
 
             for n, s in values:
-                cur.execute("INSERT INTO {0} (a, b) VALUES (:n, :s)".format(self._table),
-                            {'n': n, 's': s})
+                cur.execute("INSERT INTO {} (a, b) VALUES ({}, '{}')"
+                            .format(self._table, n, s))
             conn.commit()
 
             cur.execute("SELECT a, b FROM {0} ORDER BY a ASC".format(self._table))
@@ -340,7 +327,8 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
                             """.format(self._table))
 
             # select table not found error
-            cur.execute("INSERT INTO {0} (a, b) VALUES (1, 'aa'); COMMIT;".format(self._table))
+            cur.execute("INSERT INTO {0} (a, b) VALUES (1, 'aa');".format(self._table))
+            cur.execute("COMMIT;")
             with self.assertRaises(errors.QueryError):
                 cur.execute("SELECT * FROM {0}_fail".format(self._table))
 
@@ -354,7 +342,8 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             cur = conn.cursor()
 
             # insert data
-            cur.execute("INSERT INTO {0} (a, b) VALUES (2, 'bb'); COMMIT;".format(self._table))
+            cur.execute("INSERT INTO {0} (a, b) VALUES (2, 'bb');".format(self._table))
+            cur.execute("COMMIT;")
 
             # (query -> close -> reopen) * 3 times
             for _ in range(3):
@@ -366,12 +355,103 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
                 cur.close()
                 cur = conn.cursor()
 
+    def test_format_quote_unicode(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            bad_word = u'Fr\xfchst\xfcck'
+            formatted_word = u''.join((u'"', re.escape(bad_word), u'"'))
+            self.assertEqual(formatted_word, cur.format_quote(bad_word, True))
+
+
+exec(CursorTestCase.createPrepStmtClass())
+
+
+class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super(SimpleQueryTestCase, cls).setUpClass()
+        cls._conn_info['use_prepared_statements'] = False
+
+    def setUp(self):
+        super(SimpleQueryTestCase, self).setUp()
+        self._table = 'simplequery_test'
+
+    def tearDown(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
+        super(SimpleQueryTestCase, self).tearDown()
+
+    def test_inline_commit(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {0} (a INT, b VARCHAR)".format(self._table))
+            cur.execute("INSERT INTO {0} (a, b) VALUES (1, 'aa'); COMMIT;"
+                        .format(self._table))
+            cur.execute("SELECT a, b FROM {0} WHERE a = 1".format(self._table))
+
+            # unknown rowcount
+            self.assertEqual(cur.rowcount, -1)
+
+            res = cur.fetchall()
+            self.assertEqual(cur.rowcount, 1)
+
+            self.assertListOfListsEqual(res, [[1, 'aa']])
+
+    # unit test for #144
+    def test_empty_query(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            cur.execute("")
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [])
+
+            cur.execute("--select 1")
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [])
+
+            cur.execute("""
+                        /*
+                        Test block comment
+                        */
+                        """)
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [])
+
+    # unit test for #175
+    def test_datetime_types(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            # create test table
+            cur.execute("""CREATE TABLE {0} (
+                                a INT,
+                                b VARCHAR(32),
+                                c TIMESTAMP,
+                                d DATE,
+                                e TIME
+                           )
+                        """.format(self._table))
+
+            cur.execute("INSERT INTO {0} VALUES (:n, :s, :dt, :d, :t)".format(self._table),
+                            {'n': 10, 's': 'aa',
+                             'dt': datetime(2018, 9, 7, 15, 38, 19, 769000),
+                             'd': date(2018, 9, 7),
+                             't': time(13, 50, 9)})
+            conn.commit()
+
+            cur.execute("SELECT a, b, c, d, e FROM {0}".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [[10, 'aa',
+                                               datetime(2018, 9, 7, 15, 38, 19, 769000),
+                                               date(2018, 9, 7), time(13, 50, 9)]])
+
     # unit test for #74
     def test_nextset(self):
         with self._connect() as conn:
             cur = conn.cursor()
-
-            cur.execute("SELECT 1; SELECT 2;")
+            cur.execute("SELECT 1; SELECT 'foo';")
 
             res1 = cur.fetchall()
             self.assertListOfListsEqual(res1, [[1]])
@@ -379,7 +459,7 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             self.assertTrue(cur.nextset())
 
             res2 = cur.fetchall()
-            self.assertListOfListsEqual(res2, [[2]])
+            self.assertListOfListsEqual(res2, [['foo']])
             self.assertIsNone(cur.fetchone())
             self.assertFalse(cur.nextset())
 
@@ -387,7 +467,7 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
     def test_nextset_with_delete(self):
         with self._connect() as conn:
             cur = conn.cursor()
-
+            cur.execute("CREATE TABLE {0} (a INT, b VARCHAR(32))".format(self._table))
             # insert data
             cur.execute("INSERT INTO {0} (a, b) VALUES (1, 'aa')".format(self._table))
             cur.execute("INSERT INTO {0} (a, b) VALUES (2, 'bb')".format(self._table))
@@ -421,7 +501,6 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
     def test_nextset_with_error(self):
         with self._connect() as conn:
             cur = conn.cursor()
-
             cur.execute("SELECT 1; SELECT a; SELECT 2")
 
             # verify data from first query
@@ -433,59 +512,25 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             with self.assertRaises(errors.MissingColumn):
                 cur.nextset()
 
-    # unit test for #144
-    def test_empty_query(self):
+    def test_qmark_paramstyle(self):
         with self._connect() as conn:
             cur = conn.cursor()
+            cur.execute("CREATE TABLE {0} (a INT, b VARCHAR)".format(self._table))
+            err_msg = 'not all arguments converted during string formatting'
+            values = [1, 'aa']
+            with self.assertRaisesRegexp(TypeError, err_msg):
+                cur.execute("INSERT INTO {} VALUES (?, ?)".format(self._table), values)
 
-            cur.execute("")
+            cur.execute("INSERT INTO {} VALUES (?, ?)".format(self._table),
+                        values, use_prepared_statements=True)
+            cur.execute("SELECT * FROM {}".format(self._table))
             res = cur.fetchall()
-            self.assertListOfListsEqual(res, [])
-
-    def test_format_quote_unicode(self):
-        with self._connect() as conn:
-            cur = conn.cursor()
-            bad_word = u'Fr\xfchst\xfcck'
-            formatted_word = u''.join((u'"', re.escape(bad_word), u'"'))
-            self.assertEqual(formatted_word, cur.format_quote(bad_word, True))
-            
-    # unit test for #175
-    def test_datetime_types(self):
-        with self._connect() as conn:
-            cur = conn.cursor()
-
-            # clean old table
-            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
-
-            # create test table
-            cur.execute("""CREATE TABLE {0} (
-                                a INT,
-                                b VARCHAR(32),
-                                c TIMESTAMP,
-                                d DATE,
-                                e TIME
-                           )
-                        """.format(self._table))
-
-            cur.execute("INSERT INTO {0} (a, b, c, d, e) VALUES (:n, :s, :dt, :d, :t)".format(self._table),
-                            {'n': 10, 's': 'aa',
-                             'dt': datetime.datetime(2018, 9, 7, 15, 38, 19, 769000),
-                             'd': datetime.date(2018, 9, 7),
-                             't': datetime.time(13, 50, 9)})
-            conn.commit()
-
-            cur.execute("SELECT a, b, c, d, e FROM {0}".format(self._table))
-            res = cur.fetchall()
-            self.assertListOfListsEqual(res, [[10, 'aa', datetime.datetime(2018, 9, 7, 15, 38, 19, 769000),
-                                               datetime.date(2018, 9, 7), datetime.time(13, 50, 9)]])
-
-            # clean up
-            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
+            self.assertListOfListsEqual(res, [values])
 
 
-class ExecutemanyTestCase(VerticaPythonIntegrationTestCase):
+class SimpleQueryExecutemanyTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):
-        super(ExecutemanyTestCase, self).setUp()
+        super(SimpleQueryExecutemanyTestCase, self).setUp()
         self._table = 'executemany_test'
         self._init_table()
 
@@ -506,7 +551,7 @@ class ExecutemanyTestCase(VerticaPythonIntegrationTestCase):
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
-        super(ExecutemanyTestCase, self).tearDown()
+        super(SimpleQueryExecutemanyTestCase, self).tearDown()
 
     def _test_executemany(self, table, seq_of_values):
         with self._connect() as conn:
@@ -552,3 +597,266 @@ class ExecutemanyTestCase(VerticaPythonIntegrationTestCase):
             res = cur.fetchall()
             self.assertListOfListsEqual(res, seq_of_values_to_compare)
             self.assertIsNone(cur.fetchone())
+
+    def test_executemany_empty(self):
+        err_msg = "executemany is implemented for simple INSERT statements only"
+        with self._connect() as conn:
+            cur = conn.cursor()
+            with self.assertRaisesRegexp(NotImplementedError, err_msg):
+                cur.executemany("", [])
+
+
+class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super(PreparedStatementTestCase, cls).setUpClass()
+        cls._conn_info['use_prepared_statements'] = True
+
+    def setUp(self):
+        super(PreparedStatementTestCase, self).setUp()
+        self._table = 'preparedstmt_test'
+
+    def tearDown(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
+        super(PreparedStatementTestCase, self).tearDown()
+
+    def test_empty_statement(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            err_msg = 'The statement being prepared is empty'
+            with self.assertRaisesRegexp(errors.EmptyQueryError, err_msg):
+                cur.execute("")
+            with self.assertRaisesRegexp(errors.EmptyQueryError, err_msg):
+                cur.executemany("", [()])
+            with self.assertRaisesRegexp(errors.EmptyQueryError, err_msg):
+                cur.execute("--select 1")
+            with self.assertRaisesRegexp(errors.EmptyQueryError, err_msg):
+                cur.execute("""
+                        /*
+                        Test block comment
+                        */
+                        """)
+
+    def test_compound_statement(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            query = "select 1; select 2; select 3;"
+            err_msg = 'Cannot insert multiple commands into a prepared statement'
+            with self.assertRaisesRegexp(errors.VerticaSyntaxError, err_msg):
+                cur.execute(query)
+
+    def test_num_of_parameters(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {} (a int, b varchar)".format(self._table))
+            err_msg = 'Invalid number of parameters'
+
+            # The number of parameters is less than columns of table
+            with self.assertRaisesRegexp(ValueError, err_msg):
+                cur.execute("INSERT INTO {} VALUES (?,?)".format(self._table))
+
+            # The number of parameters is greater than columns of table
+            with self.assertRaisesRegexp(ValueError, err_msg):
+                cur.execute("INSERT INTO {} VALUES (?,?)".format(self._table), [1, 'foo', 2])
+
+            # The number of parameters is equal to columns of table
+            values = [1, 'varchar']
+            cur.execute("INSERT INTO {} VALUES (?,?)".format(self._table), values)
+            conn.commit()
+            cur.execute("SELECT * FROM {}".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [values])
+
+    def test_format_paramstyle(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {} (a int, b varchar)".format(self._table))
+            err_msg = 'Syntax error at or near "%"'
+            values = [1, 'varchar']
+            with self.assertRaisesRegexp(errors.VerticaSyntaxError, err_msg):
+                cur.execute("INSERT INTO {} VALUES (%s, %s)".format(self._table), values)
+
+            cur.execute("INSERT INTO {} VALUES (%s, %s)".format(self._table),
+                        values, use_prepared_statements=False)
+            conn.commit()
+            cur.execute("SELECT * FROM {}".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [values])
+
+    def test_named_paramstyle(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {} (a int, b varchar)".format(self._table))
+            err_msg = 'Execute parameters should be a list/tuple'
+            values = {'a': 1, 'b': 'varchar'}
+            with self.assertRaisesRegexp(TypeError, err_msg):
+                cur.execute("INSERT INTO {} VALUES (:a, :b)".format(self._table), values)
+
+            cur.execute("INSERT INTO {} VALUES (:a, :b)".format(self._table),
+                        values, use_prepared_statements=False)
+            conn.commit()
+            cur.execute("SELECT * FROM {}".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [[1, 'varchar']])
+
+    def test_executemany(self):
+        values = ((None, 'foo'), [1, 'aa'], (2, None), [2, u'a\xfc'])
+        expected = [[None, 'foo'], [1, 'aa'], [2, None], [2, u'a\xfc']]
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {} (a int, b varchar)".format(self._table))
+            cur.executemany("INSERT INTO {} VALUES (?, ?)".format(self._table), values)
+
+            self.assertListOfListsEqual(cur.fetchall(), [[1]])
+            self.assertIsNone(cur.fetchone())
+            self.assertTrue(cur.nextset())
+
+            self.assertListOfListsEqual(cur.fetchall(), [[1]])
+            self.assertIsNone(cur.fetchone())
+            self.assertTrue(cur.nextset())
+
+            self.assertListOfListsEqual(cur.fetchall(), [[1]])
+            self.assertIsNone(cur.fetchone())
+            self.assertTrue(cur.nextset())
+
+            self.assertListOfListsEqual(cur.fetchall(), [[1]])
+            self.assertIsNone(cur.fetchone())
+            self.assertFalse(cur.nextset())
+
+            cur.executemany("SELECT * FROM {} WHERE a=? ORDER BY b"
+                            .format(self._table), [[1],[2],[3]])
+            self.assertListOfListsEqual(cur.fetchall(), [[1, 'aa']])
+            self.assertIsNone(cur.fetchone())
+            self.assertTrue(cur.nextset())
+
+            self.assertListOfListsEqual(cur.fetchall(), [[2, u'a\xfc'], [2, None]])
+            self.assertIsNone(cur.fetchone())
+            self.assertTrue(cur.nextset())
+
+            self.assertListOfListsEqual(cur.fetchall(), [])
+            self.assertIsNone(cur.fetchone())
+            self.assertFalse(cur.nextset())
+
+    def test_bind_boolean(self):
+        values = (True, 't', 'true', '1', 1, 'Yes', 'y', None,
+                  False, 'f', 'false', '0', 0, 'No', 'n')
+        expected = [[True]*7 + [None] + [False]*7]
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""CREATE TABLE {} (
+                    col_1 BOOL, col_2 BOOL, col_3 BOOL, col_4 BOOL, col_5 BOOL,
+                    col_6 BOOL, col_7 BOOL, col_8 BOOL, col_9 BOOL, col_10 BOOL,
+                    col_11 BOOL, col_12 BOOL, col_13 BOOL, col_14 BOOL, col_15 BOOL
+                    )""".format(self._table))
+            cur.execute("INSERT INTO {} VALUES ({})".format(
+                        self._table, ','.join(['?']*15)), values)
+            conn.commit()
+            cur.execute("SELECT * FROM {}".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, expected)
+
+    def test_bind_datetime(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {} (a TIMESTAMP, b DATE, c TIME, "
+                        "d TIMESTAMP, e DATE, f TIME)".format(self._table))
+            values = [datetime(2018, 9, 7, 15, 38, 19, 769000), date(2018, 9, 7),
+                      time(13, 50, 9), None, None, None]
+            cur.execute("INSERT INTO {} VALUES (?,?,?,?,?,?)".format(self._table), values)
+            conn.commit()
+            cur.execute("SELECT * FROM {}".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [values])
+
+    def test_bind_binary(self):
+        values = [b'binary data', b'\\backslash data\\', u'\\backslash data\\',
+                  u'\u00f1 encoding', 'raw data', 'long varbinary data', None]
+        expected = [[b'binary data\\000\\000\\000', b'\\\\backslash data\\\\',
+                     b'\\\\backslash data\\\\', b'\\303\\261 encoding',
+                     b'raw data', b'long varbinary data', None]]
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""CREATE TABLE {} (
+                    col_1 BINARY(14), col_2 VARBINARY, col_3 VARBINARY,
+                    col_4 BYTEA, col_5 RAW, col_6 LONG VARBINARY,
+                    col_7 VARBINARY)""".format(self._table))
+            cur.execute("INSERT INTO {} VALUES ({})".format(
+                        self._table, ','.join(['?']*7)), values)
+            conn.commit()
+            cur.execute("SELECT * FROM {}".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, expected)
+
+    def test_bind_numeric(self):
+        values = [Decimal('123456789.98765'), Decimal('123456789.98765'),
+                  Decimal('123456789.98765'), Decimal('123456789.98765'),
+                  10, 11, 1234567890, 1296554905964, 123, 123, 123.45,
+                  123.45, 123.45, 123.45, 123.45, None, None, None]
+        expected = [[Decimal('123456789.9877'), Decimal('123456789.987650000000000'),
+                     Decimal('123456790'), Decimal('123456789.987650000000000'),
+                     10, 11, 1234567890, 1296554905964, 123, 123, 123.45,
+                     123.45, 123.45, 123.45, 123.45, None, None, None]]
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""CREATE TABLE {} (
+                col_1 MONEY, col_2 NUMERIC, col_3 NUMBER, col_4 DECIMAL,
+                col_5 TINYINT, col_6 SMALLINT, col_7 INT8, col_8 BIGINT,
+                col_9 INT, col_10 INTEGER, col_11 DOUBLE PRECISION, col_12 REAL,
+                col_13 FLOAT8, col_14 FLOAT(10), col_15 FLOAT,
+                col_16 NUMERIC, col_17 INT, col_18 FLOAT
+                )""".format(self._table))
+            cur.execute("INSERT INTO {} VALUES ({})".format(
+                        self._table, ','.join(['?']*18)), values)
+            conn.commit()
+            cur.execute("SELECT * FROM {}".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, expected)
+
+    def test_bind_character(self):
+        values = ['char data', b'raw varchar data',
+                  u'long varbinary data \u00f1', None, None, None]
+        expected = [['char data ', 'raw varchar data',
+                     u'long varbinary data \u00f1', None, None, None]]
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""CREATE TABLE {} (
+                col_1 CHAR(10), col_2 VARCHAR, col_3 LONG VARCHAR,
+                col_4 CHAR(10), col_5 VARCHAR, col_6 LONG VARCHAR
+                )""".format(self._table))
+            cur.execute("INSERT INTO {} VALUES ({})".format(
+                        self._table, ','.join(['?']*6)), values)
+            conn.commit()
+            cur.execute("SELECT * FROM {}".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, expected)
+
+    def test_bind_interval(self):
+        values = ['1y 10m', '1 2', '1y 10m', '1y 10m',
+                  '17910y 1h 3m 6s 5msecs 57us ago', '3 days 2 hours', '1 3',
+                  '1y 15 mins 20 sec', '15 mins 20 sec', '1y 5 mins 20 sec',
+                  '2 days 12 hours 15 mins 1235 milliseconds',
+                  '2 days 12 hours 15 mins ago', '2 days 12 hours 15 mins ago',
+                  None, None]
+        expected = [[b'1', b'1-2', b'22', b'365', b'-6537150 01:03:06.0051',
+                     b'74', b'01:03', b'8760:15:20', b'15', b'525605:20',
+                     b'216901.24', b'-2 12', b'-2 12:15', None, None]]
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""CREATE TABLE {} (
+                col_1 INTERVAL YEAR, col_2 INTERVAL YEAR TO MONTH,
+                col_3 INTERVAL MONTH, col_4 INTERVAL DAY,
+                col_5 INTERVAL DAY TO SECOND(4), col_6 INTERVAL HOUR,
+                col_7 INTERVAL HOUR to MINUTE, col_8 INTERVAL HOUR to SECOND,
+                col_9 INTERVAL MINUTE, col_10 INTERVAL MINUTE TO SECOND,
+                col_11 INTERVAL SECOND(2), col_12 INTERVAL DAY TO HOUR,
+                col_13 INTERVAL DAY TO MINUTE, col_14 INTERVAL YEAR TO MONTH,
+                col_15 INTERVAL DAY TO SECOND
+                )""".format(self._table))
+            cur.execute("INSERT INTO {} VALUES ({})".format(
+                        self._table, ','.join(['?']*15)), values)
+            conn.commit()
+            cur.execute("SELECT * FROM {}".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, expected)

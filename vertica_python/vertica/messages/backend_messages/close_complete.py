@@ -41,5 +41,8 @@ from ..message import BackendMessage
 class CloseComplete(BackendMessage):
     message_id = b'3'
 
+    def __init__(self, data):
+        BackendMessage.__init__(self)
+
 
 BackendMessage.register(CloseComplete)

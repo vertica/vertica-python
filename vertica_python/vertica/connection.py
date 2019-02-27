@@ -215,6 +215,11 @@ class Connection(object):
         self._cursor = Cursor(self, self._logger, cursor_type=None,
                               unicode_error=self.options['unicode_error'])
 
+        # knob for using server-side prepared statements
+        self.options.setdefault('use_prepared_statements', False)
+        self._logger.debug('Connection prepared statements is {}'.format(
+                     'enabled' if self.options['use_prepared_statements'] else 'disabled'))
+
         self._logger.info('Connecting as user "{}" to database "{}" on host "{}" with port {}'.format(
                      self.options['user'], self.options['database'],
                      self.options['host'], self.options['port']))
@@ -487,6 +492,26 @@ class Connection(object):
             if not self.is_asynchronous_message(message):
                 break
         return message
+
+    def read_expected_message(self, expected_types, error_handler=None):
+        # Reads a message and does some basic error handling.
+        # expected_types must be a class (e.g. messages.BindComplete) or a tuple of classes
+        message = self.read_message()
+        if isinstance(message, expected_types):
+            return message
+        elif isinstance(message, messages.ErrorResponse):
+            if error_handler is not None:
+                error_handler(message)
+            else:
+                raise errors.DatabaseError(message.error_message())
+        else:
+            msg = 'Received unexpected message type: {}. '.format(type(message).__name__)
+            if isinstance(expected_types, tuple):
+                msg += 'Expected types: {}'.format(", ".join([t.__name__ for t in expected_types]))
+            else:
+                msg += 'Expected type: {}'.format(expected_types.__name__)
+            self._logger.error(msg)
+            raise errors.MessageError(msg)
 
     def process_message(self, message):
         if isinstance(message, messages.ErrorResponse):

@@ -125,10 +125,10 @@ class VerticaPythonTestCase(unittest.TestCase):
         return logfile
 
     def setUp(self):
-        self.logger.info('\n\n'+'-'*50+'\n Begin '+self._testMethodName+'\n'+'-'*50)
+        self.logger.info('\n\n'+'-'*50+'\n Begin '+self.__class__.__name__+"."+self._testMethodName+'\n'+'-'*50)
 
     def tearDown(self):
-        self.logger.info('\n'+'-'*10+' End '+self._testMethodName+' '+'-'*10+'\n')
+        self.logger.info('\n'+'-'*10+' End '+self.__class__.__name__+"."+self._testMethodName+' '+'-'*10+'\n')
 
     # Common assertions
     def assertTextEqual(self, first, second, msg=None):

@@ -58,3 +58,6 @@ class TypeTestCase(VerticaPythonIntegrationTestCase):
         query = "SELECT {0}::boolean".format(value)
         res = self._query_and_fetchone(query)
         self.assertEqual(res[0], value)
+
+
+exec(TypeTestCase.createPrepStmtClass())

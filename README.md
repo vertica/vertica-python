@@ -67,6 +67,8 @@ conn_info = {'host': '127.0.0.1',
              'unicode_error': 'strict',
              # SSL is disabled by default
              'ssl': False,
+             # using server-side prepared statements is disabled by default
+             'use_prepared_statements': False,
              # connection timeout is not enabled by default
              'connection_timeout': 5}
 
@@ -232,12 +234,86 @@ cur.fetchall()
 # [ [1, 'something'], [2, 'something_else'] ]
 ```
 
+**Query using server-side prepared statements**:
+
+Vertica server-side prepared statements let you define a statement once and then run it many times with different parameters. Placeholders in the statement are represented by question marks (?). Server-side prepared statements are useful for preventing SQL injection attacks.
+
+```python
+import vertica_python
+
+# Enable using server-side prepared statements at connection level
+conn_info = {'host': '127.0.0.1',
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'use_prepared_statements': True,
+             }
+
+with vertica_python.connect(**conn_info) as connection:
+    cur = connection.cursor()
+    cur.execute("CREATE TABLE tbl (a INT, b VARCHAR)")
+    cur.execute("INSERT INTO tbl VALUES (?, ?)", [1, 'aa'])
+    cur.execute("INSERT INTO tbl VALUES (?, ?)", [2, 'bb'])
+    cur.executemany("INSERT INTO tbl VALUES (?, ?)", [(3, 'foo'), (4, 'xx'), (5, 'bar')])
+    cur.execute("COMMIT")
+
+    cur.execute("SELECT * FROM tbl WHERE a>=? AND a<=? ORDER BY a", (2,4))
+    cur.fetchall()
+    # [[2, 'bb'], [3, 'foo'], [4, 'xx']]
+```
+
+Vertica does not support executing a command string containing multiple statements using server-side prepared statements. You can set ```use_prepared_statements``` option in ```cursor.execute*()``` functions to override the connection level setting.
+
+```python
+import vertica_python
+
+# Enable using server-side prepared statements at connection level
+conn_info = {'host': '127.0.0.1',
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'use_prepared_statements': True,
+             }
+
+with vertica_python.connect(**conn_info) as connection:
+    cur = connection.cursor()
+    cur.execute("CREATE TABLE tbl (a INT, b VARCHAR)")
+
+    # Executing compound statements
+    cur.execute("INSERT INTO tbl VALUES (?, ?); COMMIT", [1, 'aa'])
+    # Error message: Cannot insert multiple commands into a prepared statement
+
+    # Disable prepared statements but forget to change placeholders (?)
+    cur.execute("INSERT INTO tbl VALUES (?, ?); COMMIT;", [1, 'aa'], use_prepared_statements=False)
+    # TypeError: not all arguments converted during string formatting
+
+    cur.execute("INSERT INTO tbl VALUES (%s, %s); COMMIT;", [1, 'aa'], use_prepared_statements=False)
+    cur.execute("INSERT INTO tbl VALUES (:a, :b); COMMIT;", {'a': 2, 'b': 'bb'}, use_prepared_statements=False)
+
+# Disable using server-side prepared statements at connection level
+conn_info['use_prepared_statements'] = False
+with vertica_python.connect(**conn_info) as connection:
+    cur = connection.cursor()
+
+    # Try using prepared statements
+    cur.execute("INSERT INTO tbl VALUES (?, ?)", [3, 'foo'])
+    # TypeError: not all arguments converted during string formatting
+
+    cur.execute("INSERT INTO tbl VALUES (?, ?)", [3, 'foo'], use_prepared_statements=True)
+
+    # Query using named parameters
+    cur.execute("SELECT * FROM tbl WHERE a>=:n1 AND a<=:n2 ORDER BY a", {'n1': 2, 'n2': 4})
+    cur.fetchall()
+    # [[2, 'bb'], [3, 'foo']]
+```
+Note: In other drivers, the batch insert is converted into a COPY statement by using prepared statements. vertica-python currently does not support that.
+
 **Insert and commits** :
 
 ```python
 cur = connection.cursor()
 
-# inline commit
+# inline commit (when 'use_prepared_statements' is False)
 cur.execute("INSERT INTO a_table (a, b) VALUES (1, 'aa'); commit;")
 
 # commit in execution

@@ -51,3 +51,6 @@ class ColumnTestCase(VerticaPythonIntegrationTestCase):
             description = cur.description
 
         self.assertListEqual([d.name for d in description], columns)
+
+
+exec(ColumnTestCase.createPrepStmtClass())

@@ -41,5 +41,8 @@ from ..message import BackendMessage
 class ParseComplete(BackendMessage):
     message_id = b'1'
 
+    def __init__(self, data):
+        BackendMessage.__init__(self)
+
 
 BackendMessage.register(ParseComplete)

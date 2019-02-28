@@ -9,10 +9,9 @@ vertica-python is a native Python adapter for the Vertica (http://www.vertica.co
 
 :loudspeaker: 08/14/2018: *vertica-python* becomes Vertica’s first officially supported open source database client, see the blog [here](https://my.vertica.com/blog/vertica-python-becomes-verticas-first-officially-supported-open-source-database-client/).
 
-Please check out the [release note](https://github.com/vertica/vertica-python/releases) to learn about the latest improvements.
+Please check out [release notes](https://github.com/vertica/vertica-python/releases) to learn about the latest improvements.
 
-
-vertica-python is currently in beta stage; it has been tested for functionality and has a very basic test suite. Please use with caution, and feel free to submit issues and/or pull requests (after running the unit tests).
+vertica-python is currently in beta stage; it has been tested for functionality and has a very basic test suite. Please use with caution, and feel free to submit issues and/or pull requests ([Contributing guidelines]()).
 
 vertica-python has been tested with Vertica 9.1.1 and Python 2.7/3.4/3.5/3.6.
 

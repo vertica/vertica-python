@@ -5,22 +5,16 @@
 [![Python Version](https://img.shields.io/pypi/pyversions/vertica-python.svg)](https://www.python.org/downloads/)
 [![Downloads](https://pepy.tech/badge/vertica-python/week)](https://pepy.tech/project/vertica-python)
 
+vertica-python is a native Python adapter for the Vertica (http://www.vertica.com) database.
+
 :loudspeaker: 08/14/2018: *vertica-python* becomes Vertica’s first officially supported open source database client, see the blog [here](https://my.vertica.com/blog/vertica-python-becomes-verticas-first-officially-supported-open-source-database-client/).
 
-0.6.x adds python3 support (unicode namedparams support is currently broken in python3, see issue 112)
+Please check out the [release note](https://github.com/vertica/vertica-python/releases) to learn about the latest improvements.
 
-0.5.x changes the connection method to accept kwargs instead of a dict to be more dbapi compliant.
-      copy methods improved and consolidated in 0.5.1
-
-0.4.x breaks some of the older query interfaces (row_handler callback, and connection.query).
-It replaces the row_handler callback with an iterate() method. Please see examples below
-If you are on 0.4.x, please upgrade to 0.4.6 as there are various bug fixes
-
-vertica-python is a native Python adapter for the Vertica (http://www.vertica.com) database.
 
 vertica-python is currently in beta stage; it has been tested for functionality and has a very basic test suite. Please use with caution, and feel free to submit issues and/or pull requests (after running the unit tests).
 
-vertica-python has been tested with Vertica 6.1.2/7.0.0+ and Python 2.7/3.4.
+vertica-python has been tested with Vertica 9.1.1 and Python 2.7/3.4/3.5/3.6.
 
 
 ## Installation

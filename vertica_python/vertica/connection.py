@@ -330,6 +330,7 @@ class Connection(object):
 
     def balance_load(self, raw_socket):
         # Send load balance request and read server response
+        self._logger.debug('=> %s', messages.LoadBalanceRequest())
         raw_socket.sendall(messages.LoadBalanceRequest().get_message())
         response = raw_socket.recv(1)
 
@@ -340,6 +341,7 @@ class Connection(object):
                 self._logger.error(err_msg)
                 raise errors.MessageError(err_msg)
             res = BackendMessage.from_type(type_=response, data=raw_socket.recv(size-4))
+            self._logger.debug('<= %s', res)
             host = res.get_host()
             port = res.get_port()
             self._logger.info('Load balancing to host "{0}" on port {1}'.format(host, port))
@@ -355,6 +357,7 @@ class Connection(object):
             raw_socket.close()
             raw_socket = self.establish_connection()
         else:
+            self._logger.debug('<= LoadBalanceResponse: %s', response)
             self._logger.warning("Load balancing requested but not supported by server")
 
         return raw_socket
@@ -362,8 +365,10 @@ class Connection(object):
     def enable_ssl(self, raw_socket, ssl_options):
         from ssl import CertificateError, SSLError
         # Send SSL request and read server response
+        self._logger.debug('=> %s', messages.SslRequest())
         raw_socket.sendall(messages.SslRequest().get_message())
         response = raw_socket.recv(1)
+        self._logger.debug('<= SslResponse: %s', response)
         if response in ('S', b'S'):
             self._logger.info('Enabling SSL')
             try:
@@ -427,8 +432,8 @@ class Connection(object):
         if not isinstance(message, FrontendMessage):
             raise TypeError("invalid message: ({0})".format(message))
 
-        self._logger.debug('=> %s', message)
         sock = self._socket()
+        self._logger.debug('=> %s', message)
         try:
             for data in message.fetch_message():
                 try:

@@ -53,4 +53,7 @@ class LoadBalanceResponse(BackendMessage):
     def get_host(self):
         return self.host
 
+    def __str__(self):
+        return "LoadBalanceResponse: host={}, port={}".format(self.host, self.port)
+
 BackendMessage.register(LoadBalanceResponse)

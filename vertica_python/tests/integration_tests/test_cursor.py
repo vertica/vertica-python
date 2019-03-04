@@ -362,6 +362,30 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             formatted_word = u''.join((u'"', re.escape(bad_word), u'"'))
             self.assertEqual(formatted_word, cur.format_quote(bad_word, True))
 
+    def test_udtype(self):
+        poly = "POLYGON ((1 2, 2 3, 3 1, 1 2))"
+        line = "LINESTRING (42.1 71, 41.4 70, 41.3 72.9, 42.99 71.46, 44.47 73.21)"
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
+            cur.execute("CREATE TABLE {} (c1 GEOMETRY(10000), c2 GEOGRAPHY(1000))"
+                .format(self._table))
+            cur.execute("INSERT INTO {} VALUES (ST_GeomFromText('{}'), ST_GeographyFromText('{}'))"
+                .format(self._table, poly, line))
+            conn.commit()
+            cur.execute("SELECT c1, c2, ST_AsText(c1), ST_AsText(c2) FROM {}".format(self._table))
+
+            res = cur.fetchall()
+            self.assertEqual(res[0][2], poly)
+            self.assertEqual(res[0][3], line)
+
+            datatype_names = [col.type_name for col in cur.description]
+            expected = ['geometry', 'geography', 'Long Varchar', 'Long Varchar']
+            self.assertListEqual(datatype_names, expected)
+
+            self.assertEqual(cur.description[0].display_size, 10000)
+            self.assertEqual(cur.description[1].display_size, 1000)
+
 
 exec(CursorTestCase.createPrepStmtClass())
 
@@ -375,6 +399,9 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):
         super(SimpleQueryTestCase, self).setUp()
         self._table = 'simplequery_test'
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
 
     def tearDown(self):
         with self._connect() as conn:
@@ -615,6 +642,9 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):
         super(PreparedStatementTestCase, self).setUp()
         self._table = 'preparedstmt_test'
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
 
     def tearDown(self):
         with self._connect() as conn:
@@ -860,3 +890,27 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
             cur.execute("SELECT * FROM {}".format(self._table))
             res = cur.fetchall()
             self.assertListOfListsEqual(res, expected)
+
+    def test_bind_udtype(self):
+        poly = "POLYGON ((1 2, 2 3, 3 1, 1 2))"
+        line = "LINESTRING (42.1 71, 41.4 70, 41.3 72.9, 42.99 71.46, 44.47 73.21)"
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {} (c1 GEOMETRY(10000), c2 GEOGRAPHY(1000))"
+                .format(self._table))
+
+            cur.execute("INSERT INTO {} VALUES (ST_GeomFromText(?), ST_GeographyFromText(?))"
+                .format(self._table), [poly, line])
+            conn.commit()
+            cur.execute("SELECT c1, c2, ST_AsText(c1), ST_AsText(c2) FROM {}".format(self._table))
+
+            res = cur.fetchall()
+            self.assertEqual(res[0][2], poly)
+            self.assertEqual(res[0][3], line)
+
+            datatype_names = [col.type_name for col in cur.description]
+            expected = ['geometry', 'geography', 'Long Varchar', 'Long Varchar']
+            self.assertListEqual(datatype_names, expected)
+
+            self.assertEqual(cur.description[0].display_size, 10000)
+            self.assertEqual(cur.description[1].display_size, 1000)

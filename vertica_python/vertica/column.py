@@ -143,8 +143,9 @@ ColumnTuple = namedtuple('Column', ['name', 'type_code', 'display_size', 'intern
 
 class Column(object):
     def __init__(self, col, unicode_error=None):
-        self.name = col['name'].decode(UTF_8)
+        self.name = col['name']
         self.type_code = col['data_type_oid']
+        self.type_name = col['data_type_name']
         self.display_size = datatypes.getDisplaySize(col['data_type_oid'], col['type_modifier'])
         self.internal_size = col['data_type_size']
         self.precision = datatypes.getPrecision(col['data_type_oid'], col['type_modifier'])

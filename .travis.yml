@@ -21,7 +21,7 @@ before_install:
   - docker build -f docker-vertica/Dockerfile.centos.7_9.0 --build-arg VERTICA_PACKAGE=vertica-ce.latest.rpm -t jbfavre/vertica docker-vertica
   - docker images
   - docker run -d -p 5433:5433 jbfavre/vertica
-  - sleep 30
+  - sleep 60
 install:
   - pip install tox
 script:

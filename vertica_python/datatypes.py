@@ -113,6 +113,12 @@ class VerticaType(object):
         else:
             return -1
 
+    def __eq__(self, other):
+        return other in self.values
+
+    def __ne__(self, other):
+        return other not in self.values
+
 
 # dbapi: type object used to describe columns that are string-based
 STRING = VerticaType(VerticaType.CHAR, VerticaType.VARCHAR, VerticaType.BINARY,

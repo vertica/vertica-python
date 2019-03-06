@@ -49,7 +49,7 @@ if os.name == 'nt':
 else:
     import crypt
 
-ASCII = 'ascii'
+UTF_8 = 'utf-8'
 
 
 class Password(BulkFrontendMessage):
@@ -71,22 +71,21 @@ class Password(BulkFrontendMessage):
             return self._password
         elif self._auth_method == Authentication.CRYPT_PASSWORD:
             return crypt.crypt(self._password, self._options['salt'])
-        elif self._auth_method == Authentication.MD5_PASSWORD:
-            for key in 'user', 'salt':
-                m = hashlib.md5()
-                m.update(self._password + self._options[key])
+        elif self._auth_method in (Authentication.MD5_PASSWORD,
+                                   Authentication.HASH,
+                                   Authentication.HASH_MD5,
+                                   Authentication.HASH_SHA512):
+            # Encodes user/password/salt information in the following way:
+            #   MD5(MD5(password + user) + salt)
+            #   SHA512(SHA512(password + userSalt) + salt)
+            useMD5 = self._auth_method in (Authentication.MD5_PASSWORD, Authentication.HASH_MD5)
+            user = self._options['user'] if useMD5 else self._options['usersalt']
+            for key in (user, self._options['salt']):
+                m = hashlib.md5() if useMD5 else hashlib.sha512()
+                m.update(self._password + key)
                 hexdigest = m.hexdigest()
-                if six.PY3:
-                    # In python3 the output of m.hexdigest() is a unicode string,
-                    # so has to be converted to bytes before concat'ing with
-                    # the password bytes.
-                    hexdigest = bytes(hexdigest, ASCII)
-                self._password = hexdigest
-
-            prefix = 'md5'
-            if six.PY3:
-                # Same workaround for bytes here.
-                prefix = bytes(prefix, ASCII)
+                self._password = hexdigest.encode(UTF_8)
+            prefix = b'md5' if useMD5 else b'sha512'
             return prefix + self._password
         else:
             raise ValueError("unsupported authentication method: {0}".format(self._auth_method))

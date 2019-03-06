@@ -38,12 +38,13 @@ from __future__ import print_function, division, absolute_import
 from struct import unpack
 
 from ..message import BackendMessage
-
+from .... import errors
 
 class Authentication(BackendMessage):
     message_id = b'R'
 
     OK = 0
+    KERBEROS_V4 = 1
     KERBEROS_V5 = 2
     CLEARTEXT_PASSWORD = 3
     CRYPT_PASSWORD = 4
@@ -51,17 +52,32 @@ class Authentication(BackendMessage):
     SCM_CREDENTIAL = 6
     GSS = 7
     GSS_CONTINUE = 8
-    SSPI = 9
+    CHANGE_PASSWORD = 9
+    PASSWORD_CHANGED = 10
+    PASSWORD_GRACE = 11
+    HASH = 65536
+    HASH_MD5 = 65536+5
+    HASH_SHA512 = 65536+512
 
     def __init__(self, data):
         BackendMessage.__init__(self)
-        unpacked = unpack('!I{0}s'.format(len(data) - 4), data)
-        self.code = unpacked[0]
-        other = unpacked[1::][0]
-        if self.code in [self.CRYPT_PASSWORD, self.MD5_PASSWORD]:
+        self.code, other = unpack('!I{0}s'.format(len(data) - 4), data)
+
+        if self.code == self.CRYPT_PASSWORD:
             self.salt = other
-        if self.code in [self.GSS_CONTINUE]:
+        elif self.code in (self.MD5_PASSWORD, self.HASH_MD5):
+            self.salt = other[:4]
+        elif self.code in (self.HASH, self.HASH_SHA512):
+            self.salt = other[:4]
+            userSaltLen = unpack('!I', other[4:8])[0]
+            if userSaltLen != 16:
+                raise errors.MessageError(
+                    'Received wrong user salt size: {}'.format(userSaltLen))
+            self.usersalt = unpack('!{0}s'.format(userSaltLen), other[8:])[0]
+        elif self.code in [self.GSS_CONTINUE]:
             self.auth_data = other
 
+    def __str__(self):
+        return "Authentication: type={}".format(self.code)
 
 BackendMessage.register(Authentication)

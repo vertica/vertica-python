@@ -449,7 +449,7 @@ class Connection(object):
                     'Error during authentication. Your password might be expired.')
             else:
                 # noinspection PyTypeChecker
-                raise_from(errors.ConnectionError, e)
+                raise
 
     def close_socket(self):
         try:
@@ -577,7 +577,8 @@ class Connection(object):
                 if message.code != messages.Authentication.OK:
                     self.write(messages.Password(password, message.code,
                                                  {'user': user,
-                                                  'salt': getattr(message, 'salt', None)}))
+                                                  'salt': getattr(message, 'salt', None),
+                                                  'usersalt': getattr(message, 'usersalt', None)}))
             else:
                 self.process_message(message)
 

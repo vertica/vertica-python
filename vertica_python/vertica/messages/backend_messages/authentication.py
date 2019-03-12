@@ -53,7 +53,7 @@ class Authentication(BackendMessage):
     GSS = 7
     GSS_CONTINUE = 8
     CHANGE_PASSWORD = 9
-    PASSWORD_CHANGED = 10
+    PASSWORD_CHANGED = 10 # client doesn't do password changing, this should never be seen
     PASSWORD_GRACE = 11
     HASH = 65536
     HASH_MD5 = 65536+5

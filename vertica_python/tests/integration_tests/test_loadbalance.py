@@ -37,11 +37,12 @@ from __future__ import print_function, division, absolute_import
 
 from .base import VerticaPythonIntegrationTestCase
 
+
 class LoadBalanceTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):
         super(LoadBalanceTestCase, self).setUp()
-        self._host, self._port = self.test_config['host'], self.test_config['port']
-
+        self._host = self._conn_info['host']
+        self._port = self._conn_info['port']
 
     def tearDown(self):
         self._conn_info['host'] = self._host
@@ -211,71 +212,41 @@ class LoadBalanceTestCase(VerticaPythonIntegrationTestCase):
         self._conn_info['port'] = 9999
 
         err_msg = 'Connection option "backup_server_node" must be a list'
-        with self.assertRaisesRegexp(TypeError, err_msg):
-            self._conn_info['backup_server_node'] = (self._host, self._port)
-            with self._connect() as conn:
-                pass
+        self._conn_info['backup_server_node'] = (self._host, self._port)
+        self.assertConnectionFail(TypeError, err_msg)
 
         err_msg = ('Each item of connection option "backup_server_node"'
                    ' must be a host string or a \(host, port\) tuple')
-        with self.assertRaisesRegexp(TypeError, err_msg):
-            self._conn_info['backup_server_node'] = [9999]
-            with self._connect() as conn:
-                pass
-
-        with self.assertRaisesRegexp(TypeError, err_msg):
-            self._conn_info['backup_server_node'] = [(self._host, self._port, 'foo', 9999)]
-            with self._connect() as conn:
-                pass
+        self._conn_info['backup_server_node'] = [9999]
+        self.assertConnectionFail(TypeError, err_msg)
+        self._conn_info['backup_server_node'] = [(self._host, self._port, 'foo', 9999)]
+        self.assertConnectionFail(TypeError, err_msg)
 
         err_msg = 'Host must be a string: invalid value: .*'
-        with self.assertRaisesRegexp(TypeError, err_msg):
-            self._conn_info['backup_server_node'] = [(9999, self._port)]
-            with self._connect() as conn:
-                pass
-
-        with self.assertRaisesRegexp(TypeError, err_msg):
-            self._conn_info['backup_server_node'] = [(9999, 'port_num')]
-            with self._connect() as conn:
-                pass
+        self._conn_info['backup_server_node'] = [(9999, self._port)]
+        self.assertConnectionFail(TypeError, err_msg)
+        self._conn_info['backup_server_node'] = [(9999, 'port_num')]
+        self.assertConnectionFail(TypeError, err_msg)
 
         err_msg = 'Port must be an integer or a string: invalid value: .*'
-        with self.assertRaisesRegexp(TypeError, err_msg):
-            self._conn_info['backup_server_node'] = [(self._host, 5433.0022)]
-            with self._connect() as conn:
-                pass
+        self._conn_info['backup_server_node'] = [(self._host, 5433.0022)]
+        self.assertConnectionFail(TypeError, err_msg)
 
         err_msg = 'Port .* is not a valid string: invalid literal for int\(\) with base 10: .*'
-        with self.assertRaisesRegexp(ValueError, err_msg):
-            self._conn_info['backup_server_node'] = [(self._host, 'port_num')]
-            with self._connect() as conn:
-                pass
-
-        with self.assertRaisesRegexp(ValueError, err_msg):
-            self._conn_info['backup_server_node'] = [(self._host, '5433.0022')]
-            with self._connect() as conn:
-                pass
+        self._conn_info['backup_server_node'] = [(self._host, 'port_num')]
+        self.assertConnectionFail(ValueError, err_msg)
+        self._conn_info['backup_server_node'] = [(self._host, '5433.0022')]
+        self.assertConnectionFail(ValueError, err_msg)
 
         err_msg = 'Invalid port number: .*'
-        with self.assertRaisesRegexp(ValueError, err_msg):
-            self._conn_info['backup_server_node'] = [(self._host, -1000)]
-            with self._connect() as conn:
-                pass
-
-        with self.assertRaisesRegexp(ValueError, err_msg):
-            self._conn_info['backup_server_node'] = [(self._host, 66000)]
-            with self._connect() as conn:
-                pass
-
-        with self.assertRaisesRegexp(ValueError, err_msg):
-            self._conn_info['backup_server_node'] = [(self._host, '-1000')]
-            with self._connect() as conn:
-                pass
-
-        with self.assertRaisesRegexp(ValueError, err_msg):
-            self._conn_info['backup_server_node'] = [(self._host, '66000')]
-            with self._connect() as conn:
-                pass
+        self._conn_info['backup_server_node'] = [(self._host, -1000)]
+        self.assertConnectionFail(ValueError, err_msg)
+        self._conn_info['backup_server_node'] = [(self._host, 66000)]
+        self.assertConnectionFail(ValueError, err_msg)
+        self._conn_info['backup_server_node'] = [(self._host, '-1000')]
+        self.assertConnectionFail(ValueError, err_msg)
+        self._conn_info['backup_server_node'] = [(self._host, '66000')]
+        self.assertConnectionFail(ValueError, err_msg)
 
     def test_failover_with_loadbalance_roundrobin(self):
         self.require_DB_nodes_at_least(3)
@@ -300,7 +271,8 @@ class LoadBalanceTestCase(VerticaPythonIntegrationTestCase):
             for i in range(rowsToInsert):
                 with self._connect() as conn1:
                     cur1 = conn1.cursor()
-                    cur1.execute("INSERT INTO test_loadbalance (SELECT node_name FROM sessions "
+                    cur1.execute("INSERT INTO test_loadbalance ("
+                                 "SELECT node_name FROM sessions "
                                  "WHERE session_id = (SELECT current_session()))")
 
             cur.execute("SELECT count(n)=3 FROM test_loadbalance GROUP BY n")

@@ -62,7 +62,7 @@ git checkout -b my-fix-branch
 
 We appreciate any and all [contributions to the test suite](#tests)! These tests use a Python module: [nosetests](https://nose.readthedocs.io). You might want to check out the Python documentation for more details.
 
-There are two types of tests: unit tests and integration tests. Unit tests do simple unit testing of individual classes and functions, which do not require database connection. Integration tests need to connect to a Vertica database to run stuffs, so you must have access to a Vertica database. Heres one way to go about it:
+There are two types of tests: unit tests and integration tests. Unit tests do simple unit testing of individual classes and functions, which do not require database connection. Integration tests need to connect to a Vertica database to run stuffs, so you must have access to a Vertica database. We recommend using a non-production database, because some tests need the superuser permission to manipulate global settings and potentially break that database. Heres one way to go about it:
 - Download docker kitematic: https://kitematic.com/
 - Spin up a vertica container (e.g. sumitchawla/vertica)
 

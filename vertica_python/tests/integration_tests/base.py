@@ -135,9 +135,10 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
         return result
 
     # Common assertions
-    def assertConnectionFail(self):
-        err_msg = 'Failed to establish a connection to the primary server or any backup address.'
-        with self.assertRaisesRegexp(errors.ConnectionError, err_msg):
+    def assertConnectionFail(self,
+        err_type=errors.ConnectionError,
+        err_msg='Failed to establish a connection to the primary server or any backup address.'):
+        with self.assertRaisesRegexp(err_type, err_msg):
             with self._connect() as conn:
                 pass
 

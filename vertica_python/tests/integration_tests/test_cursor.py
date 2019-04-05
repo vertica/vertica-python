@@ -212,6 +212,24 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             res_from_cur2 = cur2.fetchall()
             self.assertListOfListsEqual(res_from_cur2, [[2, 'bar']])
 
+    def test_copy_with_closed_file(self):
+        with tempfile.TemporaryFile() as tmpfile, self._connect() as conn:
+            if _os.name != 'posix' or _os.sys.platform == 'cygwin':
+                f = getattr(tmpfile, 'file')
+            else:
+                f = tmpfile
+
+            f.write(b"1,foo\n2,bar")
+            # move rw pointer to top of file
+            f.seek(0)
+
+            cur = conn.cursor()
+            f.close()
+            with self.assertRaisesRegexp(ValueError, 'closed file'):
+                cur.copy("COPY {0} (a, b) FROM STDIN DELIMITER ','".format(self._table),
+                          f)
+            cur.close()
+
     # unit test for #78
     def test_copy_with_data_in_buffer(self):
         with self._connect() as conn:
@@ -240,7 +258,7 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             res = [[]]
             try:
                 cur.copy("COPY non_existing_tab(a, b) FROM STDIN DELIMITER ','", "FAIL")
-            except errors.Error as e:
+            except errors.MissingRelation as e:
                 cur.execute("SELECT 1;")
                 res = cur.fetchall()
 
@@ -259,7 +277,7 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             try:
                 cur.copy("COPY {0} (a, b) FROM STDIN DELIMITER ',' ABORT ON ERROR".format(self._table),
                          "FAIL")
-            except errors.Error as e:
+            except errors.CopyRejected as e:
                 cur.execute("SELECT 1;")
                 res = cur.fetchall()
 
@@ -353,6 +371,8 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
 
                 # close and reopen cursor
                 cur.close()
+                with self.assertRaisesRegexp(errors.InterfaceError, 'Cursor is closed'):
+                    cur.execute("SELECT 1;")
                 cur = conn.cursor()
 
     def test_format_quote_unicode(self):

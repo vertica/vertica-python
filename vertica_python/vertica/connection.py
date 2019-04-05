@@ -244,6 +244,7 @@ class Connection(object):
     # dbapi methods
     #############################################
     def close(self):
+        self._logger.info('Close the connection')
         try:
             self.write(messages.Terminate())
         finally:

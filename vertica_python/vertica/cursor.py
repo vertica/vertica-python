@@ -122,12 +122,14 @@ class Cursor(object):
         raise errors.NotSupportedError('Cursor.callproc() is not implemented')
 
     def close(self):
-        self._close_prepared_statement()
+        self._logger.info('Close the cursor')
+        if not self.closed():
+            self._close_prepared_statement()
         self._closed = True
 
     def cancel(self):
         if self.closed():
-            raise errors.Error('Cursor is closed')
+            raise errors.InterfaceError('Cursor is closed')
 
         self.connection.close()
 
@@ -136,7 +138,7 @@ class Cursor(object):
         self.operation = operation
 
         if self.closed():
-            raise errors.Error('Cursor is closed')
+            raise errors.InterfaceError('Cursor is closed')
 
         self.flush_to_query_ready()
 
@@ -170,6 +172,9 @@ class Cursor(object):
 
         if not isinstance(seq_of_parameters, (list, tuple)):
             raise TypeError("seq_of_parameters should be list/tuple")
+
+        if self.closed():
+            raise errors.InterfaceError('Cursor is closed')
 
         self.flush_to_query_ready()
         use_prepared = bool(self.connection.options['use_prepared_statements']
@@ -348,7 +353,7 @@ class Cursor(object):
         sql = as_text(sql)
 
         if self.closed():
-            raise errors.Error('Cursor is closed')
+            raise errors.InterfaceError('Cursor is closed')
 
         self.flush_to_query_ready()
 

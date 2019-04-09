@@ -51,13 +51,6 @@ import six
 from builtins import str
 from six import binary_type, text_type, string_types, BytesIO, StringIO
 
-try:
-    from psycopg2.extensions import QuotedString
-except ImportError:
-    class QuotedString(object):
-        def __init__(self, s):
-            raise ImportError("couldn't import psycopg2.extensions.QuotedString")
-
 from .. import errors
 from ..compat import as_text
 from ..vertica import messages
@@ -459,11 +452,10 @@ class Cursor(object):
         return operation
 
     def format_quote(self, param, is_csv):
-        # TODO Make sure adapt() behaves properly
         if is_csv:
             return u'"{0}"'.format(re.escape(param))
         else:
-            return QuotedString(param.encode(UTF_8, self.unicode_error)).getquoted()
+            return u"'{0}'".format(param.replace(u"'", u"''"))
 
     def _execute_simple_query(self, query):
         """

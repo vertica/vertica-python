@@ -30,11 +30,6 @@ To install vertica-python with pip:
 
     pip install vertica-python
 
-To install vertica-python with pip (with optional namedparams dependencies):
-
-    # see 'Using named parameters' section below
-    pip install 'vertica-python[namedparams]'
-
 Source code for vertica-python can be found at:
 
     https://github.com/vertica/vertica-python
@@ -219,8 +214,6 @@ connection.close()
 **Query using named parameters**:
 
 ```python
-# Using named parameter bindings requires psycopg2>=2.5.1 which is not includes with the base vertica_python requirements.
-
 cur = connection.cursor()
 cur.execute("SELECT * FROM a_table WHERE a = :propA b = :propB", {'propA': 1, 'propB': 'stringValue'})
 

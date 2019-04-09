@@ -59,7 +59,6 @@ setup(
         'future',
         'six>=1.10.0'
     ],
-    extras_require={'namedparams': ['psycopg2>=2.5.1']},
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

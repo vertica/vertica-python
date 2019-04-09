@@ -487,6 +487,8 @@ class Cursor(object):
         elif isinstance(self._message, messages.RowDescription):
             self.description = [Column(fd, self.unicode_error) for fd in self._message.fields]
             self._message = self.connection.read_message()
+            if isinstance(self._message, messages.ErrorResponse):
+                raise errors.QueryError.from_error_response(self._message, query)
 
     def _error_handler(self, msg):
         self.connection.write(messages.Sync())

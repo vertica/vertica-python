@@ -574,6 +574,14 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
             res = cur.fetchall()
             self.assertListOfListsEqual(res, [values])
 
+    def test_execute_parameters(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            all_chars = u"".join(chr(i) for i in range(1, 128))
+            backslash_data = u"\\backslash\\ \\data\\\\"
+            cur.execute("SELECT :a, :b", parameters={"a": all_chars, "b": backslash_data})
+            self.assertEqual([all_chars, backslash_data], cur.fetchone())
+
 
 class SimpleQueryExecutemanyTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):

@@ -382,15 +382,6 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             formatted_word = u''.join((u'"', re.escape(bad_word), u'"'))
             self.assertEqual(formatted_word, cur.format_quote(bad_word, True))
 
-    def test_execute_parameter(self):
-        with self._connect() as conn:
-            cur = conn.cursor()
-            val = u"".join(chr(i) for i in range(1, 128))
-            cur.execute("SELECT :val",
-                        parameters={"val": val},
-                        use_prepared_statements=False)
-            self.assertEqual([val], cur.fetchone())
-
     def test_udtype(self):
         poly = "POLYGON ((1 2, 2 3, 3 1, 1 2))"
         line = "LINESTRING (42.1 71, 41.4 70, 41.3 72.9, 42.99 71.46, 44.47 73.21)"
@@ -582,6 +573,14 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
             cur.execute("SELECT * FROM {}".format(self._table))
             res = cur.fetchall()
             self.assertListOfListsEqual(res, [values])
+
+    def test_execute_parameters(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            all_chars = u"".join(chr(i) for i in range(1, 128))
+            backslash_data = u"\\backslash\\ \\data\\\\"
+            cur.execute("SELECT :a, :b", parameters={"a": all_chars, "b": backslash_data})
+            self.assertEqual([all_chars, backslash_data], cur.fetchone())
 
 
 class SimpleQueryExecutemanyTestCase(VerticaPythonIntegrationTestCase):

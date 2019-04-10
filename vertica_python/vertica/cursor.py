@@ -455,7 +455,7 @@ class Cursor(object):
         if is_csv:
             return u'"{0}"'.format(re.escape(param))
         else:
-            return u"'{0}'".format(param.replace(u"'", u"''"))
+            return u"'{0}'".format(param.replace(u"'", u"''").replace(u"\\", u"\\\\"))
 
     def _execute_simple_query(self, query):
         """

@@ -350,6 +350,11 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             with self.assertRaises(errors.QueryError):
                 cur.execute("SELECT * FROM {0}_fail".format(self._table))
 
+            # generate a user-defined error message
+            err_msg = 'USER GENERATED ERROR: test error'
+            with self.assertRaisesRegexp(errors.QueryError, err_msg):
+                cur.execute("SELECT THROW_ERROR('test error')")
+
             # verify cursor still usable after errors
             cur.execute("SELECT a, b FROM {0} WHERE a = 1".format(self._table))
             res = cur.fetchall()

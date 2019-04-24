@@ -72,7 +72,7 @@ RE_NAME = u'(("{0}")|({0}))'.format(RE_NAME_BASE)
 RE_BASIC_INSERT_STAT = (
     u"INSERT\\s+INTO\\s+(?P<target>({0}\\.)?{0})"
     u"\\s*\\(\\s*(?P<variables>{0}(\\s*,\\s*{0})*)\\s*\\)"
-    u"\\s+VALUES\\s*\\(\\s*(?P<values>.*)\\s*\\)").format(RE_NAME)
+    u"\\s+VALUES\\s*\\(\\s*(?P<values>(.|\\s)*)\\s*\\)").format(RE_NAME)
 END_OF_RESULT_RESPONSES = (messages.CommandComplete, messages.PortalSuspended)
 
 class Cursor(object):

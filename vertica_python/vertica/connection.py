@@ -60,7 +60,6 @@ DEFAULT_HOST = 'localhost'
 DEFAULT_USER = getpass.getuser()
 DEFAULT_PORT = 5433
 DEFAULT_PASSWORD = ''
-DEFAULT_READ_TIMEOUT = 600
 DEFAULT_LOG_LEVEL = logging.WARNING
 DEFAULT_LOG_PATH = 'vertica_python.log'
 ASCII = 'ascii'
@@ -189,7 +188,6 @@ class Connection(object):
         self.options.setdefault('user', DEFAULT_USER)
         self.options.setdefault('database', self.options['user'])
         self.options.setdefault('password', DEFAULT_PASSWORD)
-        self.options.setdefault('read_timeout', DEFAULT_READ_TIMEOUT)
         self.options.setdefault('session_label', _generate_session_label())
 
         # Set up connection logger

@@ -21,7 +21,7 @@ matrix:
 
 before_install:
   - git clone https://github.com/jbfavre/docker-vertica.git
-  - wget $VERTICA_CE_URL -O docker-vertica/packages/vertica-ce.latest.rpm
+  - curl $VERTICA_CE_URL --create-dirs -o docker-vertica/packages/vertica-ce.latest.rpm
   - docker build -f docker-vertica/Dockerfile.centos.7_9.x --build-arg VERTICA_PACKAGE=vertica-ce.latest.rpm -t jbfavre/vertica docker-vertica
   - docker images
   - docker run -d -p 5433:5433 jbfavre/vertica

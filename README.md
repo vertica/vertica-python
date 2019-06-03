@@ -90,7 +90,7 @@ connection = vertica_python.connect(**conn_info)
 
 ```
 
-See more on SSL options [here](https://docs.python.org/2/library/ssl.html).
+See more on SSL options [here](https://docs.python.org/3.6/library/ssl.html).
 
 Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.6/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. For example,
 

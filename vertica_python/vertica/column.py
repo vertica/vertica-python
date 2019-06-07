@@ -36,7 +36,7 @@
 
 from __future__ import print_function, division, absolute_import
 
-import re, six
+import re
 from collections import namedtuple
 from datetime import date, datetime
 from decimal import Decimal

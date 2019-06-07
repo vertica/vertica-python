@@ -50,7 +50,7 @@ from io import IOBase
 import six
 # noinspection PyUnresolvedReferences,PyCompatibility
 from builtins import str
-from six import binary_type, text_type, string_types, BytesIO, StringIO, PY3
+from six import binary_type, text_type, string_types, BytesIO, StringIO
 
 from .. import errors
 from ..compat import as_text
@@ -416,10 +416,8 @@ class Cursor(object):
                     key = str(key)
                 key = as_text(key)
 
-                if isinstance(param, string_types):
+                if isinstance(param, (string_types, bytes)):
                     param = self.format_quote(as_text(param), is_csv)
-                elif isinstance(param, bytes):
-                    param = "hex_to_binary('0x{}')".format(param.hex() if six.PY3 else param.encode('hex'))
                 elif isinstance(param, (datetime.datetime, datetime.date, datetime.time, UUID)):
                     param = self.format_quote(as_text(str(param)), is_csv)
                 elif param is None:
@@ -436,10 +434,8 @@ class Cursor(object):
         elif isinstance(parameters, (tuple, list)):
             tlist = []
             for param in parameters:
-                if isinstance(param, string_types):
+                if isinstance(param, (string_types, bytes)):
                     param = self.format_quote(as_text(param), is_csv)
-                elif isinstance(param, bytes):
-                    param = "hex_to_binary('0x{}')".format(param.hex() if six.PY3 else param.encode('hex'))
                 elif isinstance(param, (datetime.datetime, datetime.date, datetime.time, UUID)):
                     param = self.format_quote(as_text(str(param)), is_csv)
                 elif param is None:

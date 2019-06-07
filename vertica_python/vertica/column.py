@@ -202,6 +202,8 @@ class Column(object):
             ('numeric',
              lambda s: Decimal(str(s, encoding=UTF_8, errors=unicode_error))),
             ('bytea', None),
+            ('binary', None),
+            ('varbinary', None),
             ('rle_tuple', None),
         ]
 

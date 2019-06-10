@@ -535,7 +535,7 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
 
             cur.execute("SELECT a, b, c FROM {0}".format(self._table))
             res = cur.fetchall()
-            self.assertListOfListsEqual([[UUID(s) for s in res[0]]], [[x, y, z]])
+            self.assertListOfListsEqual(res, [[str(x), str(y), str(z)]])
 
     # unit test for #74
     def test_nextset(self):

@@ -38,6 +38,7 @@ from __future__ import print_function, division, absolute_import
 
 import datetime
 import re
+from uuid import UUID
 
 try:
     from collections import OrderedDict  # python 2.7+ / 3
@@ -415,9 +416,9 @@ class Cursor(object):
                     key = str(key)
                 key = as_text(key)
 
-                if isinstance(param, string_types):
+                if isinstance(param, (string_types, bytes)):
                     param = self.format_quote(as_text(param), is_csv)
-                elif isinstance(param, (datetime.datetime, datetime.date, datetime.time)):
+                elif isinstance(param, (datetime.datetime, datetime.date, datetime.time, UUID)):
                     param = self.format_quote(as_text(str(param)), is_csv)
                 elif param is None:
                     param = '' if is_csv else NULL
@@ -433,9 +434,9 @@ class Cursor(object):
         elif isinstance(parameters, (tuple, list)):
             tlist = []
             for param in parameters:
-                if isinstance(param, string_types):
+                if isinstance(param, (string_types, bytes)):
                     param = self.format_quote(as_text(param), is_csv)
-                elif isinstance(param, (datetime.datetime, datetime.date, datetime.time)):
+                elif isinstance(param, (datetime.datetime, datetime.date, datetime.time, UUID)):
                     param = self.format_quote(as_text(str(param)), is_csv)
                 elif param is None:
                     param = '' if is_csv else NULL

@@ -501,7 +501,7 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
                                                date(2018, 9, 7), time(13, 50, 9)]])
 
     def test_binary_types(self):
-        with self._connect() as conn: 
+        with self._connect() as conn:
             cur = conn.cursor()
 
             # create test table
@@ -513,28 +513,29 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
                         """.format(self._table))
 
             cur.execute("INSERT INTO {0} VALUES (:b, :s1, :s2)".format(self._table),
-                            {'b' : b'x', 's1' : b'xyz', 's2' : 'abcde'})
+                        {'b': b'x', 's1': b'xyz', 's2': 'abcde'})
             conn.commit()
 
             cur.execute("SELECT a, b, c FROM {0}".format(self._table))
             res = cur.fetchall()
             self.assertListOfListsEqual(res, [[b'x', b'xyz', b'abcde']])
-    
+
     def test_uuid_type(self):
-        with self._connect() as conn: 
+        with self._connect() as conn:
             cur = conn.cursor()
             x = UUID('{00010203-0405-0607-0809-0a0b0c0d0e0f}')
             y = UUID('00000020-0000-0000-0000-100000000000')
             z = UUID('00100010000000000000000000000000')
+
             # create test table
             cur.execute("CREATE TABLE {0} ( a uuid, b uuid, c uuid )".format(self._table))
             cur.execute("INSERT INTO {0} VALUES (:u1, :u2, :u3)".format(self._table),
-                            {'u1' : x, 'u2' : y, 'u3' : z})
+                        {'u1': x, 'u2': y, 'u3': z})
             conn.commit()
 
             cur.execute("SELECT a, b, c FROM {0}".format(self._table))
             res = cur.fetchall()
-            self.assertListOfListsEqual([[UUID(s) for s in res[0]]], [[x,y,z]])
+            self.assertListOfListsEqual([[UUID(s) for s in res[0]]], [[x, y, z]])
 
     # unit test for #74
     def test_nextset(self):

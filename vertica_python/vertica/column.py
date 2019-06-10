@@ -40,7 +40,6 @@ import re
 from collections import namedtuple
 from datetime import date, datetime
 from decimal import Decimal
-from uuid import UUID
 
 import pytz
 # noinspection PyCompatibility,PyUnresolvedReferences
@@ -203,8 +202,6 @@ class Column(object):
             ('numeric',
              lambda s: Decimal(str(s, encoding=UTF_8, errors=unicode_error))),
             ('bytea', None),
-            ('binary', None),
-            ('varbinary', None),
             ('rle_tuple', None),
         ]
 

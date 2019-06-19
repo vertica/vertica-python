@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/pypi/pyversions/vertica-python.svg)](https://www.python.org/downloads/)
 [![Downloads](https://pepy.tech/badge/vertica-python/week)](https://pepy.tech/project/vertica-python)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fvertica%2Fvertica-python.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fvertica%2Fvertica-python?ref=badge_shield)
 
 vertica-python is a native Python adapter for the Vertica (http://www.vertica.com) database.
 
@@ -399,6 +400,9 @@ cur.fetchone()
 ## License
 
 Apache 2.0 License, please see `LICENSE` for details.
+
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fvertica%2Fvertica-python.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fvertica%2Fvertica-python?ref=badge_large)
 
 ## Contributing guidelines
 

@@ -677,6 +677,20 @@ class SimpleQueryExecutemanyTestCase(VerticaPythonIntegrationTestCase):
     def test_executemany_utf8(self):
         self._test_executemany(self._table, [(1, u'a\xfc'), (2, u'bb')])
 
+    # test for #292
+    def test_executemany_autocommit(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute('SET SESSION AUTOCOMMIT TO off')
+            cur.execute('BEGIN')
+            cur.executemany("INSERT INTO {0} (a, b) VALUES (%s, %s)".format(self._table),
+                            ((None, 'foo'), [2, None], [3, 'bar']))
+            cur.execute('ROLLBACK')
+
+            cur.execute("SELECT count(*) FROM {0}".format(self._table))
+            res = cur.fetchone()[0]
+            self.assertEqual(res, 0)
+
     def test_executemany_null(self):
         seq_of_values_1 = ((None, 'foo'), [2, None])
         seq_of_values_2 = ({'a': None, 'b': 'bar'}, {'a': 4, 'b': None})

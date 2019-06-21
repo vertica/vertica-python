@@ -200,9 +200,12 @@ class Cursor(object):
                                  for parameters in seq_of_parameters]
                 data = "\n".join(seq_of_values)
 
+                copy_autocommit = self.connection.parameters.get('auto_commit', 'on')
+
                 copy_statement = (
                     u"COPY {0} ({1}) FROM STDIN DELIMITER ',' ENCLOSED BY '\"' "
-                    u"ENFORCELENGTH ABORT ON ERROR").format(target, variables)
+                    u"ENFORCELENGTH ABORT ON ERROR{2}").format(target, variables,
+                    " NO COMMIT" if copy_autocommit == 'off' else '')
 
                 self.copy(copy_statement, data)
             else:
@@ -359,6 +362,7 @@ class Cursor(object):
         else:
             raise TypeError("Not valid type of data {0}".format(type(data)))
 
+        self._logger.info(u'Execute COPY statement: [{}]'.format(sql))
         self.connection.write(messages.Query(sql))
 
         while True:

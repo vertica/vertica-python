@@ -50,7 +50,7 @@ class VerticaLogging(object):
                  '%(message)s'.format(context)),
             datefmt='%Y-%m-%d %H:%M:%S')
         cls.ensure_dir_exists(logfile)
-        file_handler = logging.FileHandler(logfile)
+        file_handler = logging.FileHandler(logfile, encoding='utf-8')
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
         logger.setLevel(log_level)

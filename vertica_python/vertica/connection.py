@@ -57,7 +57,6 @@ from ..vertica.messages.frontend_messages import CancelRequest
 from ..vertica.log import VerticaLogging
 
 DEFAULT_HOST = 'localhost'
-DEFAULT_USER = getpass.getuser()
 DEFAULT_PORT = 5433
 DEFAULT_PASSWORD = ''
 DEFAULT_LOG_LEVEL = logging.WARNING
@@ -183,13 +182,6 @@ class Connection(object):
         options = options or {}
         self.options = {key: value for key, value in options.items() if value is not None}
 
-        self.options.setdefault('host', DEFAULT_HOST)
-        self.options.setdefault('port', DEFAULT_PORT)
-        self.options.setdefault('user', DEFAULT_USER)
-        self.options.setdefault('database', self.options['user'])
-        self.options.setdefault('password', DEFAULT_PASSWORD)
-        self.options.setdefault('session_label', _generate_session_label())
-
         # Set up connection logger
         logger_name = 'vertica_{0}_{1}'.format(id(self), str(uuid.uuid4())) # must be a unique value
         self._logger = logging.getLogger(logger_name)
@@ -202,6 +194,19 @@ class Connection(object):
             self.options.setdefault('log_path', DEFAULT_LOG_PATH)
             VerticaLogging.setup_file_logging(logger_name, self.options['log_path'],
                                               self.options['log_level'], id(self))
+
+        self.options.setdefault('host', DEFAULT_HOST)
+        self.options.setdefault('port', DEFAULT_PORT)
+        if 'user' not in self.options:
+            try:
+                self.options['user'] = getpass.getuser()
+            except Exception as e:
+                self._logger.error(
+                    "Failed to set default value for connection 'user': {}".format(str(e)))
+                raise KeyError('Connection option "user" is required')
+        self.options.setdefault('database', self.options['user'])
+        self.options.setdefault('password', DEFAULT_PASSWORD)
+        self.options.setdefault('session_label', _generate_session_label())
 
         self.address_list = _AddressList(self.options['host'], self.options['port'],
                                          self.options.get('backup_server_node', []), self._logger)

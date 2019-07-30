@@ -232,6 +232,9 @@ class Connection(object):
 
     def __exit__(self, type_, value, traceback):
         try:
+            # get the transaction status
+            if not self.closed():
+                self.cursor().flush_to_query_ready()
             # if there's no outstanding transaction, we can simply close the connection
             if self.transaction_status in (None, 'in_transaction'):
                 return
@@ -487,6 +490,9 @@ class Connection(object):
                 message = BackendMessage.from_type(type_, self.read_bytes(size - 4))
                 self._logger.debug('<= %s', message)
                 self.handle_asynchronous_message(message)
+                # handle transaction status
+                if isinstance(message, messages.ReadyForQuery):
+                    self.transaction_status = message.transaction_status
             except (SystemError, IOError) as e:
                 self.close_socket()
                 # noinspection PyTypeChecker
@@ -515,30 +521,6 @@ class Connection(object):
                 msg += 'Expected type: {}'.format(expected_types.__name__)
             self._logger.error(msg)
             raise errors.MessageError(msg)
-
-    def process_message(self, message):
-        if isinstance(message, messages.ErrorResponse):
-            raise errors.ConnectionError(message.error_message())
-        elif isinstance(message, messages.BackendKeyData):
-            self.backend_pid = message.pid
-            self.backend_key = message.key
-        elif isinstance(message, messages.ReadyForQuery):
-            self.transaction_status = message.transaction_status
-        elif isinstance(message, messages.CommandComplete):
-            # TODO: I'm not ever seeing this actually returned by vertica...
-            # if vertica returns a row count, set the rowcount attribute in cursor
-            # if hasattr(message, 'rows'):
-            #     self.cursor.rowcount = message.rows
-            pass
-        elif isinstance(message, messages.EmptyQueryResponse):
-            pass
-        elif isinstance(message, messages.CopyInResponse):
-            pass
-        else:
-            raise errors.MessageError("Unhandled message: {0}".format(message))
-
-        # set last message
-        self._cursor._message = message
 
     def __str__(self):
         safe_options = {key: value for key, value in self.options.items() if key != 'password'}
@@ -587,8 +569,15 @@ class Connection(object):
                                                  {'user': user,
                                                   'salt': getattr(message, 'salt', None),
                                                   'usersalt': getattr(message, 'usersalt', None)}))
-            else:
-                self.process_message(message)
-
-            if isinstance(message, messages.ReadyForQuery):
+            elif isinstance(message, messages.BackendKeyData):
+                self.backend_pid = message.pid
+                self.backend_key = message.key
+            elif isinstance(message, messages.ReadyForQuery):
                 break
+            elif isinstance(message, messages.ErrorResponse):
+                self._logger.error(message.error_message())
+                raise errors.ConnectionError(message.error_message())
+            else:
+                msg = "Received unexpected startup message: {0}".format(message)
+                self._logger.error(msg)
+                raise errors.MessageError(msg)

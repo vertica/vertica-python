@@ -117,7 +117,7 @@ class Cursor(object):
 
     def close(self):
         self._logger.info('Close the cursor')
-        if not self.closed():
+        if not self.closed() and self.prepared_sql:
             self._close_prepared_statement()
         self._closed = True
 
@@ -320,7 +320,6 @@ class Cursor(object):
         while True:
             message = self.connection.read_message()
             if isinstance(message, messages.ReadyForQuery):
-                self.connection.transaction_status = message.transaction_status
                 self._message = message
                 break
 
@@ -372,14 +371,15 @@ class Cursor(object):
             self._message = message
             if isinstance(message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(message, sql)
-
-            self.connection.process_message(message=message)
-
-            if isinstance(message, messages.ReadyForQuery):
+            elif isinstance(message, messages.ReadyForQuery):
                 break
             elif isinstance(message, messages.CopyInResponse):
                 self.connection.write(messages.CopyStream(stream, **kwargs))
                 self.connection.write(messages.CopyDone())
+            elif isinstance(message, messages.CommandComplete):
+                pass
+            else:
+                raise errors.MessageError('Unexpected message: {0}'.format(message))
 
         if self.error is not None:
             raise self.error

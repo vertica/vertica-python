@@ -87,6 +87,7 @@ class LoadBalanceTestCase(VerticaPythonIntegrationTestCase):
                     cur1 = conn1.cursor()
                     cur1.execute("INSERT INTO test_loadbalance (SELECT node_name FROM sessions "
                                  "WHERE session_id = (SELECT current_session()))")
+                    conn1.commit()
 
             cur.execute("SELECT count(DISTINCT n)>1 FROM test_loadbalance")
             res = cur.fetchone()
@@ -116,6 +117,7 @@ class LoadBalanceTestCase(VerticaPythonIntegrationTestCase):
                     cur1 = conn1.cursor()
                     cur1.execute("INSERT INTO test_loadbalance (SELECT node_name FROM sessions "
                                  "WHERE session_id = (SELECT current_session()))")
+                    conn1.commit()
 
             cur.execute("SELECT count(DISTINCT n)=1 FROM test_loadbalance")
             res = cur.fetchone()
@@ -137,6 +139,7 @@ class LoadBalanceTestCase(VerticaPythonIntegrationTestCase):
                     cur1 = conn1.cursor()
                     cur1.execute("INSERT INTO test_loadbalance (SELECT node_name FROM sessions "
                                  "WHERE session_id = (SELECT current_session()))")
+                    conn1.commit()
 
             cur.execute("SELECT count(n)=3 FROM test_loadbalance GROUP BY n")
             res = cur.fetchall()
@@ -274,6 +277,7 @@ class LoadBalanceTestCase(VerticaPythonIntegrationTestCase):
                     cur1.execute("INSERT INTO test_loadbalance ("
                                  "SELECT node_name FROM sessions "
                                  "WHERE session_id = (SELECT current_session()))")
+                    conn1.commit()
 
             cur.execute("SELECT count(n)=3 FROM test_loadbalance GROUP BY n")
             res = cur.fetchall()

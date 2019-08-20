@@ -57,6 +57,7 @@ conn_info = {'host': '127.0.0.1',
              # using server-side prepared statements is disabled by default
              'use_prepared_statements': False,
              # connection timeout is not enabled by default
+             # 5 seconds timeout for obtaining connection
              'connection_timeout': 5}
 
 # simple connection, with manual close

@@ -61,7 +61,11 @@ DEFAULT_PORT = 5433
 DEFAULT_PASSWORD = ''
 DEFAULT_LOG_LEVEL = logging.WARNING
 DEFAULT_LOG_PATH = 'vertica_python.log'
-ASCII = 'ascii'
+try:
+    DEFAULT_USER = getpass.getuser()
+except Exception as e:
+    DEFAULT_USER = None
+    print("WARN: Cannot get the login user name: {}".format(str(e)))
 
 
 def connect(**kwargs):
@@ -198,12 +202,12 @@ class Connection(object):
         self.options.setdefault('host', DEFAULT_HOST)
         self.options.setdefault('port', DEFAULT_PORT)
         if 'user' not in self.options:
-            try:
-                self.options['user'] = getpass.getuser()
-            except Exception as e:
-                self._logger.error(
-                    "Failed to set default value for connection 'user': {}".format(str(e)))
-                raise KeyError('Connection option "user" is required')
+            if DEFAULT_USER:
+                self.options['user'] = DEFAULT_USER
+            else:
+                msg = 'Connection option "user" is required'
+                self._logger.error(msg)
+                raise KeyError(msg)
         self.options.setdefault('database', self.options['user'])
         self.options.setdefault('password', DEFAULT_PASSWORD)
         self.options.setdefault('session_label', _generate_session_label())
@@ -542,12 +546,13 @@ class Connection(object):
 
     def startup_connection(self):
         # This doesn't handle Unicode usernames or passwords
-        user = self.options['user'].encode(ASCII)
-        database = self.options['database'].encode(ASCII)
-        password = self.options['password'].encode(ASCII)
-        session_label = self.options['session_label'].encode(ASCII)
+        user = self.options['user']
+        database = self.options['database']
+        session_label = self.options['session_label']
+        os_user_name = DEFAULT_USER if DEFAULT_USER else ''
+        password = self.options['password']
 
-        self.write(messages.Startup(user, database, session_label))
+        self.write(messages.Startup(user, database, session_label, os_user_name))
 
         while True:
             message = self.read_message()

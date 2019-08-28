@@ -58,9 +58,9 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
         cls.test_config = cls._load_test_config(config_list)
 
         # Test logger
-        logfile = cls._setup_logger('integration_tests', 
+        logfile = cls._setup_logger('integration_tests',
                       cls.test_config['log_dir'], cls.test_config['log_level'])
-        
+
         # Connection info
         cls._conn_info = {
             'host': cls.test_config['host'],
@@ -81,7 +81,7 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
     @classmethod
     def _connect(cls):
         """Connects to vertica.
-        
+
         :return: a connection to vertica.
         """
         return connect(**cls._conn_info)
@@ -110,7 +110,7 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
 
     def _query_and_fetchall(self, query):
         """Creates a new connection, executes a query and fetches all the results.
-        
+
         :param query: query to execute
         :return: all fetched results as returned by cursor.fetchall()
         """
@@ -123,7 +123,7 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
 
     def _query_and_fetchone(self, query):
         """Creates a new connection, executes a query and fetches one result.
-        
+
         :param query: query to execute
         :return: the first result fetched by cursor.fetchone()
         """

@@ -40,4 +40,3 @@ from ..message import BulkFrontendMessage
 
 class CopyDone(BulkFrontendMessage):
     message_id = b'c'
-

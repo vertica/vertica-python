@@ -60,4 +60,5 @@ class CommandComplete(BackendMessage):
     def __str__(self):
         return 'CommandComplete: command_tag = "{}"'.format(self.command_tag)
 
+
 BackendMessage.register(CommandComplete)

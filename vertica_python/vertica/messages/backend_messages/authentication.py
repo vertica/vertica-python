@@ -40,6 +40,7 @@ from struct import unpack
 from ..message import BackendMessage
 from .... import errors
 
+
 class Authentication(BackendMessage):
     message_id = b'R'
 
@@ -53,11 +54,11 @@ class Authentication(BackendMessage):
     GSS = 7
     GSS_CONTINUE = 8
     CHANGE_PASSWORD = 9
-    PASSWORD_CHANGED = 10 # client doesn't do password changing, this should never be seen
+    PASSWORD_CHANGED = 10  # client doesn't do password changing, this should never be seen
     PASSWORD_GRACE = 11
     HASH = 65536
-    HASH_MD5 = 65536+5
-    HASH_SHA512 = 65536+512
+    HASH_MD5 = 65536 + 5
+    HASH_SHA512 = 65536 + 512
 
     def __init__(self, data):
         BackendMessage.__init__(self)
@@ -79,5 +80,6 @@ class Authentication(BackendMessage):
 
     def __str__(self):
         return "Authentication: type={}".format(self.code)
+
 
 BackendMessage.register(Authentication)

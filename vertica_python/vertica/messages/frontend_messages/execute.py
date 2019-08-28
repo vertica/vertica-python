@@ -63,5 +63,5 @@ class Execute(BulkFrontendMessage):
 
     def read_bytes(self):
         utf_portal_name = self._portal_name.encode('utf-8')
-        bytes_ = pack('!{0}sxI'.format(len(utf_portal_name)),utf_portal_name, self._max_rows)
+        bytes_ = pack('!{0}sxI'.format(len(utf_portal_name)), utf_portal_name, self._max_rows)
         return bytes_

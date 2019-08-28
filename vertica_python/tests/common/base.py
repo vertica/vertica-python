@@ -60,6 +60,7 @@ default_configs = {
     'password': '',
 }
 
+
 class VerticaPythonTestCase(unittest.TestCase):
     """
     Base class for all tests
@@ -115,8 +116,8 @@ class VerticaPythonTestCase(unittest.TestCase):
     def _setup_logger(cls, tag, log_dir, log_level):
         # Setup test logger
         # E.g. If the class is defined in tests/integration_tests/test_dates.py
-        #      and test cases run under python2.7, then
-        #      the log would write to $VP_TEST_LOG_DIR/py27/integration_tests/test_dates.log 
+        #      and test cases run under python3.7, then
+        #      the log would write to $VP_TEST_LOG_DIR/py37/integration_tests/test_dates.log
 
         testfile = os.path.splitext(os.path.basename(inspect.getsourcefile(cls)))[0]
         logfile = os.path.join(log_dir, tag, testfile + '.log')
@@ -156,5 +157,3 @@ class VerticaPythonTestCase(unittest.TestCase):
         self.assertEqual(len(list1), len(list2), msg=msg)
         for l1, l2 in zip(list1, list2):
             self.assertListEqual(l1, l2, msg=msg)
-
-

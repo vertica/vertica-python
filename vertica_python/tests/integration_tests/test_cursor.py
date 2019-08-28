@@ -841,7 +841,7 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
             self.assertFalse(cur.nextset())
 
             cur.executemany("SELECT * FROM {} WHERE a=? ORDER BY b"
-                            .format(self._table), [[1],[2],[3]])
+                            .format(self._table), [[1], [2], [3]])
             self.assertListOfListsEqual(cur.fetchall(), [[1, 'aa']])
             self.assertIsNone(cur.fetchone())
             self.assertTrue(cur.nextset())
@@ -857,7 +857,7 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
     def test_bind_boolean(self):
         values = (True, 't', 'true', '1', 1, 'Yes', 'y', None,
                   False, 'f', 'false', '0', 0, 'No', 'n')
-        expected = [[True]*7 + [None] + [False]*7]
+        expected = [[True] * 7 + [None] + [False] * 7]
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("""CREATE TABLE {} (

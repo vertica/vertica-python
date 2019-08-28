@@ -349,7 +349,7 @@ class Connection(object):
                 err_msg = "Bad message size: {0}".format(size)
                 self._logger.error(err_msg)
                 raise errors.MessageError(err_msg)
-            res = BackendMessage.from_type(type_=response, data=raw_socket.recv(size-4))
+            res = BackendMessage.from_type(type_=response, data=raw_socket.recv(size - 4))
             self._logger.debug('<= %s', res)
             host = res.get_host()
             port = res.get_port()

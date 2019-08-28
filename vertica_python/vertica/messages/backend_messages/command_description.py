@@ -37,9 +37,9 @@
 CommandDescription message -- part of the response to a Describe request message.
 
 This response informs the client about the type of command being executed.
-If the command is a parameterized INSERT statement, the copy_rewrite field may 
-include a semantically-equivalent COPY STDIN statement. Clients can choose to 
-run this statement instead to achieve better performance when loading many 
+If the command is a parameterized INSERT statement, the copy_rewrite field may
+include a semantically-equivalent COPY STDIN statement. Clients can choose to
+run this statement instead to achieve better performance when loading many
 batches of parameters.
 """
 
@@ -66,5 +66,6 @@ class CommandDescription(BackendMessage):
         return ('CommandDescription: command_tag = "{}", has_copy_rewrite = {},'
                 ' copy_rewrite = "{}"'.format(
                     self.command_tag, self.has_copy_rewrite, self.copy_rewrite))
+
 
 BackendMessage.register(CommandDescription)

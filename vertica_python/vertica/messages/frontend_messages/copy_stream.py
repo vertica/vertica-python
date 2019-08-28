@@ -41,8 +41,6 @@ from ..message import StreamFrontendMessage
 
 DEFAULT_BUFFER_SIZE = 131072
 
-UTF_8 = 'utf-8'
-
 
 class CopyStream(StreamFrontendMessage):
     message_id = b'd'
@@ -57,7 +55,7 @@ class CopyStream(StreamFrontendMessage):
         while True:
             chunk = self._stream.read(self._buffer_size)
             if isinstance(chunk, text_type):
-                bytes_ = chunk.encode(encoding=UTF_8, errors=self._unicode_error)
+                bytes_ = chunk.encode(encoding='utf-8', errors=self._unicode_error)
             elif isinstance(chunk, binary_type):
                 bytes_ = chunk
             else:

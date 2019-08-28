@@ -53,7 +53,6 @@ from struct import pack
 
 from ..message import BulkFrontendMessage
 
-UTF_8 = 'utf-8'
 
 class Describe(BulkFrontendMessage):
     message_id = b'D'
@@ -72,6 +71,6 @@ class Describe(BulkFrontendMessage):
                              "Must be either portal or prepared_statement".format(describe_type))
 
     def read_bytes(self):
-        utf_name = self._describe_name.encode(UTF_8)
+        utf_name = self._describe_name.encode('utf-8')
         bytes_ = pack('c{0}sx'.format(len(utf_name)), self._describe_type, utf_name)
         return bytes_

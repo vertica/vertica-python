@@ -58,8 +58,6 @@ from ..vertica import messages
 from ..vertica.column import Column
 
 
-UTF_8 = 'utf-8'
-
 if six.PY2:
     # noinspection PyUnresolvedReferences
     file_type = (IOBase, file)

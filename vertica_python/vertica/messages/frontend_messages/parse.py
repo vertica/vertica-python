@@ -52,7 +52,6 @@ from struct import pack
 
 from ..message import BulkFrontendMessage
 
-UTF_8 = 'utf-8'
 
 class Parse(BulkFrontendMessage):
     message_id = b'P'
@@ -65,8 +64,8 @@ class Parse(BulkFrontendMessage):
         self._param_types = param_types
 
     def read_bytes(self):
-        utf_name = self._name.encode(UTF_8)
-        utf_query = self._query.encode(UTF_8)
+        utf_name = self._name.encode('utf-8')
+        utf_query = self._query.encode('utf-8')
 
         bytes_ = pack('!{0}sx{1}sxH'.format(len(utf_name), len(utf_query)),
                       utf_name, utf_query, len(self._param_types))

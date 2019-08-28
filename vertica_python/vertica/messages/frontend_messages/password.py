@@ -49,8 +49,6 @@ if os.name == 'nt':
 else:
     import crypt
 
-UTF_8 = 'utf-8'
-
 
 class Password(BulkFrontendMessage):
     message_id = b'p'
@@ -58,7 +56,7 @@ class Password(BulkFrontendMessage):
     def __init__(self, password, auth_method=None, options=None):
         BulkFrontendMessage.__init__(self)
 
-        self._password = password.encode(UTF_8)
+        self._password = password.encode('utf-8')
         self._options = options or {}
         if auth_method is not None:
             self._auth_method = auth_method
@@ -79,12 +77,12 @@ class Password(BulkFrontendMessage):
             #   MD5(MD5(password + user) + salt)
             #   SHA512(SHA512(password + userSalt) + salt)
             useMD5 = self._auth_method in (Authentication.MD5_PASSWORD, Authentication.HASH_MD5)
-            user = self._options['user'].encode(UTF_8) if useMD5 else self._options['usersalt']
+            user = self._options['user'].encode('utf-8') if useMD5 else self._options['usersalt']
             for key in (user, self._options['salt']):
                 m = hashlib.md5() if useMD5 else hashlib.sha512()
                 m.update(self._password + key)
                 hexdigest = m.hexdigest()
-                self._password = hexdigest.encode(UTF_8)
+                self._password = hexdigest.encode('utf-8')
             prefix = b'md5' if useMD5 else b'sha512'
             return prefix + self._password
         else:

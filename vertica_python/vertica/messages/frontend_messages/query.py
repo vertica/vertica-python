@@ -48,8 +48,6 @@ from struct import pack
 
 from ..message import BulkFrontendMessage
 
-UTF_8 = 'utf-8'
-
 
 class Query(BulkFrontendMessage):
     message_id = b'Q'
@@ -59,6 +57,6 @@ class Query(BulkFrontendMessage):
         self._query_string = query_string
 
     def read_bytes(self):
-        encoded = self._query_string.encode(UTF_8)
+        encoded = self._query_string.encode('utf-8')
         bytes_ = pack('{0}sx'.format(len(encoded)), encoded)
         return bytes_

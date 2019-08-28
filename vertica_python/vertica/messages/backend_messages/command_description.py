@@ -49,7 +49,6 @@ from struct import unpack
 
 from ..message import BackendMessage
 
-UTF_8 = 'utf-8'
 
 class CommandDescription(BackendMessage):
     message_id = b'm'
@@ -59,9 +58,9 @@ class CommandDescription(BackendMessage):
         pos = data.find(b'\x00')
         unpacked = unpack("!{0}sxH{1}sx".format(pos, len(data) - pos - 4), data)
 
-        self.command_tag = unpacked[0].decode(UTF_8)
+        self.command_tag = unpacked[0].decode('utf-8')
         self.has_copy_rewrite = (unpacked[1] == 1)
-        self.copy_rewrite = unpacked[2].decode(UTF_8)
+        self.copy_rewrite = unpacked[2].decode('utf-8')
 
     def __str__(self):
         return ('CommandDescription: command_tag = "{}", has_copy_rewrite = {},'

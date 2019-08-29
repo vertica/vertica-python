@@ -46,6 +46,22 @@ import tempfile
 from .base import VerticaPythonIntegrationTestCase
 from ... import errors
 
+"""
+There are a couple of testcases in this file, they are
+1. CursorTestCase:
+        general cursor tests, not sensitive to query protocols.
+2. SimpleQueryTestCase:
+        simple query protocol tests in execute().
+3. SimpleQueryExecutemanyTestCase:
+        simple query protocol tests in executemany().
+4. PreparedStatementTestCase:
+        prepared statements tests in both execute() and executemany().
+
+Different query protocols use different paramstyles:
+    - simple query protocol: 'named' and 'format' paramstyles
+    - extended query protocol (prepared statements): 'qmark' paramstyle
+"""
+
 
 class CursorTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):

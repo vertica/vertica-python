@@ -61,11 +61,13 @@ DEFAULT_PORT = 5433
 DEFAULT_PASSWORD = ''
 DEFAULT_LOG_LEVEL = logging.WARNING
 DEFAULT_LOG_PATH = 'vertica_python.log'
-try:
-    DEFAULT_USER = getpass.getuser()
-except Exception as e:
-    DEFAULT_USER = None
-    print("WARN: Cannot get the login user name: {}".format(str(e)))
+DEFAULT_USER = ""
+
+# try:
+#     DEFAULT_USER = getpass.getuser()
+# except Exception as e:
+#     DEFAULT_USER = None
+#     print("WARN: Cannot get the login user name: {}".format(str(e)))
 
 
 def connect(**kwargs):

@@ -198,7 +198,7 @@ class LoadBalanceTestCase(VerticaPythonIntegrationTestCase):
         self._conn_info['port'] = 9999
 
         # One valid and two invalid addresses in backup_server_node
-        self._conn_info['backup_server_node'] = [(self._host, self._port), 'invalidhost2','foo']
+        self._conn_info['backup_server_node'] = [(self._host, self._port), 'invalidhost2', 'foo']
         self.assertConnectionSuccess()
         self._conn_info['backup_server_node'] = ['foo', (self._host, self._port), ('123.456.789.1', 888)]
         self.assertConnectionSuccess()

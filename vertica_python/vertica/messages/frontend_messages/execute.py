@@ -52,7 +52,6 @@ from struct import pack
 
 from ..message import BulkFrontendMessage
 
-UTF_8 = 'utf-8'
 
 class Execute(BulkFrontendMessage):
     message_id = b'E'
@@ -63,6 +62,6 @@ class Execute(BulkFrontendMessage):
         self._max_rows = max_rows
 
     def read_bytes(self):
-        utf_portal_name = self._portal_name.encode(UTF_8)
-        bytes_ = pack('!{0}sxI'.format(len(utf_portal_name)),utf_portal_name, self._max_rows)
+        utf_portal_name = self._portal_name.encode('utf-8')
+        bytes_ = pack('!{0}sxI'.format(len(utf_portal_name)), utf_portal_name, self._max_rows)
         return bytes_

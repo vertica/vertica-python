@@ -38,6 +38,7 @@ from __future__ import print_function, division, absolute_import
 from nose.plugins.attrib import attr
 from ..common.base import VerticaPythonTestCase
 
+
 @attr('unit_tests')
 class VerticaPythonUnitTestCase(VerticaPythonTestCase):
     """
@@ -52,5 +53,3 @@ class VerticaPythonUnitTestCase(VerticaPythonTestCase):
     @classmethod
     def tearDownClass(cls):
         pass
-
-

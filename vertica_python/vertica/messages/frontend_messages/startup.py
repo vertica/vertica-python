@@ -44,7 +44,6 @@ from __future__ import print_function, division, absolute_import
 
 import platform
 import os
-import getpass
 from struct import pack
 
 # noinspection PyUnresolvedReferences,PyCompatibility

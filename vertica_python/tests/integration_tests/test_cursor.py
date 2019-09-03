@@ -46,6 +46,22 @@ import tempfile
 from .base import VerticaPythonIntegrationTestCase
 from ... import errors
 
+"""
+There are a couple of testcases in this file, they are
+1. CursorTestCase:
+        general cursor tests, not sensitive to query protocols.
+2. SimpleQueryTestCase:
+        simple query protocol tests in execute().
+3. SimpleQueryExecutemanyTestCase:
+        simple query protocol tests in executemany().
+4. PreparedStatementTestCase:
+        prepared statements tests in both execute() and executemany().
+
+Different query protocols use different paramstyles:
+    - simple query protocol: 'named' and 'format' paramstyles
+    - extended query protocol (prepared statements): 'qmark' paramstyle
+"""
+
 
 class CursorTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):
@@ -841,7 +857,7 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
             self.assertFalse(cur.nextset())
 
             cur.executemany("SELECT * FROM {} WHERE a=? ORDER BY b"
-                            .format(self._table), [[1],[2],[3]])
+                            .format(self._table), [[1], [2], [3]])
             self.assertListOfListsEqual(cur.fetchall(), [[1, 'aa']])
             self.assertIsNone(cur.fetchone())
             self.assertTrue(cur.nextset())
@@ -857,7 +873,7 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
     def test_bind_boolean(self):
         values = (True, 't', 'true', '1', 1, 'Yes', 'y', None,
                   False, 'f', 'false', '0', 0, 'No', 'n')
-        expected = [[True]*7 + [None] + [False]*7]
+        expected = [[True] * 7 + [None] + [False] * 7]
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("""CREATE TABLE {} (

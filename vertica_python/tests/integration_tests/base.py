@@ -58,10 +58,12 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
         cls.test_config = cls._load_test_config(config_list)
 
         # Test logger
-        logfile = cls._setup_logger('integration_tests', 
+        logfile = cls._setup_logger('integration_tests',
                       cls.test_config['log_dir'], cls.test_config['log_level'])
-        
+
         # Connection info
+        # Note: The server-side prepared statements is disabled here. Please
+        #       see cls.createPrepStmtClass() below.
         cls._conn_info = {
             'host': cls.test_config['host'],
             'port': cls.test_config['port'],
@@ -81,7 +83,7 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
     @classmethod
     def _connect(cls):
         """Connects to vertica.
-        
+
         :return: a connection to vertica.
         """
         return connect(**cls._conn_info)
@@ -99,18 +101,26 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
 
     @classmethod
     def createPrepStmtClass(cls):
+        """Generates the code of a new subclass that has the same tests as this
+        class but turns on the server-side prepared statements. To ensure test
+        coverage, this method should be used if tests are not sensitive to
+        paramstyles (or query protocols).
+        Usage: "exec(xxxTestCase.createPrepStmtClass())"
+
+        :return: a string acceptable by exec() to define the class
+        """
         base_cls_name = cls.__name__
         cls_name = 'PrepStmt' + base_cls_name
-        code = ('class '+cls_name+'('+base_cls_name+'):\n'
+        code = ('class ' + cls_name + '(' + base_cls_name + '):\n'
                 '  @classmethod\n'
                 '  def setUpClass(cls):\n'
-                '    super('+cls_name+', cls).setUpClass()\n'
+                '    super(' + cls_name + ', cls).setUpClass()\n'
                 "    cls._conn_info['use_prepared_statements'] = True")
         return code
 
     def _query_and_fetchall(self, query):
         """Creates a new connection, executes a query and fetches all the results.
-        
+
         :param query: query to execute
         :return: all fetched results as returned by cursor.fetchall()
         """
@@ -123,7 +133,7 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
 
     def _query_and_fetchone(self, query):
         """Creates a new connection, executes a query and fetches one result.
-        
+
         :param query: query to execute
         :return: the first result fetched by cursor.fetchone()
         """

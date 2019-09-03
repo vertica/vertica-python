@@ -56,7 +56,6 @@ from struct import unpack
 
 from ..message import BackendMessage
 
-UTF_8 = 'utf-8'
 
 class ParameterStatus(BackendMessage):
     message_id = b'S'
@@ -65,8 +64,8 @@ class ParameterStatus(BackendMessage):
         BackendMessage.__init__(self)
         null_byte = data.find(b'\x00')
         unpacked = unpack('{0}sx{1}sx'.format(null_byte, len(data) - null_byte - 2), data)
-        self.name = unpacked[0].decode(UTF_8)
-        self.value = unpacked[1].decode(UTF_8)
+        self.name = unpacked[0].decode('utf-8')
+        self.value = unpacked[1].decode('utf-8')
 
     def __str__(self):
         return "ParameterStatus: {} = {}".format(self.name, self.value)

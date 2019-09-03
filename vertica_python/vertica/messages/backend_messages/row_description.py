@@ -49,8 +49,6 @@ from six.moves import range
 from ..message import BackendMessage
 from ....datatypes import getTypeName
 
-UTF_8 = 'utf-8'
-
 
 class RowDescription(BackendMessage):
     message_id = b'T'
@@ -73,14 +71,14 @@ class RowDescription(BackendMessage):
             pos += 4
             type_name = unpack_from("!{0}sx".format(data.find(b'\x00', pos) - pos), data, pos)[0]
             pos += len(type_name) + 1
-            user_types.append((base_type_oid, type_name.decode(UTF_8)))
+            user_types.append((base_type_oid, type_name.decode('utf-8')))
 
         # read info of each field
         offset = calcsize("!HBIHHHiH")
         for _ in range(field_count):
             field_name = unpack_from("!{0}sx".format(data.find(b'\x00', pos) - pos), data, pos)[0]
             pos += len(field_name) + 1
-            field_name = field_name.decode(UTF_8)
+            field_name = field_name.decode('utf-8')
 
             table_oid = unpack('!Q', data[pos:(pos + 8)])[0]
             pos += 8
@@ -89,10 +87,10 @@ class RowDescription(BackendMessage):
             if table_oid != 0:
                 schema_name = unpack_from("!{0}sx".format(data.find(b'\x00', pos) - pos), data, pos)[0]
                 pos += len(schema_name) + 1
-                schema_name = schema_name.decode(UTF_8)
+                schema_name = schema_name.decode('utf-8')
                 table_name = unpack_from("!{0}sx".format(data.find(b'\x00', pos) - pos), data, pos)[0]
                 pos += len(table_name) + 1
-                table_name = table_name.decode(UTF_8)
+                table_name = table_name.decode('utf-8')
 
             field_info = unpack_from("!HBIHHHiH", data, pos)
             pos += offset

@@ -39,8 +39,6 @@ from six import text_type, binary_type
 
 from ..message import BulkFrontendMessage
 
-UTF_8 = 'utf-8'
-
 
 class CopyData(BulkFrontendMessage):
     message_id = b'd'
@@ -49,7 +47,7 @@ class CopyData(BulkFrontendMessage):
         BulkFrontendMessage.__init__(self)
         self._unicode_error = unicode_error
         if isinstance(data, text_type):
-            self._data = self._data.encode(encoding=UTF_8, errors=self._unicode_error)
+            self._data = self._data.encode(encoding='utf-8', errors=self._unicode_error)
         elif isinstance(data, binary_type):
             self._data = data
         else:

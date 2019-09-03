@@ -58,8 +58,6 @@ from ..vertica import messages
 from ..vertica.column import Column
 
 
-UTF_8 = 'utf-8'
-
 if six.PY2:
     # noinspection PyUnresolvedReferences
     file_type = (IOBase, file)
@@ -75,6 +73,7 @@ RE_BASIC_INSERT_STAT = (
     u"\\s*\\(\\s*(?P<variables>{0}(\\s*,\\s*{0})*)\\s*\\)"
     u"\\s+VALUES\\s*\\(\\s*(?P<values>(.|\\s)*)\\s*\\)").format(RE_NAME)
 END_OF_RESULT_RESPONSES = (messages.CommandComplete, messages.PortalSuspended)
+
 
 class Cursor(object):
     # NOTE: this is used in executemany and is here for pandas compatibility
@@ -148,7 +147,7 @@ class Cursor(object):
             # If the SQL has not been prepared, prepare the SQL
             if operation != self.prepared_sql:
                 self._prepare(operation)
-                self.prepared_sql = operation # the prepared statement is kept
+                self.prepared_sql = operation  # the prepared statement is kept
 
             # Bind the parameters and execute
             self._execute_prepared_statement([parameters])
@@ -183,7 +182,7 @@ class Cursor(object):
             # If the SQL has not been prepared, prepare the SQL
             if operation != self.prepared_sql:
                 self._prepare(operation)
-                self.prepared_sql = operation # the prepared statement is kept
+                self.prepared_sql = operation  # the prepared statement is kept
 
             # Bind the parameters and execute
             self._execute_prepared_statement(seq_of_parameters)
@@ -339,7 +338,7 @@ class Cursor(object):
 
     def copy(self, sql, data, **kwargs):
         """
-        
+
         EXAMPLE:
         >> with open("/tmp/file.csv", "rb") as fs:
         >>     cursor.copy("COPY table(field1,field2) FROM STDIN DELIMITER ',' ENCLOSED BY ''''",
@@ -516,7 +515,7 @@ class Cursor(object):
         self._message = self.connection.read_expected_message(
                         (messages.RowDescription, messages.NoData), self._error_handler)
         if isinstance(self._message, messages.NoData):
-            self.description = None # response was NoData for a DDL/transaction PreparedStatement
+            self.description = None  # response was NoData for a DDL/transaction PreparedStatement
         else:
             self.description = [Column(fd, self.unicode_error) for fd in self._message.fields]
 

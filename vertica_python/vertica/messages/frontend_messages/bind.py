@@ -51,9 +51,9 @@ from ..message import BulkFrontendMessage
 from ....datatypes import VerticaType
 from ....compat import as_bytes
 
-UTF_8 = 'utf-8'
 BACKSLASH = b'\\'
 BACKSLASH_ESCAPE = b'\\134'
+
 
 class Bind(BulkFrontendMessage):
     message_id = b'B'
@@ -66,8 +66,8 @@ class Bind(BulkFrontendMessage):
         self._parameter_type_oids = parameter_type_oids
 
     def read_bytes(self):
-        utf_portal_name = self._portal_name.encode(UTF_8)
-        utf_prepared_statement_name = self._prepared_statement_name.encode(UTF_8)
+        utf_portal_name = self._portal_name.encode('utf-8')
+        utf_prepared_statement_name = self._prepared_statement_name.encode('utf-8')
 
         bytes_ = pack('!{0}sx{1}sx'.format(len(utf_portal_name), len(utf_prepared_statement_name)),
                       utf_portal_name, utf_prepared_statement_name)
@@ -98,7 +98,7 @@ class Bind(BulkFrontendMessage):
                 elif not isinstance(val, (string_types, bytes)):
                     val = str(val)
                 # Encode string as UTF8 bytes
-                val = val.encode(UTF_8) if not isinstance(val, bytes) else val
+                val = val.encode('utf-8') if not isinstance(val, bytes) else val
                 param_bytes_ += pack('!I{0}s'.format(len(val)), len(val), val)
 
         bytes_ += param_bytes_

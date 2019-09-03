@@ -213,7 +213,7 @@ def getIntervalRange(data_type_oid, type_modifier):
         elif data_type_oid == VerticaType.INTERVAL:
             return "Day to Second"
 
-    if data_type_oid == VerticaType.INTERVALYM: # Year/Month intervals
+    if data_type_oid == VerticaType.INTERVALYM:  # Year/Month intervals
         if (type_modifier & INTERVAL_MASK_YEAR2MONTH) == INTERVAL_MASK_YEAR2MONTH:
             return "Year to Month"
         elif (type_modifier & INTERVAL_MASK_YEAR) == INTERVAL_MASK_YEAR:
@@ -434,4 +434,3 @@ def getDisplaySize(data_type_oid, type_modifier):
         return MAX_LONG_STRING_LEN if type_modifier <= -1 else (type_modifier - 4)
     else:
         return None  # None if no meaningful values can be provided
-

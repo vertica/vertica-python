@@ -349,7 +349,7 @@ class Connection(object):
                 err_msg = "Bad message size: {0}".format(size)
                 self._logger.error(err_msg)
                 raise errors.MessageError(err_msg)
-            res = BackendMessage.from_type(type_=response, data=raw_socket.recv(size-4))
+            res = BackendMessage.from_type(type_=response, data=raw_socket.recv(size - 4))
             self._logger.debug('<= %s', res)
             host = res.get_host()
             port = res.get_port()
@@ -545,7 +545,6 @@ class Connection(object):
         return results
 
     def startup_connection(self):
-        # This doesn't handle Unicode usernames or passwords
         user = self.options['user']
         database = self.options['database']
         session_label = self.options['session_label']
@@ -558,7 +557,6 @@ class Connection(object):
             message = self.read_message()
 
             if isinstance(message, messages.Authentication):
-                # Password message isn't right format ("incomplete message from client")
                 if message.code == messages.Authentication.OK:
                     self._logger.info("User {} successfully authenticated"
                         .format(self.options['user']))

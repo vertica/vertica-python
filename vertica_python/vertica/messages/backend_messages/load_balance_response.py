@@ -38,6 +38,7 @@ from __future__ import print_function, division, absolute_import
 from ..message import BackendMessage
 from struct import unpack
 
+
 class LoadBalanceResponse(BackendMessage):
     message_id = b'Y'
 
@@ -55,5 +56,6 @@ class LoadBalanceResponse(BackendMessage):
 
     def __str__(self):
         return "LoadBalanceResponse: host={}, port={}".format(self.host, self.port)
+
 
 BackendMessage.register(LoadBalanceResponse)

@@ -539,6 +539,8 @@ class Connection(object):
 
     def handle_asynchronous_message(self, message):
         if isinstance(message, messages.ParameterStatus):
+            if message.name == 'protocol_version':
+                message.value = int(message.value)
             self.parameters[message.name] = message.value
         elif (isinstance(message, messages.NoticeResponse) and
              not isinstance(message, messages.ErrorResponse)):

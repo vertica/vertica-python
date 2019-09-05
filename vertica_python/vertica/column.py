@@ -136,9 +136,9 @@ def time_parse(s):
     return datetime.strptime(s, '%H:%M:%S.%f').time()
 
 
-# Type casting of SQL types into Python objects
+# Type casting of SQL types bytes representation into Python objects
 def vertica_type_cast(type_code, unicode_error):
-    typecast = {
+    typecaster = {
         VerticaType.UNKNOWN: None,
         VerticaType.BOOL: lambda s: 't' == str(s, encoding='utf-8', errors=unicode_error),
         VerticaType.INT8: lambda s: int(s),
@@ -159,7 +159,7 @@ def vertica_type_cast(type_code, unicode_error):
         VerticaType.LONGVARBINARY: None,
         VerticaType.BINARY: None
     }
-    return typecast.get(type_code, None)
+    return typecaster.get(type_code, None)
 
 
 ColumnTuple = namedtuple('Column', ['name', 'type_code', 'display_size', 'internal_size',

@@ -46,7 +46,12 @@ from collections import deque
 
 # noinspection PyCompatibility,PyUnresolvedReferences
 from builtins import str
-from six import raise_from, string_types, integer_types
+from six import raise_from, string_types, integer_types, PY2
+
+if PY2:
+    from urlparse import urlparse, parse_qs
+else:
+    from urllib.parse import urlparse, parse_qs
 
 import vertica_python
 from .. import errors
@@ -71,6 +76,42 @@ except Exception as e:
 def connect(**kwargs):
     """Opens a new connection to a Vertica database."""
     return Connection(kwargs)
+
+
+def parse_dsn(dsn):
+    """Parse connection string into a dictionary of keywords and values.
+       Connection string format:
+           vertica://<user>:<password>@<host>:<port>/<database>?k1=v1&k2=v2&...
+    """
+    url = urlparse(dsn)
+    if url.scheme != 'vertica':
+        raise ValueError("Only vertica:// scheme is supported.")
+
+    # Ignore blank/invalid values
+    result = {k: v for k, v in (
+        ('host', url.hostname),
+        ('port', url.port),
+        ('user', url.username),
+        ('password', url.password),
+        ('database', url.path[1:])) if v
+    }
+    for key, value in parse_qs(url.query).items():
+        if key == 'backup_server_node':
+            continue
+        elif key in ('connection_load_balance', 'use_prepared_statements', 'ssl'):
+            lower = value[-1].lower()
+            if lower in ('true', 'on', '1'):
+                result[key] = True
+            elif lower in ('false', 'off', '0'):
+                result[key] = False
+        elif key == 'connection_timeout':
+            result[key] = float(value[-1])
+        elif key == 'log_level' and value[-1].isdigit():
+            result[key] = int(value[-1])
+        else:
+            result[key] = value[-1]
+
+    return result
 
 
 class _AddressList(object):
@@ -184,7 +225,9 @@ class Connection(object):
         self.socket = None
 
         options = options or {}
-        self.options = {key: value for key, value in options.items() if value is not None}
+        self.options = parse_dsn(options['dsn']) if 'dsn' in options else {}
+        self.options.update({key: value for key, value in options.items() \
+                             if key != 'dsn' and value is not None})
 
         # Set up connection logger
         logger_name = 'vertica_{0}_{1}'.format(id(self), str(uuid.uuid4())) # must be a unique value

@@ -81,18 +81,19 @@ def connect(**kwargs):
 def parse_dsn(dsn):
     """Parse connection string into a dictionary of keywords and values.
        Connection string format:
-           vertica://<user>:<password>@<host>:<port>/<database>?k1=v1&k2=v2
+           vertica://<user>:<password>@<host>:<port>/<database>?k1=v1&k2=v2&...
     """
     url = urlparse(dsn)
     if url.scheme != 'vertica':
         raise ValueError("Only vertica:// scheme is supported.")
 
+    # Ignore blank/invalid values
     result = {k: v for k, v in (
         ('host', url.hostname),
         ('port', url.port),
         ('user', url.username),
         ('password', url.password),
-        ('database', url.path[1:])) if v is not None
+        ('database', url.path[1:])) if v
     }
     for key, value in parse_qs(url.query).items():
         if key == 'backup_server_node':
@@ -105,7 +106,7 @@ def parse_dsn(dsn):
                 result[key] = False
         elif key == 'connection_timeout':
             result[key] = float(value[-1])
-        elif key == 'log_level':
+        elif key == 'log_level' and value[-1].isdigit():
             result[key] = int(value[-1])
         else:
             result[key] = value[-1]
@@ -224,7 +225,6 @@ class Connection(object):
         self.socket = None
 
         options = options or {}
-        # Data source name as string
         self.options = parse_dsn(options['dsn']) if 'dsn' in options else {}
         self.options.update({key: value for key, value in options.items() \
                              if key != 'dsn' and value is not None})

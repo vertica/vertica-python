@@ -21,6 +21,11 @@ from ...vertica.connection import parse_dsn
 
 class ParseDSNTestCase(VerticaPythonUnitTestCase):
     def test_basic(self):
+        dsn = 'vertica://admin@192.168.10.1'
+        expected = {'host': '192.168.10.1', 'user': 'admin'}
+        parsed = parse_dsn(dsn)
+        self.assertDictEqual(expected, parsed)
+
         dsn = 'vertica://mike@127.0.0.1/db1'
         expected = {'host': '127.0.0.1', 'user': 'mike', 'database': 'db1'}
         parsed = parse_dsn(dsn)
@@ -52,7 +57,7 @@ class ParseDSNTestCase(VerticaPythonUnitTestCase):
         parsed = parse_dsn(dsn)
         self.assertDictEqual(expected, parsed)
 
-    def test_number_arguments(self):
+    def test_numeric_arguments(self):
         dsn = 'vertica://mike@127.0.0.1/db1?connection_timeout=1.5&log_level=10'
         expected = {'host': '127.0.0.1', 'user': 'mike', 'database': 'db1',
                     'connection_timeout': 1.5, 'log_level': 10}

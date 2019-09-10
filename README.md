@@ -93,7 +93,7 @@ connection = vertica_python.connect(**conn_info)
 
 See more on SSL options [here](https://docs.python.org/3.6/library/ssl.html).
 
-Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.6/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. For example,
+Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.7/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. For example,
 
 ```python
 import vertica_python
@@ -158,13 +158,13 @@ conn_info = {'host': '127.0.0.1',
              'connection_load_balance': True}
 
 # Server enables load balancing
-with connect(**conn_info) as conn:
+with vertica_python.connect(**conn_info) as conn:
     cur = conn.cursor()
     cur.execute("SELECT NODE_NAME FROM V_MONITOR.CURRENT_SESSION")
     print("Client connects to primary node:", cur.fetchone()[0])
     cur.execute("SELECT SET_LOAD_BALANCE_POLICY('ROUNDROBIN')")
 
-with connect(**conn_info) as conn:
+with vertica_python.connect(**conn_info) as conn:
     cur = conn.cursor()
     cur.execute("SELECT NODE_NAME FROM V_MONITOR.CURRENT_SESSION")
     print("Client redirects to node:", cur.fetchone()[0])
@@ -173,6 +173,31 @@ with connect(**conn_info) as conn:
 #  Client connects to primary node: v_vdb_node0003
 #  Client redirects to node: v_vdb_node0005
 ```
+
+Another way to set connection properties is passing a connection string to the keyword parameter `dsn` of `vertica_python.connect(dsn='...', **kwargs)`. The connection string is of the form:
+```
+vertica://(user):(password)@(host):(port)/(database)?(arg1=val1&arg2=val2&...)
+```
+The connection string would be parsed by `vertica_python.parse_dsn(connection_str)`, and the parsing result (a dictionary of keywords and values) would be merged with _kwargs_. If the same keyword is specified in both the sources, the _kwargs_ value overrides the parsed _dsn_ value. The `(arg1=val1&arg2=val2&...)` section can handle string/numeric/boolean values, blank and invalid value would be ignored.
+
+```python
+import vertica_python
+
+connection_str = ('vertica://admin@localhost:5433/db1?connection_load_balance=True&connection_timeout=1.5&'
+                  'session_label=vpclient+123%7E456')
+print(vertica_python.parse_dsn(connection_str))
+# {'user': 'admin', 'host': 'localhost', 'port': 5433, 'database': 'db1',
+#  'connection_load_balance': True, 'connection_timeout': 1.5, 'session_label': 'vpclient 123~456'}
+
+additional_info = {
+    'password': 'some_password', 
+    'backup_server_node': ['10.6.7.123', ('10.20.82.77', 6000)]  # invalid value to be set in a connection string
+    }
+
+with vertica_python.connect(dsn=connection_str, **additional_info) as conn:
+   # do things
+```
+
 
 **Stream query results**:
 

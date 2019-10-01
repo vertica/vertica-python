@@ -559,7 +559,7 @@ class Connection(object):
             if error_handler is not None:
                 error_handler(message)
             else:
-                raise errors.DatabaseError(message.error_message())
+                raise errors.DatabaseError(message.error_message(), message.attributes)
         else:
             msg = 'Received unexpected message type: {}. '.format(type(message).__name__)
             if isinstance(expected_types, tuple):
@@ -622,7 +622,7 @@ class Connection(object):
                 break
             elif isinstance(message, messages.ErrorResponse):
                 self._logger.error(message.error_message())
-                raise errors.ConnectionError(message.error_message())
+                raise errors.ConnectionError(message.error_message(), message.attributes)
             else:
                 msg = "Received unexpected startup message: {0}".format(message)
                 self._logger.error(msg)

@@ -114,7 +114,8 @@ class QueryError(ProgrammingError):
         self.sql = sql
         ProgrammingError.__init__(self,
                                   "{0}, SQL: {1}".format(error_response.error_message(),
-                                                         repr(self.one_line_sql())))
+                                                         repr(self.one_line_sql())),
+                                  error_response.attributes)
 
     def one_line_sql(self):
         if self.sql:

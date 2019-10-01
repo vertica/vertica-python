@@ -70,7 +70,8 @@ class NoticeResponse(BackendMessage):
 
             unpacked = unpack_from('c{0}sx'.format(null_byte - 1 - pos), data, pos)
             key = unpacked[0]
-            value = unpacked[1]
+            raw_value = unpacked[1]
+            value = raw_value.decode('utf-8') if type(raw_value) == bytes else raw_value
 
             self.values[FIELD_NAMES[key]] = value
             pos += (len(value) + 2)

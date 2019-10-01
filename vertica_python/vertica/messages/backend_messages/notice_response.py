@@ -63,6 +63,7 @@ class NoticeResponse(BackendMessage):
     def __init__(self, data):
         BackendMessage.__init__(self)
         self.values = {}
+        self.attributes = {}
 
         pos = 0
         while pos < len(data) - 1:
@@ -79,7 +80,9 @@ class NoticeResponse(BackendMessage):
         # May want to break out into a function at some point
         for field_def in FIELD_DEFINITIONS:
             if self.values.get(field_def['name'], None) is not None:
-                setattr(self, field_def['attribute'], self.values[field_def['name']])
+                attr, value = field_def['attribute'], self.values[field_def['name']]
+                setattr(self, attr, value)
+                self.attributes[attr] = value
 
     def error_message(self):
         ordered = []

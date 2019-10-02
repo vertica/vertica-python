@@ -187,18 +187,18 @@ class LostConnectivityFailure(QueryError):
 
 
 QUERY_ERROR_CLASSES = {
-    b'55V03': LockFailure,
-    b'53000': InsufficientResources,
-    b'53200': OutOfMemory,
-    b'42601': VerticaSyntaxError,
-    b'3F000': MissingSchema,
-    b'42V01': MissingRelation,
-    b'42703': MissingColumn,
-    b'22V04': CopyRejected,
-    b'42501': PermissionDenied,
-    b'22007': InvalidDatetimeFormat,
-    b'42710': DuplicateObject,
-    b'57014': QueryCanceled,
-    b'08006': ConnectionFailure,
-    b'V1001': LostConnectivityFailure
+    '55V03': LockFailure,
+    '53000': InsufficientResources,
+    '53200': OutOfMemory,
+    '42601': VerticaSyntaxError,
+    '3F000': MissingSchema,
+    '42V01': MissingRelation,
+    '42703': MissingColumn,
+    '22V04': CopyRejected,
+    '42501': PermissionDenied,
+    '22007': InvalidDatetimeFormat,
+    '42710': DuplicateObject,
+    '57014': QueryCanceled,
+    '08006': ConnectionFailure,
+    'V1001': LostConnectivityFailure
 }

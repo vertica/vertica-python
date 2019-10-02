@@ -72,7 +72,7 @@ class NoticeResponse(BackendMessage):
             key = unpacked[0]
             value = unpacked[1]
 
-            self.values[FIELD_NAMES[key]] = value
+            self.values[FIELD_NAMES[key]] = value.decode('utf-8')
             pos += (len(value) + 2)
 
         # May want to break out into a function at some point

@@ -430,9 +430,9 @@ class Connection(object):
                 else:
                     raw_socket = ssl.wrap_socket(raw_socket)
             except CertificateError as e:
-                raise_from(errors.ConnectionError, e)
+                raise_from(errors.ConnectionError(str(e)), e)
             except SSLError as e:
-                raise_from(errors.ConnectionError, e)
+                raise_from(errors.ConnectionError(str(e)), e)
         else:
             err_msg = "SSL requested but not supported by server"
             self._logger.error(err_msg)
@@ -544,7 +544,7 @@ class Connection(object):
                 self.close_socket()
                 # noinspection PyTypeChecker
                 self._logger.error(e)
-                raise_from(errors.ConnectionError, e)
+                raise_from(errors.ConnectionError(str(e)), e)
             if not self.is_asynchronous_message(message):
                 break
         return message

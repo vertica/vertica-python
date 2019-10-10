@@ -39,10 +39,9 @@ import os
 import hashlib
 from struct import pack
 
-import six
-
 from ..message import BulkFrontendMessage
 from ..backend_messages.authentication import Authentication
+from ....compat import as_bytes
 
 if os.name == 'nt':
     from . import crypt_windows as crypt
@@ -56,7 +55,7 @@ class Password(BulkFrontendMessage):
     def __init__(self, password, auth_method=None, options=None):
         BulkFrontendMessage.__init__(self)
 
-        self._password = password.encode('utf-8')
+        self._password = as_bytes(password)
         self._options = options or {}
         if auth_method is not None:
             self._auth_method = auth_method
@@ -85,10 +84,16 @@ class Password(BulkFrontendMessage):
                 self._password = hexdigest.encode('utf-8')
             prefix = b'md5' if useMD5 else b'sha512'
             return prefix + self._password
+        elif self._auth_method in (Authentication.GSS, Authentication.GSS_CONTINUE):
+            return self._password
         else:
             raise ValueError("unsupported authentication method: {0}".format(self._auth_method))
 
     def read_bytes(self):
         encoded_pw = self.encoded_password()
-        bytes_ = pack('{0}sx'.format(len(encoded_pw)), encoded_pw)
+        # Vertica server handles GSS messages differently from other passwords.
+        if self._auth_method == Authentication.GSS:
+            bytes_ = pack('{0}s'.format(len(encoded_pw)), encoded_pw)
+        else:
+            bytes_ = pack('{0}sx'.format(len(encoded_pw)), encoded_pw)
         return bytes_

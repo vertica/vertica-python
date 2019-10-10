@@ -54,7 +54,7 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
     @classmethod
     def setUpClass(cls):
         config_list = ['log_dir', 'log_level', 'host', 'port',
-                       'user', 'password', 'database']
+                       'user', 'password', 'database', 'enable_kerberos_test']
         cls.test_config = cls._load_test_config(config_list)
 
         # Test logger

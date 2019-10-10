@@ -58,6 +58,9 @@ setup(
         'future',
         'six>=1.10.0'
     ],
+    extras_require={
+        'kerberos':  ['kerberos']
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

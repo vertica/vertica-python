@@ -30,6 +30,18 @@ Source code for vertica-python can be found at:
 
     https://github.com/vertica/vertica-python
 
+### Using Kerberos
+If you're using pip >= 1.4 and your database uses Kerberos authentication:
+
+    pip install kerberos    # for unix-like systems
+
+To install vertica-python with Kerberos support:
+
+    pip install vertica-python[kerberos]
+
+Kerberos authentication is supported for Unix-like systems. Note that `kerberos` is a python extension module, which means you need to install `python-dev`. The command depends on the package manager and will look like
+
+    sudo [yum|apt-get|etc] install python-dev
 
 ## Usage
 
@@ -88,6 +100,8 @@ connection = vertica_python.connect(**conn_info)
 ```
 
 See more on SSL options [here](https://docs.python.org/3.8/library/ssl.html).
+
+To use Kerberos Authentication, obtain a TGT using `kinit` or by logging in, and run vertica-python like above. You can pass in optional arguments to customize the authentication. The parameters are `kerberos_service_name`, which defaults to `vertica`, and `kerberos_host_name`, which defaults to the database host name.
 
 Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.8/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. For example,
 

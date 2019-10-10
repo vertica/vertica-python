@@ -41,8 +41,19 @@ import socket
 import ssl
 import getpass
 import uuid
+import base64
 from struct import unpack
 from collections import deque, namedtuple
+
+try:
+    import kerberos
+except ImportError:
+    pass
+    # winkerberos has not been tested with vertica-python
+    # try:
+    #     import winkerberos as kerberos
+    # except ImportError:
+    #     pass
 
 # noinspection PyCompatibility,PyUnresolvedReferences
 from builtins import str
@@ -64,6 +75,7 @@ from ..vertica.log import VerticaLogging
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 5433
 DEFAULT_PASSWORD = ''
+DEFAULT_SERVICE_NAME = 'vertica'
 DEFAULT_LOG_LEVEL = logging.WARNING
 DEFAULT_LOG_PATH = 'vertica_python.log'
 try:
@@ -229,6 +241,7 @@ class Connection(object):
         self.backend_key = None
         self.transaction_status = None
         self.socket = None
+        self.context = None
 
         options = options or {}
         self.options = parse_dsn(options['dsn']) if 'dsn' in options else {}
@@ -260,6 +273,10 @@ class Connection(object):
         self.options.setdefault('database', self.options['user'])
         self.options.setdefault('password', DEFAULT_PASSWORD)
         self.options.setdefault('session_label', _generate_session_label())
+        self.options.setdefault('kerberos_service_name', DEFAULT_SERVICE_NAME)
+        # Kerberos authentication hostname defaults to the host value here so
+        # the correct value cannot be overwritten by load balancing or failover
+        self.options.setdefault('kerberos_host_name', self.options['host'])
 
         self.address_list = _AddressList(self.options['host'], self.options['port'],
                                          self.options.get('backup_server_node', []), self._logger)
@@ -599,6 +616,50 @@ class Connection(object):
             results += bytes_
         return results
 
+    def initialize_kerberos(self):
+        # Compute GSS-style service principal name
+        service_principal = "{}@{}".format(self.options['kerberos_service_name'],
+                                           self.options['kerberos_host_name'])
+        # Check for Kerberos package
+        try:
+            gssflag = (kerberos.GSS_C_DELEG_FLAG | kerberos.GSS_C_MUTUAL_FLAG
+                | kerberos.GSS_C_SEQUENCE_FLAG | kerberos.GSS_C_REPLAY_FLAG)
+        except NameError as e:
+            raise errors.ConnectionError("No Kerberos package installed. Please"
+                " run either 'pip install kerberos' or 'pip install winkerberos'"
+                ", depending on your operating system.")
+
+        result = 0
+        try:
+            while result == 0:
+                result, self.context = kerberos.authGSSClientInit(
+                    service_principal, gssflags=gssflag)
+        except kerberos.GSSError as err:
+            err = err.args
+            err_message = "{}\n{}".format(err[0][0], err[1][0])
+            self._logger.error(err_message)
+            raise errors.KerberosError(err_message)
+
+    def continue_kerberos(self, auth_data):
+        try:
+            result = kerberos.authGSSClientStep(self.context,
+                base64.b64encode(auth_data).decode("utf-8"))
+            if result == 0:
+                response = kerberos.authGSSClientResponse(self.context)
+                return (result, base64.b64decode(response))
+            elif result == -1:
+                err_message = "Kerberos authentication failed during transaction.\
+                    \n gssapi step returned -1"
+                self._logger.error(err_message)
+                raise errors.KerberosError(err_message)
+            else:
+                return (result, None)
+        except kerberos.GSSError as err:
+            err = err.args
+            err_message = "{}\n{}".format(err[0][0], err[1][0])
+            self._logger.error(err_message)
+            raise errors.KerberosError(err_message)
+
     def startup_connection(self):
         user = self.options['user']
         database = self.options['database']
@@ -622,6 +683,15 @@ class Connection(object):
                 elif message.code == messages.Authentication.PASSWORD_GRACE:
                     self._logger.warning('The password for user {} will expire soon.'
                         ' Please consider changing it.'.format(self.options['user']))
+                elif message.code == messages.Authentication.GSS:
+                    self.initialize_kerberos()
+                    result, response = self.continue_kerberos(b'') # type:(int, bytes)
+                    if result == 0:
+                        self.write(messages.Password(response, message.code))
+                elif message.code == messages.Authentication.GSS_CONTINUE:
+                    result, response = self.continue_kerberos(message.auth_data)
+                    if result == 0:
+                        self.write(messages.Password(response, message.code))
                 else:
                     self.write(messages.Password(password, message.code,
                                                  {'user': user,

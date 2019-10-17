@@ -1,4 +1,4 @@
-dist: trusty
+dist: xenial
 language: python
 
 services:
@@ -7,12 +7,8 @@ services:
 matrix:
   include:
     - python: 3.8
-      dist: xenial
-      sudo: true
       env: TOXENV=py38
     - python: 3.7
-      dist: xenial
-      sudo: true
       env: TOXENV=py37
     - python: 3.6
       env: TOXENV=py36

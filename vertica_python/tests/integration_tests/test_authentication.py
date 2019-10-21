@@ -32,13 +32,16 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("DROP USER IF EXISTS sha512_user")
-            cur.execute("DROP AUTHENTICATION IF EXISTS testhostHash CASCADE")
+            cur.execute("DROP AUTHENTICATION IF EXISTS testIPv4hostHash CASCADE")
+            cur.execute("DROP AUTHENTICATION IF EXISTS testIPv6hostHash CASCADE")
             cur.execute("DROP AUTHENTICATION IF EXISTS testlocalHash CASCADE")
             try:
                 cur.execute("CREATE USER sha512_user IDENTIFIED BY 'password'")
                 cur.execute("ALTER USER sha512_user SECURITY_ALGORITHM 'SHA512'")
-                cur.execute("CREATE AUTHENTICATION testhostHash METHOD 'hash' HOST '0.0.0.0/0'")
-                cur.execute("GRANT AUTHENTICATION testhostHash TO sha512_user")
+                cur.execute("CREATE AUTHENTICATION testIPv4hostHash METHOD 'hash' HOST '0.0.0.0/0'")
+                cur.execute("GRANT AUTHENTICATION testIPv4hostHash TO sha512_user")
+                cur.execute("CREATE AUTHENTICATION testIPv6hostHash METHOD 'hash' HOST '::/0'")
+                cur.execute("GRANT AUTHENTICATION testIPv6hostHash TO sha512_user")
                 cur.execute("CREATE AUTHENTICATION testlocalHash METHOD 'hash' LOCAL")
                 cur.execute("GRANT AUTHENTICATION testlocalHash TO sha512_user")
 
@@ -64,19 +67,23 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
                 # matter whether an exception has occurred or not, otherwise
                 # those authentication methods may affect existing users
                 cur.execute("DROP USER IF EXISTS sha512_user")
-                cur.execute("DROP AUTHENTICATION IF EXISTS testhostHash CASCADE")
+                cur.execute("DROP AUTHENTICATION IF EXISTS testIPv4hostHash CASCADE")
+                cur.execute("DROP AUTHENTICATION IF EXISTS testIPv6hostHash CASCADE")
                 cur.execute("DROP AUTHENTICATION IF EXISTS testlocalHash CASCADE")
 
     def test_password_expire(self):
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("DROP USER IF EXISTS pw_expire_user")
-            cur.execute("DROP AUTHENTICATION IF EXISTS testhostHash CASCADE")
+            cur.execute("DROP AUTHENTICATION IF EXISTS testIPv4hostHash CASCADE")
+            cur.execute("DROP AUTHENTICATION IF EXISTS testIPv6hostHash CASCADE")
             cur.execute("DROP AUTHENTICATION IF EXISTS testlocalHash CASCADE")
             try:
                 cur.execute("CREATE USER pw_expire_user IDENTIFIED BY 'password'")
-                cur.execute("CREATE AUTHENTICATION testhostHash METHOD 'hash' HOST '0.0.0.0/0'")
-                cur.execute("GRANT AUTHENTICATION testhostHash TO pw_expire_user")
+                cur.execute("CREATE AUTHENTICATION testIPv4hostHash METHOD 'hash' HOST '0.0.0.0/0'")
+                cur.execute("GRANT AUTHENTICATION testIPv4hostHash TO pw_expire_user")
+                cur.execute("CREATE AUTHENTICATION testIPv6hostHash METHOD 'hash' HOST '::/0'")
+                cur.execute("GRANT AUTHENTICATION testIPv6hostHash TO pw_expire_user")
                 cur.execute("CREATE AUTHENTICATION testlocalHash METHOD 'hash' LOCAL")
                 cur.execute("GRANT AUTHENTICATION testlocalHash TO pw_expire_user")
 
@@ -96,7 +103,8 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
                 # matter whether an exception has occurred or not, otherwise
                 # those authentication methods may affect existing users
                 cur.execute("DROP USER IF EXISTS pw_expire_user")
-                cur.execute("DROP AUTHENTICATION IF EXISTS testhostHash CASCADE")
+                cur.execute("DROP AUTHENTICATION IF EXISTS testIPv4hostHash CASCADE")
+                cur.execute("DROP AUTHENTICATION IF EXISTS testIPv6hostHash CASCADE")
                 cur.execute("DROP AUTHENTICATION IF EXISTS testlocalHash CASCADE")
 
 

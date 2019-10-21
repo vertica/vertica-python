@@ -122,8 +122,8 @@ class _AddressList(object):
         self._logger = logger
 
         # Items in address_deque are _AddressEntry values.
-        #   - when resolved is false, data is (hostname, data)
-        #   - when resolved is true, data is the 5 tuple from getaddrinfo
+        #   - when resolved is False, data is (host, port)
+        #   - when resolved is True, data is the 5-tuple from getaddrinfo
         # This allows for lazy resolution. Seek peek() for more.
         self.address_deque = deque()
 
@@ -200,7 +200,7 @@ class _AddressList(object):
                 self.address_deque.popleft()
                 host, port = entry.data
                 try:
-                    resolved_hosts = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+                    resolved_hosts = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
                 except Exception as e:
                     self._logger.warning('Error resolving host "{0}" on port {1}: {2}'.format(host, port, e))
                     continue
@@ -403,7 +403,8 @@ class Connection(object):
             port = res.get_port()
             self._logger.info('Load balancing to host "{0}" on port {1}'.format(host, port))
 
-            socket_host, socket_port = raw_socket.getpeername()
+            peer = raw_socket.getpeername()
+            socket_host, socket_port = peer[0], peer[1]
             if host == socket_host and port == socket_port:
                 self._logger.info('Already connecting to host "{0}" on port {1}. Ignore load balancing.'.format(host, port))
                 return raw_socket

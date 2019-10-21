@@ -42,7 +42,7 @@ import ssl
 import getpass
 import uuid
 from struct import unpack
-from collections import deque
+from collections import deque, namedtuple
 
 # noinspection PyCompatibility,PyUnresolvedReferences
 from builtins import str
@@ -113,6 +113,7 @@ def parse_dsn(dsn):
 
     return result
 
+_AddressEntry = namedtuple('_AddressEntry', ['resolved', 'data'])
 
 class _AddressList(object):
     def __init__(self, host, port, backup_nodes, logger):
@@ -120,7 +121,10 @@ class _AddressList(object):
 
         self._logger = logger
 
-        # Format of items in deque: (host, port, is_dns_resolved)
+        # Items in address_deque are _AddressEntry values.
+        #   - when resolved is False, data is (host, port)
+        #   - when resolved is True, data is the 5-tuple from getaddrinfo
+        # This allows for lazy resolution. Seek peek() for more.
         self.address_deque = deque()
 
         # load primary host into address_deque
@@ -149,6 +153,7 @@ class _AddressList(object):
         self._logger.debug('Address list: {0}'.format(list(self.address_deque)))
 
     def _append(self, host, port):
+
         if not isinstance(host, string_types):
             err_msg = 'Host must be a string: invalid value: {0}'.format(host)
             self._logger.error(err_msg)
@@ -171,38 +176,39 @@ class _AddressList(object):
             self._logger.error(err_msg)
             raise ValueError(err_msg)
 
-        self.address_deque.append((host, port, False))
+        self.address_deque.append(_AddressEntry(resolved=False, data=(host, port)))
 
     def push(self, host, port):
-        self.address_deque.appendleft((host, port, False))
+        self.address_deque.appendleft(_AddressEntry(resolved=False, data=(host, port)))
 
     def pop(self):
         self.address_deque.popleft()
 
     def peek(self):
-        # do lazy DNS resolution, return the leftmost DNS-resolved address
+        # do lazy DNS resolution, returning the leftmost socket.getaddrinfo result
         if len(self.address_deque) == 0:
             return None
 
         while len(self.address_deque) > 0:
-            host, port, is_dns_resolved = self.address_deque[0]
-            if is_dns_resolved:
-                # return a resolved address
+            entry = self.address_deque[0]
+            if entry.resolved:
+                # return a resolved sockaddrinfo
                 self._logger.debug('Peek at address list: {0}'.format(list(self.address_deque)))
-                return (host, port)
+                return entry.data
             else:
                 # DNS resolve a single host name to multiple IP addresses
                 self.address_deque.popleft()
+                host, port = entry.data
                 try:
-                    resolved_hosts = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+                    resolved_hosts = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
                 except Exception as e:
                     self._logger.warning('Error resolving host "{0}" on port {1}: {2}'.format(host, port, e))
                     continue
 
-                # add resolved IP addresses to deque
-                for res in reversed(resolved_hosts):
-                    family, socktype, proto, canonname, sockaddr = res
-                    self.address_deque.appendleft((sockaddr[0], sockaddr[1], True))
+                # add resolved addrinfo (AF_INET and AF_INET6 only) to deque
+                for addrinfo in reversed(resolved_hosts):
+                    if addrinfo[0] in (socket.AF_INET, socket.AF_INET6):
+                        self.address_deque.appendleft(_AddressEntry(resolved=True, data=addrinfo))
 
         return None
 
@@ -370,9 +376,8 @@ class Connection(object):
         self.socket = raw_socket
         return self.socket
 
-    def create_socket(self):
-        # Address family IPv6 (socket.AF_INET6) is not supported
-        raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    def create_socket(self, family):
+        raw_socket = socket.socket(family, socket.SOCK_STREAM)
         raw_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         connection_timeout = self.options.get('connection_timeout')
         if connection_timeout is not None:
@@ -398,7 +403,8 @@ class Connection(object):
             port = res.get_port()
             self._logger.info('Load balancing to host "{0}" on port {1}'.format(host, port))
 
-            socket_host, socket_port = raw_socket.getpeername()
+            peer = raw_socket.getpeername()
+            socket_host, socket_port = peer[0], peer[1]
             if host == socket_host and port == socket_port:
                 self._logger.info('Already connecting to host "{0}" on port {1}. Ignore load balancing.'.format(host, port))
                 return raw_socket
@@ -440,25 +446,31 @@ class Connection(object):
         return raw_socket
 
     def establish_connection(self):
-        addr = self.address_list.peek()
+        addrinfo = self.address_list.peek()
         raw_socket = None
         last_exception = None
 
         # Failover: loop to try all addresses
-        while addr:
+        while addrinfo:
+            (family, socktype, proto, canonname, sockaddr) = addrinfo
             last_exception = None
-            host, port = addr
+
+            # _AddressList filters all addrs to AF_INET and AF_INET6, which both
+            # have host and port as values 0, 1 in the sockaddr tuple.
+            host = sockaddr[0]
+            port = sockaddr[1]
 
             self._logger.info('Establishing connection to host "{0}" on port {1}'.format(host, port))
+
             try:
-                raw_socket = self.create_socket()
-                raw_socket.connect((host, port))
+                raw_socket = self.create_socket(family)
+                raw_socket.connect(sockaddr)
                 break
             except Exception as e:
                 self._logger.info('Failed to connect to host "{0}" on port {1}: {2}'.format(host, port, e))
                 last_exception = e
                 self.address_list.pop()
-                addr = self.address_list.peek()
+                addrinfo = self.address_list.peek()
                 raw_socket.close()
 
         # all of the addresses failed

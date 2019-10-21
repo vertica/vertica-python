@@ -616,11 +616,8 @@ class Connection(object):
             results += bytes_
         return results
 
-    def initialize_kerberos(self):
-        # Compute GSS-style service principal name
-        service_principal = "{}@{}".format(self.options['kerberos_service_name'],
-                                           self.options['kerberos_host_name'])
-        # Check for Kerberos package
+    def make_GSS_authentication(self):
+        # Set GSS flags
         try:
             gssflag = (kerberos.GSS_C_DELEG_FLAG | kerberos.GSS_C_MUTUAL_FLAG
                 | kerberos.GSS_C_SEQUENCE_FLAG | kerberos.GSS_C_REPLAY_FLAG)
@@ -629,22 +626,58 @@ class Connection(object):
                 " run either 'pip install kerberos' or 'pip install winkerberos'"
                 ", depending on your operating system.")
 
-        result = 0
+        # Generate the GSS-style service principal name
+        service_principal = "{}@{}".format(self.options['kerberos_service_name'],
+                                           self.options['kerberos_host_name'])
+
+        # Initializes a context for GSSAPI client-side authentication with the
+        # given service principal
         try:
-            while result == 0:
-                result, self.context = kerberos.authGSSClientInit(
-                    service_principal, gssflags=gssflag)
+            result, self.context = kerberos.authGSSClientInit(
+                                   service_principal, gssflags=gssflag)
+            print('result',result,'context',self.context)
         except kerberos.GSSError as err:
             err = err.args
-            err_message = "{}\n{}".format(err[0][0], err[1][0])
+            err_message = err #"{}\n{}".format(err[0][0], err[1][0])
             self._logger.error(err_message)
             raise errors.KerberosError(err_message)
 
+        if result != kerberos.AUTH_GSS_COMPLETE:
+            msg = 'Failed to initializes a context'
+            self._logger.error(msg)
+            raise errors.KerberosError(msg)
+
+        # Processes GSSAPI client-side steps
+        token = b''
+        while True:
+            self._logger.info('Processing a single GSSAPI client-side step')
+            result = kerberos.authGSSClientStep(self.context,
+                        base64.b64encode(token).decode("utf-8"))
+            if result == kerberos.AUTH_GSS_COMPLETE:
+                self._logger.info('Step complete')
+                break
+            elif result == kerberos.AUTH_GSS_CONTINUE:
+                self._logger.info('Step continuation')
+                response = kerberos.authGSSClientResponse(self.context)
+                token = base64.b64decode(response)
+                self.write(messages.Password(token, messages.Authentication.GSS))
+                message = self.read_expected_message(messages.Authentication)
+                if message.code == messages.Authentication.GSS_CONTINUE:
+                    token = message.auth_data
+            else:
+                err_message = ("Kerberos authentication failed. GSSAPI step "
+                               "returned {}".format(result))
+                self._logger.error(err_message)
+                raise errors.KerberosError(err_message)
+
+
     def continue_kerberos(self, auth_data):
         try:
+
             result = kerberos.authGSSClientStep(self.context,
                 base64.b64encode(auth_data).decode("utf-8"))
-            if result == 0:
+            print('## result',result)
+            if result == kerberos.AUTH_GSS_CONTINUE:
                 response = kerberos.authGSSClientResponse(self.context)
                 return (result, base64.b64decode(response))
             elif result == -1:
@@ -684,14 +717,7 @@ class Connection(object):
                     self._logger.warning('The password for user {} will expire soon.'
                         ' Please consider changing it.'.format(self.options['user']))
                 elif message.code == messages.Authentication.GSS:
-                    self.initialize_kerberos()
-                    result, response = self.continue_kerberos(b'') # type:(int, bytes)
-                    if result == 0:
-                        self.write(messages.Password(response, message.code))
-                elif message.code == messages.Authentication.GSS_CONTINUE:
-                    result, response = self.continue_kerberos(message.auth_data)
-                    if result == 0:
-                        self.write(messages.Password(response, message.code))
+                    self.make_GSS_authentication()
                 else:
                     self.write(messages.Password(password, message.code,
                                                  {'user': user,

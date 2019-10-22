@@ -18,10 +18,6 @@ vertica-python has been tested with Vertica 9.1.1 and Python 2.7/3.4/3.5/3.6/3.7
 
 ## Installation
 
-If you're using pip >= 1.4 and you don't already have pytz installed:
-
-    pip install --pre pytz
-
 If you're using pip >= 1.4 and you don't already have python-dateutil installed:
 
     pip install --pre python-dateutil

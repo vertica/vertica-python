@@ -37,7 +37,7 @@ from __future__ import print_function, division, absolute_import
 
 from collections import namedtuple
 from datetime import datetime
-import pytz
+from dateutil import tz
 
 from .base import VerticaPythonIntegrationTestCase
 
@@ -70,7 +70,7 @@ class TimeZoneTestCase(VerticaPythonIntegrationTestCase):
             TimeZoneTestingCase(
                 string='2016-05-15 13:15:17.789 UTC', template=template,
                 timestamp=datetime(year=2016, month=5, day=15, hour=13, minute=15, second=17,
-                                   microsecond=789000, tzinfo=pytz.utc)
+                                   microsecond=789000, tzinfo=tz.tzutc())
             ),
         ]
         self._test_ts(test_cases=test_cases)
@@ -81,7 +81,7 @@ class TimeZoneTestCase(VerticaPythonIntegrationTestCase):
             TimeZoneTestingCase(
                 string='2016-05-15 13:15:17.789 UTC', template=template,
                 timestamp=datetime(year=2016, month=5, day=15, hour=13, minute=15, second=17,
-                                   microsecond=789000, tzinfo=pytz.utc)
+                                   microsecond=789000, tzinfo=tz.tzutc())
             ),
         ]
         self._test_ts(test_cases=test_cases)

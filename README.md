@@ -13,7 +13,7 @@ Please check out [release notes](https://github.com/vertica/vertica-python/relea
 
 vertica-python is currently in beta stage; it has been tested for functionality and has a very basic test suite. Please use with caution, and feel free to submit issues and/or pull requests (Read up on our [contributing guidelines](#contributing-guidelines)).
 
-vertica-python has been tested with Vertica 9.1.1 and Python 2.7/3.4/3.5/3.6/3.7.
+vertica-python has been tested with Vertica 9.1.1 and Python 2.7/3.4/3.5/3.6/3.7/3.8.
 
 
 ## Installation
@@ -91,9 +91,9 @@ connection = vertica_python.connect(**conn_info)
 
 ```
 
-See more on SSL options [here](https://docs.python.org/3.6/library/ssl.html).
+See more on SSL options [here](https://docs.python.org/3.8/library/ssl.html).
 
-Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.7/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. For example,
+Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.8/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. For example,
 
 ```python
 import vertica_python

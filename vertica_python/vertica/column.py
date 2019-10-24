@@ -41,10 +41,9 @@ from collections import namedtuple
 from datetime import date, datetime
 from decimal import Decimal
 
-import pytz
 # noinspection PyCompatibility,PyUnresolvedReferences
 from builtins import str
-from dateutil import parser
+from dateutil import parser, tz
 
 from .. import errors
 from .. import datatypes
@@ -107,7 +106,7 @@ def timestamp_tz_parse(s):
     if s.endswith('+00'):
         # remove time zone
         ts = timestamp_parse(s[:-3].encode(encoding='utf-8', errors='strict'))
-        ts = ts.replace(tzinfo=pytz.UTC)
+        ts = ts.replace(tzinfo=tz.tzutc())
         return ts
     # other wise do a real parse (slower)
     return parser.parse(s)

@@ -58,7 +58,6 @@ default_configs = {
     'port': 5433,
     'user': getpass.getuser(),
     'password': '',
-    'enable_kerberos_test': 'False'
 }
 
 
@@ -110,8 +109,6 @@ class VerticaPythonTestCase(unittest.TestCase):
         if 'log_dir' in test_config:
             test_config['log_dir'] = os.path.join(test_config['log_dir'],
                                      'py{0}{1}'.format(sys.version_info.major, sys.version_info.minor))
-        if 'enable_kerberos_test' in test_config:
-            test_config['enable_kerberos_test'] = (test_config['enable_kerberos_test'] == 'True')
 
         return test_config
 

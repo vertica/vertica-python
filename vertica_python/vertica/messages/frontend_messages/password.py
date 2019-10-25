@@ -84,14 +84,14 @@ class Password(BulkFrontendMessage):
                 self._password = hexdigest.encode('utf-8')
             prefix = b'md5' if useMD5 else b'sha512'
             return prefix + self._password
-        elif self._auth_method in (Authentication.GSS, Authentication.GSS_CONTINUE):
+        elif self._auth_method == Authentication.GSS:
             return self._password
         else:
             raise ValueError("unsupported authentication method: {0}".format(self._auth_method))
 
     def read_bytes(self):
         encoded_pw = self.encoded_password()
-        # Vertica server handles GSS messages differently from other passwords.
+        # Vertica server handles GSS messages differently from other passwords
         if self._auth_method == Authentication.GSS:
             bytes_ = pack('{0}s'.format(len(encoded_pw)), encoded_pw)
         else:

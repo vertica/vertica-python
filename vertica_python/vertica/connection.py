@@ -36,12 +36,12 @@
 
 from __future__ import print_function, division, absolute_import
 
+import base64
 import logging
 import socket
 import ssl
 import getpass
 import uuid
-import base64
 from struct import unpack
 from collections import deque, namedtuple
 
@@ -241,7 +241,6 @@ class Connection(object):
         self.backend_key = None
         self.transaction_status = None
         self.socket = None
-        self.context = None
 
         options = options or {}
         self.options = parse_dsn(options['dsn']) if 'dsn' in options else {}
@@ -633,65 +632,52 @@ class Connection(object):
         # Initializes a context for GSSAPI client-side authentication with the
         # given service principal
         try:
-            result, self.context = kerberos.authGSSClientInit(
-                                   service_principal, gssflags=gssflag)
-            print('result',result,'context',self.context)
+            result, context = kerberos.authGSSClientInit(service_principal, gssflags=gssflag)
         except kerberos.GSSError as err:
-            err = err.args
-            err_message = err #"{}\n{}".format(err[0][0], err[1][0])
-            self._logger.error(err_message)
-            raise errors.KerberosError(err_message)
+            self._logger.error(str(err))
+            raise errors.KerberosError(str(err))
 
         if result != kerberos.AUTH_GSS_COMPLETE:
-            msg = 'Failed to initializes a context'
+            msg = ('Failed to initialize a context for GSSAPI client-side '
+                   'authentication with service principal {}'.format(service_principal))
             self._logger.error(msg)
             raise errors.KerberosError(msg)
 
         # Processes GSSAPI client-side steps
-        token = b''
-        while True:
-            self._logger.info('Processing a single GSSAPI client-side step')
-            result = kerberos.authGSSClientStep(self.context,
-                        base64.b64encode(token).decode("utf-8"))
-            if result == kerberos.AUTH_GSS_COMPLETE:
-                self._logger.info('Step complete')
-                break
-            elif result == kerberos.AUTH_GSS_CONTINUE:
-                self._logger.info('Step continuation')
-                response = kerberos.authGSSClientResponse(self.context)
-                token = base64.b64decode(response)
-                self.write(messages.Password(token, messages.Authentication.GSS))
-                message = self.read_expected_message(messages.Authentication)
-                if message.code == messages.Authentication.GSS_CONTINUE:
-                    token = message.auth_data
-            else:
-                err_message = ("Kerberos authentication failed. GSSAPI step "
-                               "returned {}".format(result))
-                self._logger.error(err_message)
-                raise errors.KerberosError(err_message)
-
-
-    def continue_kerberos(self, auth_data):
         try:
+            token = b''
+            while True:
+                self._logger.info('Processing a single GSSAPI client-side step')
+                token = base64.b64encode(token).decode("utf-8")
+                result = kerberos.authGSSClientStep(context, token)
 
-            result = kerberos.authGSSClientStep(self.context,
-                base64.b64encode(auth_data).decode("utf-8"))
-            print('## result',result)
-            if result == kerberos.AUTH_GSS_CONTINUE:
-                response = kerberos.authGSSClientResponse(self.context)
-                return (result, base64.b64decode(response))
-            elif result == -1:
-                err_message = "Kerberos authentication failed during transaction.\
-                    \n gssapi step returned -1"
-                self._logger.error(err_message)
-                raise errors.KerberosError(err_message)
-            else:
-                return (result, None)
+                if result == kerberos.AUTH_GSS_COMPLETE:
+                    self._logger.info('Result: GSSAPI step complete')
+                    break
+                elif result == kerberos.AUTH_GSS_CONTINUE:
+                    self._logger.info('Result: GSSAPI step continuation')
+                    # Get the response from the last successful GSSAPI client-side step
+                    response = kerberos.authGSSClientResponse(context)
+                    token = base64.b64decode(response)
+                    # Send the data to the vertica server
+                    self.write(messages.Password(token, messages.Authentication.GSS))
+                    # Receive the token from the vertica server
+                    message = self.read_expected_message(messages.Authentication)
+                    if message.code == messages.Authentication.GSS_CONTINUE:
+                        token = message.auth_data
+                    else:
+                        msg = ('Received unexpected message type: Authentication(type={}).'
+                               ' Expected type: Authentication(type={})'.format(
+                                message.code, messages.Authentication.GSS_CONTINUE))
+                        self._logger.error(msg)
+                        raise errors.MessageError(msg)
+                else:
+                    msg = "GSSAPI client-side step error {}".format(result)
+                    self._logger.error(msg)
+                    raise errors.KerberosError(msg)
         except kerberos.GSSError as err:
-            err = err.args
-            err_message = "{}\n{}".format(err[0][0], err[1][0])
-            self._logger.error(err_message)
-            raise errors.KerberosError(err_message)
+            self._logger.error(str(err))
+            raise errors.KerberosError(str(err))
 
     def startup_connection(self):
         user = self.options['user']

@@ -634,9 +634,9 @@ class Connection(object):
         try:
             result, context = kerberos.authGSSClientInit(service_principal, gssflags=gssflag)
         except kerberos.GSSError as err:
-            self._logger.error(str(err))
-            raise errors.KerberosError(str(err))
-
+            msg = "GSSAPI initialization error: {}".format(str(err))
+            self._logger.error(msg)
+            raise errors.KerberosError(msg)
         if result != kerberos.AUTH_GSS_COMPLETE:
             msg = ('Failed to initialize a context for GSSAPI client-side '
                    'authentication with service principal {}'.format(service_principal))
@@ -668,7 +668,7 @@ class Connection(object):
                     else:
                         msg = ('Received unexpected message type: Authentication(type={}).'
                                ' Expected type: Authentication(type={})'.format(
-                                message.code, messages.Authentication.GSS_CONTINUE))
+                               message.code, messages.Authentication.GSS_CONTINUE))
                         self._logger.error(msg)
                         raise errors.MessageError(msg)
                 else:
@@ -676,8 +676,9 @@ class Connection(object):
                     self._logger.error(msg)
                     raise errors.KerberosError(msg)
         except kerberos.GSSError as err:
-            self._logger.error(str(err))
-            raise errors.KerberosError(str(err))
+            msg = "GSSAPI client-side step error: {}".format(str(err))
+            self._logger.error(msg)
+            raise errors.KerberosError(msg)
 
     def startup_connection(self):
         user = self.options['user']

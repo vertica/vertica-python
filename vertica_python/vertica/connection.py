@@ -45,16 +45,6 @@ import uuid
 from struct import unpack
 from collections import deque, namedtuple
 
-try:
-    import kerberos
-except ImportError:
-    pass
-    # winkerberos has not been tested with vertica-python
-    # try:
-    #     import winkerberos as kerberos
-    # except ImportError:
-    #     pass
-
 # noinspection PyCompatibility,PyUnresolvedReferences
 from builtins import str
 from six import raise_from, string_types, integer_types, PY2
@@ -616,21 +606,24 @@ class Connection(object):
         return results
 
     def make_GSS_authentication(self):
-        # Set GSS flags
         try:
-            gssflag = (kerberos.GSS_C_DELEG_FLAG | kerberos.GSS_C_MUTUAL_FLAG
-                | kerberos.GSS_C_SEQUENCE_FLAG | kerberos.GSS_C_REPLAY_FLAG)
-        except NameError as e:
-            raise errors.ConnectionError("No Kerberos package installed. Please"
-                " run either 'pip install kerberos' or 'pip install winkerberos'"
-                ", depending on your operating system.")
+            import kerberos
+        except ImportError as e:
+            raise errors.ConnectionError("{}\nCannot make a Kerberos "
+                "authentication because no Kerberos package installed. Please"
+                " run 'pip install kerberos'.".format(str(e)))
+
+        # Set GSS flags
+        gssflag = (kerberos.GSS_C_DELEG_FLAG | kerberos.GSS_C_MUTUAL_FLAG |
+                   kerberos.GSS_C_SEQUENCE_FLAG | kerberos.GSS_C_REPLAY_FLAG)
 
         # Generate the GSS-style service principal name
         service_principal = "{}@{}".format(self.options['kerberos_service_name'],
                                            self.options['kerberos_host_name'])
 
-        # Initializes a context for GSSAPI client-side authentication with the
-        # given service principal
+        # Initializes a context
+        self._logger.info('Initializing a context for GSSAPI client-side '
+            'authentication with service principal {}'.format(service_principal))
         try:
             result, context = kerberos.authGSSClientInit(service_principal, gssflags=gssflag)
         except kerberos.GSSError as err:

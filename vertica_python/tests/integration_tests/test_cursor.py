@@ -43,6 +43,8 @@ import os as _os
 import re
 import tempfile
 
+from parameterized import parameterized
+
 from .base import VerticaPythonIntegrationTestCase
 from ... import errors
 
@@ -204,13 +206,28 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             res_from_cur2 = cur2.fetchall()
             self.assertListOfListsEqual(res_from_cur2, [[2, 'bar']])
 
-    def test_copy_with_file(self):
-        with tempfile.TemporaryFile() as tmpfile, self._connect() as conn1, self._connect() as conn2:
-            if _os.name != 'posix' or _os.sys.platform == 'cygwin':
-                f = getattr(tmpfile, 'file')
-            else:
-                f = tmpfile
+    # integration test for #325
+    @parameterized.expand([
+        (tempfile.NamedTemporaryFile,),
+        (tempfile.SpooledTemporaryFile,),
+        (tempfile.TemporaryFile,),
+    ])
+    def test_copy_with_temporary_file(self, temp_file_type):
+        with temp_file_type() as f, self._connect() as conn:
+            f.write(b"1,foo\n2,bar")
+            f.seek(0)
 
+            cur = conn.cursor()
+            cur.copy(
+                "COPY {0} (a, b) FROM STDIN DELIMITER ','".format(self._table),
+                f,
+            )
+            cur.execute("SELECT a, b FROM {0} WHERE a = 1".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [[1, 'foo']])
+
+    def test_copy_with_file(self):
+        with tempfile.TemporaryFile() as f, self._connect() as conn1, self._connect() as conn2:
             f.write(b"1,foo\n2,bar")
             # move rw pointer to top of file
             f.seek(0)
@@ -230,12 +247,7 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             self.assertListOfListsEqual(res_from_cur2, [[2, 'bar']])
 
     def test_copy_with_closed_file(self):
-        with tempfile.TemporaryFile() as tmpfile, self._connect() as conn:
-            if _os.name != 'posix' or _os.sys.platform == 'cygwin':
-                f = getattr(tmpfile, 'file')
-            else:
-                f = tmpfile
-
+        with tempfile.TemporaryFile() as f, self._connect() as conn:
             f.write(b"1,foo\n2,bar")
             # move rw pointer to top of file
             f.seek(0)

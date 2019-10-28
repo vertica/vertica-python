@@ -624,8 +624,8 @@ class Connection(object):
             import kerberos
         except ImportError as e:
             raise errors.ConnectionError("{}\nCannot make a Kerberos "
-                "authentication because no Kerberos package installed. Please"
-                " run 'pip install kerberos'.".format(str(e)))
+                "authentication because no Kerberos package is installed. "
+                "Get it with 'pip install kerberos'.".format(str(e)))
 
         # Set GSS flags
         gssflag = (kerberos.GSS_C_DELEG_FLAG | kerberos.GSS_C_MUTUAL_FLAG |
@@ -667,7 +667,7 @@ class Connection(object):
                     response = kerberos.authGSSClientResponse(context)
                     challenge = self.send_GSS_response_and_receive_challenge(response)
                 else:
-                    msg = "GSSAPI client-side step error {}".format(result)
+                    msg = "GSSAPI client-side step error status {}".format(result)
                     self._logger.error(msg)
                     raise errors.KerberosError(msg)
         except kerberos.GSSError as err:

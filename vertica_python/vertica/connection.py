@@ -65,7 +65,7 @@ from ..vertica.log import VerticaLogging
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 5433
 DEFAULT_PASSWORD = ''
-DEFAULT_SERVICE_NAME = 'vertica'
+DEFAULT_KRB_SERVICE_NAME = 'vertica'
 DEFAULT_LOG_LEVEL = logging.WARNING
 DEFAULT_LOG_PATH = 'vertica_python.log'
 try:
@@ -262,7 +262,7 @@ class Connection(object):
         self.options.setdefault('database', self.options['user'])
         self.options.setdefault('password', DEFAULT_PASSWORD)
         self.options.setdefault('session_label', _generate_session_label())
-        self.options.setdefault('kerberos_service_name', DEFAULT_SERVICE_NAME)
+        self.options.setdefault('kerberos_service_name', DEFAULT_KRB_SERVICE_NAME)
         # Kerberos authentication hostname defaults to the host value here so
         # the correct value cannot be overwritten by load balancing or failover
         self.options.setdefault('kerberos_host_name', self.options['host'])
@@ -605,6 +605,20 @@ class Connection(object):
             results += bytes_
         return results
 
+    def send_GSS_response_and_receive_challenge(self, response):       
+        # Send the GSS response data to the vertica server
+        token = base64.b64decode(response)
+        self.write(messages.Password(token, messages.Authentication.GSS))
+        # Receive the challenge from the vertica server
+        message = self.read_expected_message(messages.Authentication)
+        if message.code != messages.Authentication.GSS_CONTINUE:
+            msg = ('Received unexpected message type: Authentication(type={}).'
+                   ' Expected type: Authentication(type={})'.format(
+                   message.code, messages.Authentication.GSS_CONTINUE))
+            self._logger.error(msg)
+            raise errors.MessageError(msg)
+        return message.auth_data
+
     def make_GSS_authentication(self):
         try:
             import kerberos
@@ -621,7 +635,7 @@ class Connection(object):
         service_principal = "{}@{}".format(self.options['kerberos_service_name'],
                                            self.options['kerberos_host_name'])
 
-        # Initializes a context
+        # Initializes a context object with a service principal
         self._logger.info('Initializing a context for GSSAPI client-side '
             'authentication with service principal {}'.format(service_principal))
         try:
@@ -638,11 +652,11 @@ class Connection(object):
 
         # Processes GSSAPI client-side steps
         try:
-            token = b''
+            challenge = b''
             while True:
                 self._logger.info('Processing a single GSSAPI client-side step')
-                token = base64.b64encode(token).decode("utf-8")
-                result = kerberos.authGSSClientStep(context, token)
+                challenge = base64.b64encode(challenge).decode("utf-8")
+                result = kerberos.authGSSClientStep(context, challenge)
 
                 if result == kerberos.AUTH_GSS_COMPLETE:
                     self._logger.info('Result: GSSAPI step complete')
@@ -651,19 +665,7 @@ class Connection(object):
                     self._logger.info('Result: GSSAPI step continuation')
                     # Get the response from the last successful GSSAPI client-side step
                     response = kerberos.authGSSClientResponse(context)
-                    token = base64.b64decode(response)
-                    # Send the data to the vertica server
-                    self.write(messages.Password(token, messages.Authentication.GSS))
-                    # Receive the token from the vertica server
-                    message = self.read_expected_message(messages.Authentication)
-                    if message.code == messages.Authentication.GSS_CONTINUE:
-                        token = message.auth_data
-                    else:
-                        msg = ('Received unexpected message type: Authentication(type={}).'
-                               ' Expected type: Authentication(type={})'.format(
-                               message.code, messages.Authentication.GSS_CONTINUE))
-                        self._logger.error(msg)
-                        raise errors.MessageError(msg)
+                    challenge = self.send_GSS_response_and_receive_challenge(response)
                 else:
                     msg = "GSSAPI client-side step error {}".format(result)
                     self._logger.error(msg)

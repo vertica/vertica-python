@@ -30,12 +30,12 @@ Source code for vertica-python can be found at:
 
     https://github.com/vertica/vertica-python
 
-### Using Kerberos authentication
-vertica-python has optional Kerberos authentication support for Unix-like systems, which requires you to install [kerberos](https://pypi.org/project/kerberos/) package:
+#### Using Kerberos authentication
+vertica-python has optional Kerberos authentication support for Unix-like systems, which requires you to install the [kerberos](https://pypi.org/project/kerberos/) package:
 
     pip install kerberos
 
-Note that `kerberos` is a python extension module, which means you need to install `python-dev` at first. The command depends on the package manager and will look like
+Note that `kerberos` is a python extension module, which means you need to install `python-dev`. The command depends on the package manager and will look like
 
     sudo [yum|apt-get|etc] install python-dev
 
@@ -97,7 +97,7 @@ connection = vertica_python.connect(**conn_info)
 
 See more on SSL options [here](https://docs.python.org/3.8/library/ssl.html).
 
-To use Kerberos Authentication, obtain a TGT using `kinit` or by logging in, and run vertica-python like above. You can pass in optional arguments to customize the authentication. The parameters are `kerberos_service_name`, which defaults to `vertica`, and `kerberos_host_name`, which defaults to the database host name.
+In order to use Kerberos authentication, install [dependencies](#using-kerberos-authentication) first, and it is the user's responsibility to ensure that an Ticket-Granting Ticket (TGT) is available and valid. Whether a TGT is available can be easily determined by running the `klist` command. If no TGT is available, then it first must be obtained by running the `kinit` or by logging in. You can pass in optional arguments to customize the authentication. The parameters are `kerberos_service_name`, which defaults to `vertica`, and `kerberos_host_name`, which defaults to the database host name.
 
 In short, vertica-python will handle the "negotiations" of Kerberos authentication, but ensuring that an initial TGT is available and valid is the responsibility of the user.
 

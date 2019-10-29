@@ -97,9 +97,24 @@ connection = vertica_python.connect(**conn_info)
 
 See more on SSL options [here](https://docs.python.org/3.8/library/ssl.html).
 
-In order to use Kerberos authentication, install [dependencies](#using-kerberos-authentication) first, and it is the user's responsibility to ensure that an Ticket-Granting Ticket (TGT) is available and valid. Whether a TGT is available can be easily determined by running the `klist` command. If no TGT is available, then it first must be obtained by running the `kinit` or by logging in. You can pass in optional arguments to customize the authentication. The parameters are `kerberos_service_name`, which defaults to `vertica`, and `kerberos_host_name`, which defaults to the database host name.
+In order to use Kerberos authentication, install [dependencies](#using-kerberos-authentication) first, and it is the user's responsibility to ensure that an Ticket-Granting Ticket (TGT) is available and valid. Whether a TGT is available can be easily determined by running the `klist` command. If no TGT is available, then it first must be obtained by running the `kinit` command or by logging in. You can pass in optional arguments to customize the authentication. The parameters are `kerberos_service_name`, which defaults to "vertica", and `kerberos_host_name`, which defaults to the value of `host`.
 
-In short, vertica-python will handle the "negotiations" of Kerberos authentication, but ensuring that an initial TGT is available and valid is the responsibility of the user.
+```python
+import vertica_python
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             # The service name portion of the Vertica Kerberos principal
+             'kerberos_service_name': 'vertica_krb',
+             # The instance or host name portion of the Vertica Kerberos principal
+             'kerberos_host_name': 'vcluster.example.com'
+             }
+with vertica_python.connect(**conn_info) as conn:
+    # do things
+```
 
 Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.8/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. For example,
 

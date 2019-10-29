@@ -110,8 +110,8 @@ conn_info = {'host': '127.0.0.1',
              # The service name portion of the Vertica Kerberos principal
              'kerberos_service_name': 'vertica_krb',
              # The instance or host name portion of the Vertica Kerberos principal
-             'kerberos_host_name': 'vcluster.example.com'
-             }
+             'kerberos_host_name': 'vcluster.example.com'}
+
 with vertica_python.connect(**conn_info) as conn:
     # do things
 ```

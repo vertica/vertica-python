@@ -26,20 +26,20 @@ To install vertica-python with pip:
 
     pip install vertica-python
 
+To install vertica-python from source, run the following command from the root directory:
+
+    python setup.py install
+
 Source code for vertica-python can be found at:
 
     https://github.com/vertica/vertica-python
 
-### Using Kerberos
-If you're using pip >= 1.4 and your database uses Kerberos authentication:
+### Using Kerberos authentication
+vertica-python has optional Kerberos authentication support for Unix-like systems, which requires you to install [kerberos](https://pypi.org/project/kerberos/) package:
 
     pip install kerberos    # for unix-like systems
 
-To install vertica-python with Kerberos support:
-
-    pip install vertica-python[kerberos]
-
-Kerberos authentication is supported for Unix-like systems. Note that `kerberos` is a python extension module, which means you need to install `python-dev`. The command depends on the package manager and will look like
+Note that `kerberos` is a python extension module, which means you need to install `python-dev`. The command depends on the package manager and will look like
 
     sudo [yum|apt-get|etc] install python-dev
 

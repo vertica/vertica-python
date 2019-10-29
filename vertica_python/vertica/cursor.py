@@ -37,7 +37,10 @@
 from __future__ import print_function, division, absolute_import
 
 import datetime
+import inspect
 import re
+from io import IOBase
+from tempfile import NamedTemporaryFile, SpooledTemporaryFile, TemporaryFile
 from uuid import UUID
 
 try:
@@ -45,7 +48,12 @@ try:
 except ImportError:
     from ordereddict import OrderedDict  # python 2.6
 
-from io import IOBase
+# _TemporaryFileWrapper is an undocumented implementation detail, so
+# import defensively.
+try:
+    from tempfile import _TemporaryFileWrapper
+except ImportError:
+    _TemporaryFileWrapper = None
 
 import six
 # noinspection PyUnresolvedReferences,PyCompatibility
@@ -58,11 +66,58 @@ from ..vertica import messages
 from ..vertica.column import Column
 
 
+# A note regarding support for temporary files:
+#
+# Since Python 2.6, the tempfile module offers three kinds of temporary
+# files:
+#
+#   * NamedTemporaryFile
+#   * SpooledTemporaryFile
+#   * TemporaryFile
+#
+# NamedTemporaryFile is not a class, but a function that returns
+# an instance of the tempfile._TemporaryFileWrapper class.
+# _TemporaryFileWrapper is a direct subclass of object.
+#
+#   * https://github.com/python/cpython/blob/v3.8.0/Lib/tempfile.py#L546
+#   * https://github.com/python/cpython/blob/v3.8.0/Lib/tempfile.py#L450
+#
+# SpooledTemporaryFile is a class that is a direct subclass of object.
+#
+#   * https://github.com/python/cpython/blob/v3.8.0/Lib/tempfile.py#L623
+#
+# TemporaryFile is a class that is either NamedTemporaryFile or an
+# indirect subclass of io.IOBase, depending on the platform.
+#
+#   * https://bugs.python.org/issue33762
+#   * https://github.com/python/cpython/blob/v3.8.0/Lib/tempfile.py#L552-L555
+#   * https://github.com/python/cpython/blob/v3.8.0/Lib/tempfile.py#L606-L608
+#   * https://github.com/python/cpython/blob/v3.8.0/Lib/tempfile.py#L617-L618
+#
+# As a result, for Python 2.6 and newer, it seems the best way to test
+# for a file-like object inclusive of temporary files is via:
+#
+#   isinstance(obj, (IOBase, SpooledTemporaryFile, _TemporaryFileWrapper))
+
+# Of the following "types", only include those that are classes in
+# file_type so that isinstance(obj, file_type) won't fail. As of Python
+# 3.8 only IOBase, SpooledTemporaryFile and _TemporaryFileWrapper are
+# classes, but if future Python versions implement NamedTemporaryFile
+# and TemporaryFile as classes, the following code should account for
+# that accordingly.
+file_type = tuple(
+    type_ for type_ in [
+        IOBase,
+        NamedTemporaryFile,
+        SpooledTemporaryFile,
+        TemporaryFile,
+        _TemporaryFileWrapper,
+    ]
+    if inspect.isclass(type_)
+)
 if six.PY2:
     # noinspection PyUnresolvedReferences
-    file_type = (IOBase, file)
-elif six.PY3:
-    file_type = (IOBase,)
+    file_type = file_type + (file,)
 
 NULL = "NULL"
 

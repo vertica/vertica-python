@@ -36,6 +36,7 @@
 
 from __future__ import print_function, division, absolute_import
 
+import base64
 import logging
 import socket
 import ssl
@@ -64,6 +65,7 @@ from ..vertica.log import VerticaLogging
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 5433
 DEFAULT_PASSWORD = ''
+DEFAULT_KRB_SERVICE_NAME = 'vertica'
 DEFAULT_LOG_LEVEL = logging.WARNING
 DEFAULT_LOG_PATH = 'vertica_python.log'
 try:
@@ -260,6 +262,10 @@ class Connection(object):
         self.options.setdefault('database', self.options['user'])
         self.options.setdefault('password', DEFAULT_PASSWORD)
         self.options.setdefault('session_label', _generate_session_label())
+        self.options.setdefault('kerberos_service_name', DEFAULT_KRB_SERVICE_NAME)
+        # Kerberos authentication hostname defaults to the host value here so
+        # the correct value cannot be overwritten by load balancing or failover
+        self.options.setdefault('kerberos_host_name', self.options['host'])
 
         self.address_list = _AddressList(self.options['host'], self.options['port'],
                                          self.options.get('backup_server_node', []), self._logger)
@@ -431,7 +437,9 @@ class Connection(object):
             self._logger.info('Enabling SSL')
             try:
                 if isinstance(ssl_options, ssl.SSLContext):
-                    host, port = raw_socket.getpeername()
+                    peer = raw_socket.getpeername()
+                    host, port = peer[0], peer[1]
+
                     raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=host)
                 else:
                     raw_socket = ssl.wrap_socket(raw_socket)
@@ -599,6 +607,76 @@ class Connection(object):
             results += bytes_
         return results
 
+    def send_GSS_response_and_receive_challenge(self, response):       
+        # Send the GSS response data to the vertica server
+        token = base64.b64decode(response)
+        self.write(messages.Password(token, messages.Authentication.GSS))
+        # Receive the challenge from the vertica server
+        message = self.read_expected_message(messages.Authentication)
+        if message.code != messages.Authentication.GSS_CONTINUE:
+            msg = ('Received unexpected message type: Authentication(type={}).'
+                   ' Expected type: Authentication(type={})'.format(
+                   message.code, messages.Authentication.GSS_CONTINUE))
+            self._logger.error(msg)
+            raise errors.MessageError(msg)
+        return message.auth_data
+
+    def make_GSS_authentication(self):
+        try:
+            import kerberos
+        except ImportError as e:
+            raise errors.ConnectionError("{}\nCannot make a Kerberos "
+                "authentication because no Kerberos package is installed. "
+                "Get it with 'pip install kerberos'.".format(str(e)))
+
+        # Set GSS flags
+        gssflag = (kerberos.GSS_C_DELEG_FLAG | kerberos.GSS_C_MUTUAL_FLAG |
+                   kerberos.GSS_C_SEQUENCE_FLAG | kerberos.GSS_C_REPLAY_FLAG)
+
+        # Generate the GSS-style service principal name
+        service_principal = "{}@{}".format(self.options['kerberos_service_name'],
+                                           self.options['kerberos_host_name'])
+
+        # Initializes a context object with a service principal
+        self._logger.info('Initializing a context for GSSAPI client-side '
+            'authentication with service principal {}'.format(service_principal))
+        try:
+            result, context = kerberos.authGSSClientInit(service_principal, gssflags=gssflag)
+        except kerberos.GSSError as err:
+            msg = "GSSAPI initialization error: {}".format(str(err))
+            self._logger.error(msg)
+            raise errors.KerberosError(msg)
+        if result != kerberos.AUTH_GSS_COMPLETE:
+            msg = ('Failed to initialize a context for GSSAPI client-side '
+                   'authentication with service principal {}'.format(service_principal))
+            self._logger.error(msg)
+            raise errors.KerberosError(msg)
+
+        # Processes GSSAPI client-side steps
+        try:
+            challenge = b''
+            while True:
+                self._logger.info('Processing a single GSSAPI client-side step')
+                challenge = base64.b64encode(challenge).decode("utf-8")
+                result = kerberos.authGSSClientStep(context, challenge)
+
+                if result == kerberos.AUTH_GSS_COMPLETE:
+                    self._logger.info('Result: GSSAPI step complete')
+                    break
+                elif result == kerberos.AUTH_GSS_CONTINUE:
+                    self._logger.info('Result: GSSAPI step continuation')
+                    # Get the response from the last successful GSSAPI client-side step
+                    response = kerberos.authGSSClientResponse(context)
+                    challenge = self.send_GSS_response_and_receive_challenge(response)
+                else:
+                    msg = "GSSAPI client-side step error status {}".format(result)
+                    self._logger.error(msg)
+                    raise errors.KerberosError(msg)
+        except kerberos.GSSError as err:
+            msg = "GSSAPI client-side step error: {}".format(str(err))
+            self._logger.error(msg)
+            raise errors.KerberosError(msg)
+
     def startup_connection(self):
         user = self.options['user']
         database = self.options['database']
@@ -622,6 +700,8 @@ class Connection(object):
                 elif message.code == messages.Authentication.PASSWORD_GRACE:
                     self._logger.warning('The password for user {} will expire soon.'
                         ' Please consider changing it.'.format(self.options['user']))
+                elif message.code == messages.Authentication.GSS:
+                    self.make_GSS_authentication()
                 else:
                     self.write(messages.Password(password, message.code,
                                                  {'user': user,

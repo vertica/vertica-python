@@ -95,6 +95,8 @@ class TimedOutError(OperationalError):
 class ConnectionError(DatabaseError):
     pass
 
+class KerberosError(ConnectionError):
+    pass
 
 class SSLNotSupported(ConnectionError):
     pass

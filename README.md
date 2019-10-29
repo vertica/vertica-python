@@ -37,9 +37,9 @@ Source code for vertica-python can be found at:
 ### Using Kerberos authentication
 vertica-python has optional Kerberos authentication support for Unix-like systems, which requires you to install [kerberos](https://pypi.org/project/kerberos/) package:
 
-    pip install kerberos    # for unix-like systems
+    pip install kerberos
 
-Note that `kerberos` is a python extension module, which means you need to install `python-dev`. The command depends on the package manager and will look like
+Note that `kerberos` is a python extension module, which means you need to install `python-dev` at first. The command depends on the package manager and will look like
 
     sudo [yum|apt-get|etc] install python-dev
 

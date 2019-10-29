@@ -64,7 +64,7 @@ Install the Python dependencies for development:
 pip install -r requirements-dev.txt
 ```
 
-If you do Kerberos development, read instruction [here](README.md#using-kerberos-authentication).
+If you do Kerberos development, you need to install additional [dependencies](README.md#using-kerberos-authentication).
 
 ## Step 4: Get the test suite running
 

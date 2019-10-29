@@ -97,7 +97,7 @@ connection = vertica_python.connect(**conn_info)
 
 See more on SSL options [here](https://docs.python.org/3.8/library/ssl.html).
 
-In order to use Kerberos authentication, install [dependencies](#using-kerberos-authentication) first, and it is the user's responsibility to ensure that an Ticket-Granting Ticket (TGT) is available and valid. Whether a TGT is available can be easily determined by running the `klist` command. If no TGT is available, then it first must be obtained by running the `kinit` command or by logging in. You can pass in optional arguments to customize the authentication. The parameters are `kerberos_service_name`, which defaults to "vertica", and `kerberos_host_name`, which defaults to the value of `host`.
+In order to use Kerberos authentication, install [dependencies](#using-kerberos-authentication) first, and it is the user's responsibility to ensure that an Ticket-Granting Ticket (TGT) is available and valid. Whether a TGT is available can be easily determined by running the `klist` command. If no TGT is available, then it first must be obtained by running the `kinit` command or by logging in. You can pass in optional arguments to customize the authentication. The parameters are `kerberos_service_name`, which defaults to "vertica", and `kerberos_host_name`, which defaults to the value of `host`. For example,
 
 ```python
 import vertica_python

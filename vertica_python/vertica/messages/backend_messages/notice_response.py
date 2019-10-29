@@ -35,6 +35,8 @@
 
 from __future__ import print_function, division, absolute_import
 
+import collections
+import six
 from struct import unpack_from
 
 from ..message import BackendMessage
@@ -54,15 +56,127 @@ FIELD_DEFINITIONS = [
     {'type': b'L', 'name': "Line", 'attribute': 'line'},
     {'type': b'V', 'name': "Error Code", 'attribute': 'error_code'}
 ]
-FIELD_NAMES = {field['type']: field['name'] for field in FIELD_DEFINITIONS}
+FIELD_TYPE_TO_NAME = {field['type']: field['name'] for field in FIELD_DEFINITIONS}
+FIELD_ATTR_TO_TYPE = {field['attribute']: field['type'] for field in FIELD_DEFINITIONS}
 
 
-class NoticeResponse(BackendMessage):
+class _NoticeResponseAttrMixin:
+    # class must have `self._notice_attrs` property that provides a mapping from
+    # the type indicator (see `FIELD_DEFINITIONS`) to value.
+
+    @property
+    def internal_query(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['internal_query'])
+
+    @property
+    def severity(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['severity'])
+
+    @property
+    def message(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['message'])
+
+    @property
+    def sqlstate(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['sqlstate'])
+
+    @property
+    def detail(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['detail'])
+
+    @property
+    def hint(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['hint'])
+
+    @property
+    def position(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['position'])
+
+    @property
+    def where(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['where'])
+
+    @property
+    def internal_position(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['internal_position'])
+
+    @property
+    def routine(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['routine'])
+
+    @property
+    def file(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['file'])
+
+    @property
+    def line(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['line'])
+
+    @property
+    def error_code(self):
+        return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['error_code'])
+
+    def _get_labeled_values(self):
+        values_mapping = collections.OrderedDict()
+
+        for (typ, name) in six.iteritems(FIELD_TYPE_TO_NAME):
+            if typ in self._notice_attrs:
+                values_mapping[name] = self._notice_attrs[typ]
+
+        return values_mapping
+
+
+class NoticeResponse(_NoticeResponseAttrMixin, BackendMessage):
     message_id = b'N'
 
     def __init__(self, data):
         BackendMessage.__init__(self)
-        self.values = {}
+        # `_notice_attrs` is required by _NoticeResponseAttrMixin and also used
+        # by QueryError 
+        # Caution: this private attr is used internally by `QueryError`
+        self._notice_attrs = NoticeResponse._unpack_data(data)
+
+    def error_message(self):
+        return ', '.join([
+            "{0}: {1}".format(name, value)
+            for (name, value) in six.iteritems(self.values)
+        ])
+
+    def __str__(self):
+        return "NoticeResponse: {}".format(self.error_message())
+
+    @property
+    def values(self):
+        """
+        A mapping of server-provided values describing this notice.
+
+        The keys of this mapping are user-facing strings. The contents of any
+        given NoticeResponse can vary based on the context or version of
+        Vertica.
+
+        For access to specific values, the appropriate property getter is
+        recommended.
+
+        Example return value:
+
+        ```
+            {
+                'Severity': 'ERROR',
+                'Message': 'Syntax error at or near "foobar"',
+                'Sqlstate': '42601',
+                'Position': '1',
+                'Routine': 'base_yyerror',
+                'File': '/data/.../vertica/Parser/scan.l',
+                'Line': '1043',
+                'Error Code': '4856'
+            }
+        ```
+        """
+        return self._get_labeled_values()
+
+    @staticmethod
+    def _unpack_data(data):
+        data_mapping = {}
 
         pos = 0
         while pos < len(data) - 1:
@@ -71,24 +185,10 @@ class NoticeResponse(BackendMessage):
             unpacked = unpack_from('c{0}sx'.format(null_byte - 1 - pos), data, pos)
             key = unpacked[0]
             value = unpacked[1]
+            data_mapping[key] = value.decode('utf-8')
 
-            self.values[FIELD_NAMES[key]] = value.decode('utf-8')
             pos += (len(value) + 2)
 
-        # May want to break out into a function at some point
-        for field_def in FIELD_DEFINITIONS:
-            if self.values.get(field_def['name'], None) is not None:
-                setattr(self, field_def['attribute'], self.values[field_def['name']])
-
-    def error_message(self):
-        ordered = []
-        for field in FIELD_DEFINITIONS:
-            if self.values.get(field['name']) is not None:
-                ordered.append("{0}: {1}".format(field['name'], self.values[field['name']]))
-        return ', '.join(ordered)
-
-    def __str__(self):
-        return "NoticeResponse: {}".format(self.error_message())
-
+        return data_mapping
 
 BackendMessage.register(NoticeResponse)

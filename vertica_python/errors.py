@@ -38,6 +38,8 @@ from __future__ import print_function, division, absolute_import
 
 import re
 
+from .vertica.messages.backend_messages.notice_response import _NoticeResponseAttrMixin
+
 
 #############################################
 # dbapi errors
@@ -110,7 +112,18 @@ class EmptyQueryError(ProgrammingError):
     pass
 
 
-class QueryError(ProgrammingError):
+class QueryError(_NoticeResponseAttrMixin, ProgrammingError):
+    """
+    An error occurred associated with a query had been issued.
+
+    This error is perhaps the most commonly encountered error type, associated
+    with failures during query execution, invalid SQL statements, and more.
+
+    Much of the details of the error are available as properties, including the
+    SQL statement that had been issued (`sql`).
+    """
+
+
     def __init__(self, error_response, sql):
         self.error_response = error_response
         self.sql = sql
@@ -123,6 +136,13 @@ class QueryError(ProgrammingError):
             return re.sub(r"[\r\n]+", ' ', self.sql)
         else:
             return ''
+
+    @property
+    def _notice_attrs(self):
+        # provided for _NoticeResponseAttrMixin
+        if self.error_response is None:
+            return {}
+        return self.error_response._notice_attrs or {}
 
     @classmethod
     def from_error_response(cls, error_response, sql):

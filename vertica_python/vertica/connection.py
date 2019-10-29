@@ -437,7 +437,9 @@ class Connection(object):
             self._logger.info('Enabling SSL')
             try:
                 if isinstance(ssl_options, ssl.SSLContext):
-                    host, port = raw_socket.getpeername()
+                    peer = raw_socket.getpeername()
+                    host, port = peer[0], peer[1]
+
                     raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=host)
                 else:
                     raw_socket = ssl.wrap_socket(raw_socket)

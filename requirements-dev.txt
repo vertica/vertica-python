@@ -1,0 +1,4 @@
+future
+python-dateutil
+six
+#kerberos

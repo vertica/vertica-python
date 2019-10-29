@@ -56,7 +56,17 @@ Create a new branch for the work with a descriptive name:
 git checkout -b my-fix-branch
 ```
 
-## Step 3: Get the test suite running
+## Step 3: Install dependencies
+
+Install the Python dependencies for development:
+
+```shell
+pip install -r requirements-dev.txt
+```
+
+If you do Kerberos development, read instruction [here](README.md#using-kerberos-authentication).
+
+## Step 4: Get the test suite running
 
 *vertica-python* comes with a test suite of its own, in the `vertica_python/tests` directory of the code base. It’s our policy to make sure all tests pass at all times.
 
@@ -147,7 +157,7 @@ Run `$ nosetests --help` to see all arguments you can specify after the `--`.
 For more usages about [tox](https://tox.readthedocs.io), see the Python documentation.
 
 
-## Step 4: Implement your fix or feature
+## Step 5: Implement your fix or feature
 
 At this point, you're ready to make your changes! Feel free to ask for help; everyone is a beginner at first.
 
@@ -188,7 +198,7 @@ Add appropriate tests for the bug’s or feature's behavior, run the test suite 
  - Tests should be easy for any contributor to run. Contributors may not get complete access to their Vertica database, for example, they may only have a non-admin user with write privileges to a single schema, and the database may not be the latest version. We encourage tests to use only what they need and nothing more.
  - If there are requirements to the database for running a test, the test should adapt to different situations and never report a failure. For example, if a test depends on a multi-node database, it should check the number of DB nodes first, and skip itself when it connects to a single-node database (see helper function `require_DB_nodes_at_least()` in `vertica_python/tests/integration_tests/base.py`).
 
-## Step 5: Push and Rebase
+## Step 6: Push and Rebase
 
 You can publish your work on GitHub just by doing:
 
@@ -210,7 +220,7 @@ git push -f origin my-fix-branch
 ```
 
 
-## Step 6: Make a Pull Request
+## Step 7: Make a Pull Request
 
 When you think your work is ready to be pulled into *vertica-python*, you should create a pull request(PR) at GitHub.
 

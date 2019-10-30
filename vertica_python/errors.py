@@ -38,7 +38,7 @@ from __future__ import print_function, division, absolute_import
 
 import re
 
-from .vertica.messages.backend_messages.notice_response import _NoticeResponseAttrMixin
+from .vertica.mixins.notice_response_attr import _NoticeResponseAttrMixin
 
 
 #############################################

@@ -35,13 +35,13 @@
 
 from __future__ import print_function, division, absolute_import
 
-from nose.plugins.attrib import attr
+import pytest
 
 from ... import errors, connect
 from ..common.base import VerticaPythonTestCase
 
 
-@attr('integration_tests')
+@pytest.mark.integration_tests
 class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
     """
     Base class for tests that connect to a Vertica database to run stuffs.

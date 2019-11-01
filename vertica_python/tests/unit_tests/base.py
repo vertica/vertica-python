@@ -35,11 +35,11 @@
 
 from __future__ import print_function, division, absolute_import
 
-from nose.plugins.attrib import attr
+import pytest
 from ..common.base import VerticaPythonTestCase
 
 
-@attr('unit_tests')
+@pytest.mark.unit_tests
 class VerticaPythonUnitTestCase(VerticaPythonTestCase):
     """
     Base class for tests that do not require database connection;

@@ -1,4 +1,6 @@
 future
+pytest
 python-dateutil
 six
+tox
 #kerberos

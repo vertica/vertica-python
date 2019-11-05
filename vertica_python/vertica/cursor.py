@@ -42,11 +42,7 @@ import re
 from io import IOBase
 from tempfile import NamedTemporaryFile, SpooledTemporaryFile, TemporaryFile
 from uuid import UUID
-
-try:
-    from collections import OrderedDict  # python 2.7+ / 3
-except ImportError:
-    from ordereddict import OrderedDict  # python 2.6
+from collections import OrderedDict
 
 # _TemporaryFileWrapper is an undocumented implementation detail, so
 # import defensively.
@@ -147,7 +143,7 @@ class Cursor(object):
         self.error = None
 
         #
-        # dbapi properties
+        # dbapi attributes
         #
         self.description = None
         self.rowcount = -1
@@ -174,12 +170,6 @@ class Cursor(object):
         if not self.closed() and self.prepared_sql:
             self._close_prepared_statement()
         self._closed = True
-
-    def cancel(self):
-        if self.closed():
-            raise errors.InterfaceError('Cursor is closed')
-
-        self.connection.close()
 
     def execute(self, operation, parameters=None, use_prepared_statements=None):
         operation = as_text(operation)
@@ -294,12 +284,6 @@ class Cursor(object):
 
             self._message = self.connection.read_message()
 
-    def iterate(self):
-        row = self.fetchone()
-        while row:
-            yield row
-            row = self.fetchone()
-
     def fetchmany(self, size=None):
         if not size:
             size = self.arraysize
@@ -365,31 +349,21 @@ class Cursor(object):
     #############################################
     # non-dbapi methods
     #############################################
-    def flush_to_query_ready(self):
-        # if the last message isn't empty or ReadyForQuery, read all remaining messages
-        if self._message is None \
-                or isinstance(self._message, messages.ReadyForQuery):
-            return
+    def closed(self):
+        return self._closed or self.connection.closed()
 
-        while True:
-            message = self.connection.read_message()
-            if isinstance(message, messages.ReadyForQuery):
-                self._message = message
-                break
+    def cancel(self):
+        # Cancel is a session-level operation, cursor-level API does not make
+        # sense. Keep this API for backward compatibility.
+        raise errors.NotSupportedError(
+            'Cursor.cancel() is deprecated. Call Connection.cancel() '
+            'to cancel the current database operation.')
 
-    def flush_to_end_of_result(self):
-        # if the last message isn't empty or END_OF_RESULT_RESPONSES,
-        # read messages until it is
-        if (self._message is None or
-            isinstance(self._message, messages.ReadyForQuery) or
-            isinstance(self._message, END_OF_RESULT_RESPONSES)):
-            return
-
-        while True:
-            message = self.connection.read_message()
-            if isinstance(message, END_OF_RESULT_RESPONSES):
-                self._message = message
-                break
+    def iterate(self):
+        row = self.fetchone()
+        while row:
+            yield row
+            row = self.fetchone()
 
     def copy(self, sql, data, **kwargs):
         """
@@ -438,12 +412,35 @@ class Cursor(object):
         if self.error is not None:
             raise self.error
 
-    def closed(self):
-        return self._closed or self.connection.closed()
-
     #############################################
     # internal
     #############################################
+    def flush_to_query_ready(self):
+        # if the last message isn't empty or ReadyForQuery, read all remaining messages
+        if self._message is None \
+                or isinstance(self._message, messages.ReadyForQuery):
+            return
+
+        while True:
+            message = self.connection.read_message()
+            if isinstance(message, messages.ReadyForQuery):
+                self._message = message
+                break
+
+    def flush_to_end_of_result(self):
+        # if the last message isn't empty or END_OF_RESULT_RESPONSES,
+        # read messages until it is
+        if (self._message is None or
+            isinstance(self._message, messages.ReadyForQuery) or
+            isinstance(self._message, END_OF_RESULT_RESPONSES)):
+            return
+
+        while True:
+            message = self.connection.read_message()
+            if isinstance(message, END_OF_RESULT_RESPONSES):
+                self._message = message
+                break
+
     def row_formatter(self, row_data):
         if self.cursor_type is None:
             return self.format_row_as_array(row_data)

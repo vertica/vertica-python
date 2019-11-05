@@ -14,7 +14,7 @@
 
 from __future__ import print_function, division, absolute_import
 
-import collections
+from collections import OrderedDict
 
 FIELD_DEFINITIONS = [
     {'type': b'q', 'name': "Internal Query", 'attribute': 'internal_query'},
@@ -91,7 +91,7 @@ class _NoticeResponseAttrMixin:
         return self._notice_attrs.get(FIELD_ATTR_TO_TYPE['error_code'])
 
     def _get_labeled_values(self):
-        values_mapping = collections.OrderedDict()
+        values_mapping = OrderedDict()
 
         for field_def in FIELD_DEFINITIONS:
             if field_def['type'] in self._notice_attrs:

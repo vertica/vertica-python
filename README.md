@@ -371,6 +371,34 @@ cur.copy("COPY test_copy (id, name) from stdin DELIMITER ',' ",  csv)
 Where `csv` is either a string or a file-like object (specifically, any object with a `read()` method). If using a file, the data is streamed.
 
 
+**Cancel the current database operation** :
+
+`Connection.cancel()` interrupts the processing of the current operation. Interrupting query execution will cause the cancelled method to raise a `vertica_python.errors.QueryCanceled`. If no query is being executed, it does nothing. You can call this function from a different thread/process than the one currently executing a database operation.
+
+```python
+from multiprocessing import Process
+import time
+import vertica_python
+
+def cancel_query(connection, timeout=5):
+    time.sleep(timeout)
+    connection.cancel()
+
+with vertica_python.connect(**conn_info) as conn:
+    cur = conn.cursor()
+
+    # Call cancel() from a different process
+    p1 = Process(target=cancel_query, args=(conn,))
+    p1.start()
+
+    try:
+        cur.execute("<Long running query>")
+    except vertica_python.errors.QueryCanceled as e:
+        pass
+
+    p1.join()
+```
+
 
 ## Rowcount oddities
 

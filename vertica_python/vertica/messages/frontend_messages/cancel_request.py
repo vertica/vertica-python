@@ -33,6 +33,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""
+CancelRequest message
+
+The frontend sends a CancelRequest message to cancel the processing of the
+current operation. The cancel request must be sent across a new connection to
+the server. The server will process this request and then close the connection.
+
+The cancel request might or might not have any effect. If the cancellation is
+effective, the current command will terminate early and return an error message.
+If the cancellation fails (e.g. the server has finished processing the command),
+then there will be no visible result at all.
+"""
 
 from __future__ import print_function, division, absolute_import
 
@@ -46,8 +58,8 @@ class CancelRequest(BulkFrontendMessage):
 
     def __init__(self, backend_pid, backend_key):
         BulkFrontendMessage.__init__(self)
-        self._backend_pid = backend_pid
-        self._backend_key = backend_key
+        self._backend_pid = backend_pid   # The process ID of the target backend
+        self._backend_key = backend_key   # The secret key of the target backend
 
     def read_bytes(self):
         bytes_ = pack('!3I', 80877102, self._backend_pid, self._backend_key)

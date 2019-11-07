@@ -40,6 +40,7 @@ from decimal import Decimal
 from uuid import UUID
 import logging
 import os as _os
+import pytest
 import re
 import tempfile
 
@@ -254,7 +255,7 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
 
             cur = conn.cursor()
             f.close()
-            with self.assertRaisesRegexp(ValueError, 'closed file'):
+            with pytest.raises(ValueError, match='closed file'):
                 cur.copy("COPY {0} (a, b) FROM STDIN DELIMITER ','".format(self._table),
                           f)
             cur.close()
@@ -381,7 +382,7 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
 
             # generate a user-defined error message
             err_msg = 'USER GENERATED ERROR: test error'
-            with self.assertRaisesRegexp(errors.QueryError, err_msg):
+            with pytest.raises(errors.QueryError, match=err_msg):
                 cur.execute("SELECT THROW_ERROR('test error')")
 
             # verify cursor still usable after errors
@@ -405,7 +406,7 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
 
                 # close and reopen cursor
                 cur.close()
-                with self.assertRaisesRegexp(errors.InterfaceError, 'Cursor is closed'):
+                with pytest.raises(errors.InterfaceError, match='Cursor is closed'):
                     cur.execute("SELECT 1;")
                 cur = conn.cursor()
 
@@ -636,7 +637,7 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
             cur.execute("CREATE TABLE {0} (a INT, b VARCHAR)".format(self._table))
             err_msg = 'not all arguments converted during string formatting'
             values = [1, 'aa']
-            with self.assertRaisesRegexp(TypeError, err_msg):
+            with pytest.raises(TypeError, match=err_msg):
                 cur.execute("INSERT INTO {} VALUES (?, ?)".format(self._table), values)
 
             cur.execute("INSERT INTO {} VALUES (?, ?)".format(self._table),
@@ -742,7 +743,7 @@ class SimpleQueryExecutemanyTestCase(VerticaPythonIntegrationTestCase):
         err_msg = "executemany is implemented for simple INSERT statements only"
         with self._connect() as conn:
             cur = conn.cursor()
-            with self.assertRaisesRegexp(NotImplementedError, err_msg):
+            with pytest.raises(NotImplementedError, match=err_msg):
                 cur.executemany("", [])
 
 
@@ -769,13 +770,13 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
         with self._connect() as conn:
             cur = conn.cursor()
             err_msg = 'The statement being prepared is empty'
-            with self.assertRaisesRegexp(errors.EmptyQueryError, err_msg):
+            with pytest.raises(errors.EmptyQueryError, match=err_msg):
                 cur.execute("")
-            with self.assertRaisesRegexp(errors.EmptyQueryError, err_msg):
+            with pytest.raises(errors.EmptyQueryError, match=err_msg):
                 cur.executemany("", [()])
-            with self.assertRaisesRegexp(errors.EmptyQueryError, err_msg):
+            with pytest.raises(errors.EmptyQueryError, match=err_msg):
                 cur.execute("--select 1")
-            with self.assertRaisesRegexp(errors.EmptyQueryError, err_msg):
+            with pytest.raises(errors.EmptyQueryError, match=err_msg):
                 cur.execute("""
                         /*
                         Test block comment
@@ -787,7 +788,7 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
             cur = conn.cursor()
             query = "select 1; select 2; select 3;"
             err_msg = 'Cannot insert multiple commands into a prepared statement'
-            with self.assertRaisesRegexp(errors.VerticaSyntaxError, err_msg):
+            with pytest.raises(errors.VerticaSyntaxError, match=err_msg):
                 cur.execute(query)
 
     def test_num_of_parameters(self):
@@ -797,11 +798,11 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
             err_msg = 'Invalid number of parameters'
 
             # The number of parameters is less than columns of table
-            with self.assertRaisesRegexp(ValueError, err_msg):
+            with pytest.raises(ValueError, match=err_msg):
                 cur.execute("INSERT INTO {} VALUES (?,?)".format(self._table))
 
             # The number of parameters is greater than columns of table
-            with self.assertRaisesRegexp(ValueError, err_msg):
+            with pytest.raises(ValueError, match=err_msg):
                 cur.execute("INSERT INTO {} VALUES (?,?)".format(self._table), [1, 'foo', 2])
 
             # The number of parameters is equal to columns of table
@@ -818,7 +819,7 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
             cur.execute("CREATE TABLE {} (a int, b varchar)".format(self._table))
             err_msg = 'Syntax error at or near "%"'
             values = [1, 'varchar']
-            with self.assertRaisesRegexp(errors.VerticaSyntaxError, err_msg):
+            with pytest.raises(errors.VerticaSyntaxError, match=err_msg):
                 cur.execute("INSERT INTO {} VALUES (%s, %s)".format(self._table), values)
 
             cur.execute("INSERT INTO {} VALUES (%s, %s)".format(self._table),
@@ -834,7 +835,7 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
             cur.execute("CREATE TABLE {} (a int, b varchar)".format(self._table))
             err_msg = 'Execute parameters should be a list/tuple'
             values = {'a': 1, 'b': 'varchar'}
-            with self.assertRaisesRegexp(TypeError, err_msg):
+            with pytest.raises(TypeError, match=err_msg):
                 cur.execute("INSERT INTO {} VALUES (:a, :b)".format(self._table), values)
 
             cur.execute("INSERT INTO {} VALUES (:a, :b)".format(self._table),

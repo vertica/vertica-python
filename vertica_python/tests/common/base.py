@@ -121,7 +121,7 @@ class VerticaPythonTestCase(unittest.TestCase):
 
         testfile = os.path.splitext(os.path.basename(inspect.getsourcefile(cls)))[0]
         logfile = os.path.join(log_dir, tag, testfile + '.log')
-        VerticaLogging.setup_file_logging(cls.__name__, logfile, log_level, cls.__name__)
+        VerticaLogging.setup_logging(cls.__name__, logfile, log_level, cls.__name__)
         cls.logger = logging.getLogger(cls.__name__)
         return logfile
 

@@ -246,8 +246,8 @@ class Connection(object):
         else:
             self.options.setdefault('log_level', DEFAULT_LOG_LEVEL)
             self.options.setdefault('log_path', DEFAULT_LOG_PATH)
-            VerticaLogging.setup_file_logging(logger_name, self.options['log_path'],
-                                              self.options['log_level'], id(self))
+            VerticaLogging.setup_logging(logger_name, self.options['log_path'],
+                                         self.options['log_level'], id(self))
 
         self.options.setdefault('host', DEFAULT_HOST)
         self.options.setdefault('port', DEFAULT_PORT)

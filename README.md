@@ -116,7 +116,7 @@ with vertica_python.connect(**conn_info) as conn:
     # do things
 ```
 
-Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.8/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. For example,
+Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.8/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. If ```log_path``` is set to ```None``` no file handler is set, logs will be processed by root handlers. For example,
 
 ```python
 import vertica_python
@@ -152,6 +152,17 @@ conn_info = {'host': '127.0.0.1',
              'log_path': '/home/admin/logs/vClient.log'}
 with vertica_python.connect(**conn_info) as connection:
    # do things
+
+## Example 4: use root handlers to process logs by setting 'log_path' to 'None' 
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'log_level': logging.DEBUG,
+             'log_path': None}
+with vertica_python.connect(**conn_info) as connection:
+    # do things
 ```
 
 Connection Failover: Supply a list of backup hosts to ```backup_server_node``` for the client to try if the primary host you specify in the connection parameters (```host```, ```port```) is unreachable. Each item in the list should be either a host string (using default port 5433) or a (host, port) tuple. A host can be a host name or an IP address.

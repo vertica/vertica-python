@@ -219,7 +219,7 @@ class LoadBalanceTestCase(VerticaPythonIntegrationTestCase):
         self.assertConnectionFail(TypeError, err_msg)
 
         err_msg = ('Each item of connection option "backup_server_node"'
-                   ' must be a host string or a \(host, port\) tuple')
+                   r' must be a host string or a \(host, port\) tuple')
         self._conn_info['backup_server_node'] = [9999]
         self.assertConnectionFail(TypeError, err_msg)
         self._conn_info['backup_server_node'] = [(self._host, self._port, 'foo', 9999)]
@@ -235,7 +235,7 @@ class LoadBalanceTestCase(VerticaPythonIntegrationTestCase):
         self._conn_info['backup_server_node'] = [(self._host, 5433.0022)]
         self.assertConnectionFail(TypeError, err_msg)
 
-        err_msg = 'Port .* is not a valid string: invalid literal for int\(\) with base 10: .*'
+        err_msg = r'Port .* is not a valid string: invalid literal for int\(\) with base 10: .*'
         self._conn_info['backup_server_node'] = [(self._host, 'port_num')]
         self.assertConnectionFail(ValueError, err_msg)
         self._conn_info['backup_server_node'] = [(self._host, '5433.0022')]

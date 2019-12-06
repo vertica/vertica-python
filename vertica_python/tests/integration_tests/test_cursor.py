@@ -654,6 +654,14 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
             cur.execute("SELECT :a, :b", parameters={"a": all_chars, "b": backslash_data})
             self.assertEqual([all_chars, backslash_data], cur.fetchone())
 
+    def test_execute_percent_parameters(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            all_chars = u"".join(chr(i) for i in range(1, 128))
+            backslash_data = u"\\backslash\\ \\data\\\\"
+            cur.execute("SELECT %s, %s", parameters=[all_chars, backslash_data])
+            self.assertEqual([all_chars, backslash_data], cur.fetchone())
+
 
 class SimpleQueryExecutemanyTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):

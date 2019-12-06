@@ -484,7 +484,7 @@ class Cursor(object):
                 # Using a regex with word boundary to correctly handle params with similar names
                 # such as :s and :start
                 match_str = u":{0}\\b".format(key)
-                operation = re.sub(match_str, value, operation, flags=re.U)
+                operation = re.sub(match_str, lambda _: value, operation, flags=re.U)
 
         elif isinstance(parameters, (tuple, list)):
             tlist = []
@@ -511,7 +511,7 @@ class Cursor(object):
         if is_csv:
             return u'"{0}"'.format(re.escape(param))
         else:
-            return u"'{0}'".format(param.replace(u"'", u"''").replace(u"\\", u"\\\\"))
+            return u"'{0}'".format(param.replace(u"'", u"''"))
 
     def _execute_simple_query(self, query):
         """

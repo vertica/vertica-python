@@ -385,7 +385,7 @@ class Cursor(object):
             stream = BytesIO(data)
         elif isinstance(data, text_type):
             stream = StringIO(data)
-        elif isinstance(data, file_type):
+        elif isinstance(data, file_type) or callable(getattr(data, 'read', None)):
             stream = data
         else:
             raise TypeError("Not valid type of data {0}".format(type(data)))

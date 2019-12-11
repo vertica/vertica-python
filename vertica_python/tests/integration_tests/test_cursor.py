@@ -207,6 +207,31 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             res_from_cur2 = cur2.fetchall()
             self.assertListOfListsEqual(res_from_cur2, [[2, 'bar']])
 
+    # integration test for #345
+    def test_copy_with_file_like_object(self):
+        class FileWrapper:
+            read = property(lambda self: self.file.read)
+            seek = property(lambda self: self.file.seek)
+            write = property(lambda self: self.file.write)
+
+            def __init__(self, file):
+                self.file = file
+
+        with tempfile.TemporaryFile() as f, self._connect() as conn:
+            wrapped_f = FileWrapper(f)  # object with a read() method
+            wrapped_f.write(b"1,foo\n2,bar")
+            # move rw pointer to top of file
+            wrapped_f.seek(0)
+
+            cur = conn.cursor()
+            cur.copy(
+                "COPY {0} (a, b) FROM STDIN DELIMITER ','".format(self._table),
+                wrapped_f
+            )
+            cur.execute("SELECT * FROM {0} ORDER BY a ASC".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [[1, 'foo'], [2, 'bar']])
+
     # integration test for #325
     @parameterized.expand([
         (tempfile.NamedTemporaryFile,),
@@ -223,9 +248,9 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
                 "COPY {0} (a, b) FROM STDIN DELIMITER ','".format(self._table),
                 f,
             )
-            cur.execute("SELECT a, b FROM {0} WHERE a = 1".format(self._table))
+            cur.execute("SELECT * FROM {0} ORDER BY a ASC".format(self._table))
             res = cur.fetchall()
-            self.assertListOfListsEqual(res, [[1, 'foo']])
+            self.assertListOfListsEqual(res, [[1, 'foo'], [2, 'bar']])
 
     def test_copy_with_file(self):
         with tempfile.TemporaryFile() as f, self._connect() as conn1, self._connect() as conn2:

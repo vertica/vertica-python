@@ -379,7 +379,13 @@ cur = connection.cursor()
 cur.copy("COPY test_copy (id, name) from stdin DELIMITER ',' ",  csv)
 ```
 
-Where `csv` is either a string or a file-like object (specifically, any object with a `read()` method). If using a file, the data is streamed.
+Where `csv` is either a string or a file-like object (specifically, any object with a `read()` method). If using a file, the data is streamed (in chunks of `buffer_size` bytes, which defaults to 128 * 2 ** 10).
+
+```python
+with open("/tmp/binary_file.csv", "rb") as fs:
+    cursor.copy("COPY table(field1, field2) FROM STDIN DELIMITER ',' ENCLOSED BY '\"'",
+                fs, buffer_size=65536)
+```
 
 
 **Cancel the current database operation** :

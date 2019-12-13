@@ -116,7 +116,7 @@ def parse_dsn(dsn):
 
     return result
 
-_AddressEntry = namedtuple('_AddressEntry', ['resolved', 'data'])
+_AddressEntry = namedtuple('_AddressEntry', ['host', 'resolved', 'data'])
 
 class _AddressList(object):
     def __init__(self, host, port, backup_nodes, logger):
@@ -125,8 +125,9 @@ class _AddressList(object):
         self._logger = logger
 
         # Items in address_deque are _AddressEntry values.
-        #   - when resolved is False, data is (host, port)
-        #   - when resolved is True, data is the 5-tuple from getaddrinfo
+        #   host is the original hostname/ip, used by SSL option check_hostname
+        #   - when resolved is False, data is port
+        #   - when resolved is True, data is the 5-tuple from socket.getaddrinfo
         # This allows for lazy resolution. Seek peek() for more.
         self.address_deque = deque()
 
@@ -178,10 +179,10 @@ class _AddressList(object):
             self._logger.error(err_msg)
             raise ValueError(err_msg)
 
-        self.address_deque.append(_AddressEntry(resolved=False, data=(host, port)))
+        self.address_deque.append(_AddressEntry(host=host, resolved=False, data=port))
 
     def push(self, host, port):
-        self.address_deque.appendleft(_AddressEntry(resolved=False, data=(host, port)))
+        self.address_deque.appendleft(_AddressEntry(host=host, resolved=False, data=port))
 
     def pop(self):
         self.address_deque.popleft()
@@ -200,7 +201,7 @@ class _AddressList(object):
             else:
                 # DNS resolve a single host name to multiple IP addresses
                 self.address_deque.popleft()
-                host, port = entry.data
+                host, port = entry.host, entry.data
                 try:
                     resolved_hosts = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
                 except Exception as e:
@@ -210,8 +211,16 @@ class _AddressList(object):
                 # add resolved addrinfo (AF_INET and AF_INET6 only) to deque
                 for addrinfo in reversed(resolved_hosts):
                     if addrinfo[0] in (socket.AF_INET, socket.AF_INET6):
-                        self.address_deque.appendleft(_AddressEntry(resolved=True, data=addrinfo))
+                        self.address_deque.appendleft(_AddressEntry(
+                            host=host, resolved=True, data=addrinfo))
         return None
+
+    def peek_host(self):
+        # returning the leftmost host result
+        self._logger.debug('Peek host at address list: {0}'.format(list(self.address_deque)))
+        if len(self.address_deque) == 0:
+            return None
+        return self.address_deque[0].host
 
 
 def _generate_session_label():
@@ -468,10 +477,12 @@ class Connection(object):
             self._logger.info('Enabling SSL')
             try:
                 if isinstance(ssl_options, ssl.SSLContext):
-                    peer = raw_socket.getpeername()
-                    host, port = peer[0], peer[1]
-
-                    raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=host)
+                    server_host = self.address_list.peek_host()
+                    if server_host is None:   # This should not happen
+                        msg = 'Cannot get the connected server host while enabling SSL'
+                        self._logger.error(msg)
+                        raise errors.ConnectionError(msg)
+                    raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=server_host)
                 else:
                     raw_socket = ssl.wrap_socket(raw_socket)
             except ssl.CertificateError as e:

@@ -139,7 +139,7 @@ def time_parse(s):
 def vertica_type_cast(type_code, unicode_error):
     typecaster = {
         VerticaType.UNKNOWN: None,
-        VerticaType.BOOL: lambda s: 't' == str(s, encoding='utf-8', errors=unicode_error),
+        VerticaType.BOOL: lambda s: s == b't',
         VerticaType.INT8: lambda s: int(s),
         VerticaType.FLOAT8: lambda s: float(s),
         VerticaType.CHAR: lambda s: str(s, encoding='utf-8', errors=unicode_error),

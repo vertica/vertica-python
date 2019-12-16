@@ -65,6 +65,7 @@ from ..vertica.log import VerticaLogging
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 5433
 DEFAULT_PASSWORD = ''
+DEFAULT_BACKUP_SERVER_NODE = []
 DEFAULT_KRB_SERVICE_NAME = 'vertica'
 DEFAULT_LOG_LEVEL = logging.WARNING
 DEFAULT_LOG_PATH = 'vertica_python.log'
@@ -115,7 +116,7 @@ def parse_dsn(dsn):
 
     return result
 
-_AddressEntry = namedtuple('_AddressEntry', ['resolved', 'data'])
+_AddressEntry = namedtuple('_AddressEntry', ['host', 'resolved', 'data'])
 
 class _AddressList(object):
     def __init__(self, host, port, backup_nodes, logger):
@@ -124,8 +125,9 @@ class _AddressList(object):
         self._logger = logger
 
         # Items in address_deque are _AddressEntry values.
-        #   - when resolved is False, data is (host, port)
-        #   - when resolved is True, data is the 5-tuple from getaddrinfo
+        #   host is the original hostname/ip, used by SSL option check_hostname
+        #   - when resolved is False, data is port
+        #   - when resolved is True, data is the 5-tuple from socket.getaddrinfo
         # This allows for lazy resolution. Seek peek() for more.
         self.address_deque = deque()
 
@@ -155,7 +157,6 @@ class _AddressList(object):
         self._logger.debug('Address list: {0}'.format(list(self.address_deque)))
 
     def _append(self, host, port):
-
         if not isinstance(host, string_types):
             err_msg = 'Host must be a string: invalid value: {0}'.format(host)
             self._logger.error(err_msg)
@@ -178,10 +179,10 @@ class _AddressList(object):
             self._logger.error(err_msg)
             raise ValueError(err_msg)
 
-        self.address_deque.append(_AddressEntry(resolved=False, data=(host, port)))
+        self.address_deque.append(_AddressEntry(host=host, resolved=False, data=port))
 
     def push(self, host, port):
-        self.address_deque.appendleft(_AddressEntry(resolved=False, data=(host, port)))
+        self.address_deque.appendleft(_AddressEntry(host=host, resolved=False, data=port))
 
     def pop(self):
         self.address_deque.popleft()
@@ -192,15 +193,15 @@ class _AddressList(object):
             return None
 
         while len(self.address_deque) > 0:
+            self._logger.debug('Peek at address list: {0}'.format(list(self.address_deque)))
             entry = self.address_deque[0]
             if entry.resolved:
                 # return a resolved sockaddrinfo
-                self._logger.debug('Peek at address list: {0}'.format(list(self.address_deque)))
                 return entry.data
             else:
                 # DNS resolve a single host name to multiple IP addresses
                 self.address_deque.popleft()
-                host, port = entry.data
+                host, port = entry.host, entry.data
                 try:
                     resolved_hosts = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
                 except Exception as e:
@@ -210,9 +211,16 @@ class _AddressList(object):
                 # add resolved addrinfo (AF_INET and AF_INET6 only) to deque
                 for addrinfo in reversed(resolved_hosts):
                     if addrinfo[0] in (socket.AF_INET, socket.AF_INET6):
-                        self.address_deque.appendleft(_AddressEntry(resolved=True, data=addrinfo))
-
+                        self.address_deque.appendleft(_AddressEntry(
+                            host=host, resolved=True, data=addrinfo))
         return None
+
+    def peek_host(self):
+        # returning the leftmost host result
+        self._logger.debug('Peek host at address list: {0}'.format(list(self.address_deque)))
+        if len(self.address_deque) == 0:
+            return None
+        return self.address_deque[0].host
 
 
 def _generate_session_label():
@@ -247,8 +255,8 @@ class Connection(object):
         else:
             self.options.setdefault('log_level', DEFAULT_LOG_LEVEL)
             self.options.setdefault('log_path', DEFAULT_LOG_PATH)
-            VerticaLogging.setup_file_logging(logger_name, self.options['log_path'],
-                                              self.options['log_level'], id(self))
+            VerticaLogging.setup_logging(logger_name, self.options['log_path'],
+                                         self.options['log_level'], id(self))
 
         self.options.setdefault('host', DEFAULT_HOST)
         self.options.setdefault('port', DEFAULT_PORT)
@@ -262,13 +270,14 @@ class Connection(object):
         self.options.setdefault('database', self.options['user'])
         self.options.setdefault('password', DEFAULT_PASSWORD)
         self.options.setdefault('session_label', _generate_session_label())
+        self.options.setdefault('backup_server_node', DEFAULT_BACKUP_SERVER_NODE)
         self.options.setdefault('kerberos_service_name', DEFAULT_KRB_SERVICE_NAME)
         # Kerberos authentication hostname defaults to the host value here so
         # the correct value cannot be overwritten by load balancing or failover
         self.options.setdefault('kerberos_host_name', self.options['host'])
 
         self.address_list = _AddressList(self.options['host'], self.options['port'],
-                                         self.options.get('backup_server_node', []), self._logger)
+                                         self.options['backup_server_node'], self._logger)
 
         # we only support one cursor per connection
         self.options.setdefault('unicode_error', None)
@@ -286,6 +295,9 @@ class Connection(object):
         self.startup_connection()
         self._logger.info('Connection is ready')
 
+    #############################################
+    # supporting `with` statements
+    #############################################
     def __enter__(self):
         return self
 
@@ -315,12 +327,6 @@ class Connection(object):
         finally:
             self.close_socket()
 
-    def cancel(self):
-        if self.closed():
-            raise errors.ConnectionError('Connection is closed')
-
-        self.write(CancelRequest(backend_pid=self.backend_pid, backend_key=self.backend_key))
-
     def commit(self):
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
@@ -347,6 +353,40 @@ class Connection(object):
         return self._cursor
 
     #############################################
+    # non-dbapi methods
+    #############################################
+    def cancel(self):
+        """Cancel the current database operation. This can be called from a
+           different thread than the one currently executing a database operation.
+        """
+        if self.closed():
+            raise errors.ConnectionError('Connection is closed')
+        self._logger.info('Canceling the current database operation')
+        # Must create a new socket connection to the server
+        temp_socket = self.establish_socket_connection(self.address_list)
+        self.write(CancelRequest(self.backend_pid, self.backend_key), temp_socket)
+        temp_socket.close()
+
+        self._logger.info('Cancel request issued')
+
+    def opened(self):
+        return (self.socket is not None
+                and self.backend_pid is not None
+                and self.transaction_status is not None)
+
+    def closed(self):
+        return not self.opened()
+
+    def __str__(self):
+        safe_options = {key: value for key, value in self.options.items() if key != 'password'}
+
+        s1 = "<Vertica.Connection:{0} parameters={1} backend_pid={2}, ".format(
+            id(self), self.parameters, self.backend_pid)
+        s2 = "backend_key={0}, transaction_status={1}, socket={2}, options={3}>".format(
+            self.backend_key, self.transaction_status, self.socket, safe_options)
+        return ''.join([s1, s2])
+
+    #############################################
     # internal
     #############################################
     def reset_values(self):
@@ -357,14 +397,14 @@ class Connection(object):
         self.transaction_status = None
         self.socket = None
         self.address_list = _AddressList(self.options['host'], self.options['port'],
-                                         self.options.get('backup_server_node', []), self._logger)
+                                         self.options['backup_server_node'], self._logger)
 
     def _socket(self):
         if self.socket:
             return self.socket
 
         # the initial establishment of the client connection
-        raw_socket = self.establish_connection()
+        raw_socket = self.establish_socket_connection(self.address_list)
 
         # enable load balancing
         load_balance_options = self.options.get('connection_load_balance')
@@ -383,6 +423,7 @@ class Connection(object):
         return self.socket
 
     def create_socket(self, family):
+        """Create a TCP socket object"""
         raw_socket = socket.socket(family, socket.SOCK_STREAM)
         raw_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         connection_timeout = self.options.get('connection_timeout')
@@ -397,7 +438,7 @@ class Connection(object):
         raw_socket.sendall(messages.LoadBalanceRequest().get_message())
         response = raw_socket.recv(1)
 
-        if response in (b'Y', 'Y'):
+        if response == b'Y':
             size = unpack('!I', raw_socket.recv(4))[0]
             if size < 4:
                 err_msg = "Bad message size: {0}".format(size)
@@ -419,7 +460,7 @@ class Connection(object):
             # will leave the originally-specified host as the first failover possibility.
             self.address_list.push(host, port)
             raw_socket.close()
-            raw_socket = self.establish_connection()
+            raw_socket = self.establish_socket_connection(self.address_list)
         else:
             self._logger.debug('<= LoadBalanceResponse: %s', response)
             self._logger.warning("Load balancing requested but not supported by server")
@@ -427,25 +468,26 @@ class Connection(object):
         return raw_socket
 
     def enable_ssl(self, raw_socket, ssl_options):
-        from ssl import CertificateError, SSLError
         # Send SSL request and read server response
         self._logger.debug('=> %s', messages.SslRequest())
         raw_socket.sendall(messages.SslRequest().get_message())
         response = raw_socket.recv(1)
         self._logger.debug('<= SslResponse: %s', response)
-        if response in ('S', b'S'):
+        if response == b'S':
             self._logger.info('Enabling SSL')
             try:
                 if isinstance(ssl_options, ssl.SSLContext):
-                    peer = raw_socket.getpeername()
-                    host, port = peer[0], peer[1]
-
-                    raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=host)
+                    server_host = self.address_list.peek_host()
+                    if server_host is None:   # This should not happen
+                        msg = 'Cannot get the connected server host while enabling SSL'
+                        self._logger.error(msg)
+                        raise errors.ConnectionError(msg)
+                    raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=server_host)
                 else:
                     raw_socket = ssl.wrap_socket(raw_socket)
-            except CertificateError as e:
+            except ssl.CertificateError as e:
                 raise_from(errors.ConnectionError(str(e)), e)
-            except SSLError as e:
+            except ssl.SSLError as e:
                 raise_from(errors.ConnectionError(str(e)), e)
         else:
             err_msg = "SSL requested but not supported by server"
@@ -453,8 +495,11 @@ class Connection(object):
             raise errors.SSLNotSupported(err_msg)
         return raw_socket
 
-    def establish_connection(self):
-        addrinfo = self.address_list.peek()
+    def establish_socket_connection(self, address_list):
+        """Given a list of database node addresses, establish the socket
+           connection to the database server. Return a connected socket object.
+        """
+        addrinfo = address_list.peek()
         raw_socket = None
         last_exception = None
 
@@ -477,8 +522,8 @@ class Connection(object):
             except Exception as e:
                 self._logger.info('Failed to connect to host "{0}" on port {1}: {2}'.format(host, port, e))
                 last_exception = e
-                self.address_list.pop()
-                addrinfo = self.address_list.peek()
+                address_list.pop()
+                addrinfo = address_list.peek()
                 raw_socket.close()
 
         # all of the addresses failed
@@ -492,24 +537,16 @@ class Connection(object):
     def ssl(self):
         return self.socket is not None and isinstance(self.socket, ssl.SSLSocket)
 
-    def opened(self):
-        return (self.socket is not None
-                and self.backend_pid is not None
-                and self.transaction_status is not None)
-
-    def closed(self):
-        return not self.opened()
-
-    def write(self, message):
+    def write(self, message, vsocket=None):
         if not isinstance(message, FrontendMessage):
             raise TypeError("invalid message: ({0})".format(message))
-
-        sock = self._socket()
+        if vsocket is None:
+            vsocket = self._socket()
         self._logger.debug('=> %s', message)
         try:
             for data in message.fetch_message():
                 try:
-                    sock.sendall(data)
+                    vsocket.sendall(data)
                 except Exception:
                     self._logger.error("couldn't send message")
                     raise
@@ -590,15 +627,6 @@ class Connection(object):
                 msg += 'Expected type: {}'.format(expected_types.__name__)
             self._logger.error(msg)
             raise errors.MessageError(msg)
-
-    def __str__(self):
-        safe_options = {key: value for key, value in self.options.items() if key != 'password'}
-
-        s1 = "<Vertica.Connection:{0} parameters={1} backend_pid={2}, ".format(
-            id(self), self.parameters, self.backend_pid)
-        s2 = "backend_key={0}, transaction_status={1}, socket={2}, options={3}>".format(
-            self.backend_key, self.transaction_status, self.socket, safe_options)
-        return ''.join([s1, s2])
 
     def read_bytes(self, n):
         results = bytes()

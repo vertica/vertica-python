@@ -40,13 +40,14 @@ import re
 from collections import namedtuple
 from datetime import date, datetime
 from decimal import Decimal
+from uuid import UUID
 
 # noinspection PyCompatibility,PyUnresolvedReferences
 from builtins import str
 from dateutil import parser, tz
 
 from .. import errors
-from .. import datatypes
+from ..datatypes import VerticaType, getDisplaySize, getPrecision, getScale
 from ..compat import as_str, as_text
 
 
@@ -134,77 +135,51 @@ def time_parse(s):
     return datetime.strptime(s, '%H:%M:%S.%f').time()
 
 
+# Type casting of SQL types bytes representation into Python objects
+def vertica_type_cast(type_code, unicode_error):
+    typecaster = {
+        VerticaType.UNKNOWN: None,
+        VerticaType.BOOL: lambda s: s == b't',
+        VerticaType.INT8: lambda s: int(s),
+        VerticaType.FLOAT8: lambda s: float(s),
+        VerticaType.CHAR: lambda s: str(s, encoding='utf-8', errors=unicode_error),
+        VerticaType.VARCHAR: lambda s: str(s, encoding='utf-8', errors=unicode_error),
+        VerticaType.DATE: date_parse,
+        VerticaType.TIME: time_parse,
+        VerticaType.TIMESTAMP: timestamp_parse,
+        VerticaType.TIMESTAMPTZ: timestamp_tz_parse,
+        VerticaType.INTERVAL: None,
+        VerticaType.TIMETZ: None,
+        VerticaType.NUMERIC: lambda s: Decimal(str(s, encoding='utf-8', errors=unicode_error)),
+        VerticaType.VARBINARY: None,
+        VerticaType.UUID: lambda s: UUID(str(s, encoding='utf-8', errors=unicode_error)),
+        VerticaType.INTERVALYM: None,
+        VerticaType.LONGVARCHAR: lambda s: str(s, encoding='utf-8', errors=unicode_error),
+        VerticaType.LONGVARBINARY: None,
+        VerticaType.BINARY: None
+    }
+    return typecaster.get(type_code, None)
+
+
 ColumnTuple = namedtuple('Column', ['name', 'type_code', 'display_size', 'internal_size',
                                     'precision', 'scale', 'null_ok'])
 
 
 class Column(object):
-    def __init__(self, col, unicode_error=None):
+    def __init__(self, col, unicode_error='strict'):
+        # Describe one query result column
         self.name = col['name']
         self.type_code = col['data_type_oid']
         self.type_name = col['data_type_name']
-        self.display_size = datatypes.getDisplaySize(col['data_type_oid'], col['type_modifier'])
+        self.display_size = getDisplaySize(col['data_type_oid'], col['type_modifier'])
         self.internal_size = col['data_type_size']
-        self.precision = datatypes.getPrecision(col['data_type_oid'], col['type_modifier'])
-        self.scale = datatypes.getScale(col['data_type_oid'], col['type_modifier'])
+        self.precision = getPrecision(col['data_type_oid'], col['type_modifier'])
+        self.scale = getScale(col['data_type_oid'], col['type_modifier'])
         self.null_ok = col['null_ok']
         self.is_identity = col['is_identity']
-        self.unicode_error = unicode_error
-        self.data_type_conversions = Column._data_type_conversions(unicode_error=self.unicode_error)
-
+        self.converter = vertica_type_cast(self.type_code, unicode_error)
         self.props = ColumnTuple(self.name, self.type_code, self.display_size, self.internal_size,
                                  self.precision, self.scale, self.null_ok)
-
-        # WORKAROUND: Treat LONGVARCHAR as VARCHAR
-        if self.type_code == 115:
-            self.type_code = 9
-
-        # Mark type_code as unspecified if not within known data types
-        if self.type_code >= len(self.data_type_conversions):
-            self.type_code = 0
-
-        # self.converter = self.data_type_conversions[col['data_type_oid']][1]
-        self.converter = self.data_type_conversions[self.type_code][1]
-
-        # things that are actually sent
-        # self.name = col['name']
-        # self.data_type = self.data_type_conversions[col['data_type_oid']][0]
-        # self.type_modifier = col['type_modifier']
-        # self.format = 'text' if col['format_code'] == 0 else 'binary'
-        # self.table_oid = col['table_oid']
-        # self.attribute_number = col['attribute_number']
-        # self.size = col['data_type_size']
-
-    @classmethod
-    def _data_type_conversions(cls, unicode_error=None):
-        if unicode_error is None:
-            unicode_error = 'strict'
-        return [
-            ('unspecified', None),
-            ('tuple', None),
-            ('pos', None),
-            ('record', None),
-            ('unknown', None),
-            ('bool', lambda s: 't' == str(s, encoding='utf-8', errors=unicode_error)),
-            ('integer', lambda s: int(s)),
-            ('float', lambda s: float(s)),
-            ('char', lambda s: str(s, encoding='utf-8', errors=unicode_error)),
-            ('varchar', lambda s: str(s, encoding='utf-8', errors=unicode_error)),
-            ('date', date_parse),
-            ('time', time_parse),
-            ('timestamp', timestamp_parse),
-            ('timestamp_tz', timestamp_tz_parse),
-            ('interval', None),
-            ('time_tz', None),
-            ('numeric',
-             lambda s: Decimal(str(s, encoding='utf-8', errors=unicode_error))),
-            ('bytea', None),
-            ('rle_tuple', None),
-        ]
-
-    @classmethod
-    def data_types(cls):
-        return tuple([name for name, value in cls._data_type_conversions()])
 
     def convert(self, s):
         if s is None:

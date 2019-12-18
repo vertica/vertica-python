@@ -175,3 +175,13 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
                    "but this database has only {1} available node(s).").format(
                    min_node_num, self.db_node_num)
             self.skipTest(msg)
+
+    def require_protocol_at_least(self, min_protocol_version):
+        with self._connect() as conn:
+            effective_protocol = conn.parameters['protocol_version']
+        if effective_protocol < min_protocol_version:
+            msg = ("The test requires the effective protocol version to be at "
+                   "least {}.{}, but the current version is {}.{}.").format(
+                   min_protocol_version >> 16, min_protocol_version & 0x0000ffff,
+                   effective_protocol >> 16, effective_protocol & 0x0000ffff)
+            self.skipTest(msg)

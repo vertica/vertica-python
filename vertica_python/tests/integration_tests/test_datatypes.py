@@ -36,6 +36,7 @@
 from __future__ import print_function, division, absolute_import
 
 from decimal import Decimal
+from uuid import UUID
 
 from .base import VerticaPythonIntegrationTestCase
 
@@ -56,6 +57,13 @@ class TypeTestCase(VerticaPythonIntegrationTestCase):
     def test_boolean_query__false(self):
         value = False
         query = "SELECT {0}::boolean".format(value)
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], value)
+
+    def test_uuid_query(self):
+        self.require_protocol_at_least(3 << 16 | 8)
+        value = UUID('00010203-0405-0607-0809-0a0b0c0d0e0f')
+        query = "SELECT '{0}'::uuid".format(value)
         res = self._query_and_fetchone(query)
         self.assertEqual(res[0], value)
 

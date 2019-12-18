@@ -588,8 +588,8 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
             conn.commit()
 
             cur.execute("SELECT a, b, c FROM {0}".format(self._table))
-            res = cur.fetchall()
-            self.assertListOfListsEqual(res, [[str(x), str(y), str(z)]])
+            res = cur.fetchall()[0]
+            self.assertListEqual([str(i) for i in res], [str(x), str(y), str(z)])
 
     # unit test for #74
     def test_nextset(self):

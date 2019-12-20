@@ -1,4 +1,3 @@
-future
 pytest
 pytest-timeout
 python-dateutil

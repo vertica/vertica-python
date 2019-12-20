@@ -46,7 +46,6 @@ from struct import unpack
 from collections import deque, namedtuple
 
 # noinspection PyCompatibility,PyUnresolvedReferences
-from builtins import str
 from six import raise_from, string_types, integer_types, PY2
 
 if PY2:

@@ -55,7 +55,6 @@ setup(
     license="Apache License 2.0",
     install_requires=[
         'python-dateutil>=1.5',
-        'future',
         'six>=1.10.0'
     ],
     classifiers=[

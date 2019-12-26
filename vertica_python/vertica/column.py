@@ -43,7 +43,6 @@ from decimal import Decimal
 from uuid import UUID
 
 # noinspection PyCompatibility,PyUnresolvedReferences
-from builtins import str
 from dateutil import parser, tz
 
 from .. import errors
@@ -142,19 +141,19 @@ def vertica_type_cast(type_code, unicode_error):
         VerticaType.BOOL: lambda s: s == b't',
         VerticaType.INT8: lambda s: int(s),
         VerticaType.FLOAT8: lambda s: float(s),
-        VerticaType.CHAR: lambda s: str(s, encoding='utf-8', errors=unicode_error),
-        VerticaType.VARCHAR: lambda s: str(s, encoding='utf-8', errors=unicode_error),
+        VerticaType.CHAR: lambda s: s.decode('utf-8', unicode_error),
+        VerticaType.VARCHAR: lambda s: s.decode('utf-8', unicode_error),
         VerticaType.DATE: date_parse,
         VerticaType.TIME: time_parse,
         VerticaType.TIMESTAMP: timestamp_parse,
         VerticaType.TIMESTAMPTZ: timestamp_tz_parse,
         VerticaType.INTERVAL: None,
         VerticaType.TIMETZ: None,
-        VerticaType.NUMERIC: lambda s: Decimal(str(s, encoding='utf-8', errors=unicode_error)),
+        VerticaType.NUMERIC: lambda s: Decimal(s.decode('utf-8', unicode_error)),
         VerticaType.VARBINARY: None,
-        VerticaType.UUID: lambda s: UUID(str(s, encoding='utf-8', errors=unicode_error)),
+        VerticaType.UUID: lambda s: UUID(s.decode('utf-8', unicode_error)),
         VerticaType.INTERVALYM: None,
-        VerticaType.LONGVARCHAR: lambda s: str(s, encoding='utf-8', errors=unicode_error),
+        VerticaType.LONGVARCHAR: lambda s: s.decode('utf-8', unicode_error),
         VerticaType.LONGVARBINARY: None,
         VerticaType.BINARY: None
     }

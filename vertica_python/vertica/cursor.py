@@ -53,7 +53,6 @@ except ImportError:
 
 import six
 # noinspection PyUnresolvedReferences,PyCompatibility
-from builtins import str
 from six import binary_type, text_type, string_types, BytesIO, StringIO
 
 from .. import errors

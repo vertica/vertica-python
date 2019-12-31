@@ -116,7 +116,7 @@ with vertica_python.connect(**conn_info) as conn:
     # do things
 ```
 
-Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.8/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. If ```log_path``` is set to ```None``` no file handler is set, logs will be processed by root handlers. For example,
+Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.8/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. If ```log_path``` is set to ```''``` (empty string) no file handler is set, logs will be processed by root handlers. For example,
 
 ```python
 import vertica_python
@@ -153,14 +153,14 @@ conn_info = {'host': '127.0.0.1',
 with vertica_python.connect(**conn_info) as connection:
    # do things
 
-## Example 4: use root handlers to process logs by setting 'log_path' to 'None' 
+## Example 4: use root handlers to process logs by setting 'log_path' to '' (empty string) 
 conn_info = {'host': '127.0.0.1',
              'port': 5433,
              'user': 'some_user',
              'password': 'some_password',
              'database': 'a_database',
              'log_level': logging.DEBUG,
-             'log_path': None}
+             'log_path': ''}
 with vertica_python.connect(**conn_info) as connection:
     # do things
 ```

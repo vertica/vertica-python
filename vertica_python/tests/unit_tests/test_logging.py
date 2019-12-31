@@ -40,6 +40,7 @@ class LoggingTestCase(VerticaPythonUnitTestCase):
         logger = logging.getLogger(logger_name)
 
         VerticaLogging.setup_logging(logger_name, None, 'DEBUG')
+        VerticaLogging.setup_logging(logger_name, '', 'DEBUG')
 
         self.assertEqual(len(logger.handlers), 0)
         self.assertEqual(logging.getLevelName(logger.getEffectiveLevel()), 'DEBUG')

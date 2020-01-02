@@ -87,4 +87,11 @@ class ParseDSNTestCase(VerticaPythonUnitTestCase):
                     'ssl': False}
         parsed = parse_dsn(dsn)
         self.assertDictEqual(expected, parsed)
-    
+
+    def test_arguments_blank_values(self):
+        dsn = ('vertica://mike@127.0.0.1/db1?connection_timeout=1.5&log_path=&'
+               'ssl=&connection_timeout=2&log_path=&connection_timeout=')
+        expected = {'host': '127.0.0.1', 'user': 'mike', 'database': 'db1',
+                    'connection_timeout': 2.0, 'log_path': ''}
+        parsed = parse_dsn(dsn)
+        self.assertDictEqual(expected, parsed)

@@ -97,21 +97,30 @@ def parse_dsn(dsn):
         ('password', url.password),
         ('database', url.path[1:])) if v
     }
-    for key, value in parse_qs(url.query).items():
-        if key == 'backup_server_node':
+    for key, values in parse_qs(url.query, keep_blank_values=True).items():
+        # Try to get the last non-blank value in the list of values for each key
+        for i in reversed(range(len(values))):
+            value = values[i]
+            if value != '':
+                break
+
+        if value == '' and key != 'log_path':
+            # blank values are to be ignored
+            continue
+        elif key == 'backup_server_node':
             continue
         elif key in ('connection_load_balance', 'use_prepared_statements', 'ssl'):
-            lower = value[-1].lower()
+            lower = value.lower()
             if lower in ('true', 'on', '1'):
                 result[key] = True
             elif lower in ('false', 'off', '0'):
                 result[key] = False
         elif key == 'connection_timeout':
-            result[key] = float(value[-1])
-        elif key == 'log_level' and value[-1].isdigit():
-            result[key] = int(value[-1])
+            result[key] = float(value)
+        elif key == 'log_level' and value.isdigit():
+            result[key] = int(value)
         else:
-            result[key] = value[-1]
+            result[key] = value
 
     return result
 
@@ -242,7 +251,7 @@ class Connection(object):
         options = options or {}
         self.options = parse_dsn(options['dsn']) if 'dsn' in options else {}
         self.options.update({key: value for key, value in options.items() \
-                             if key != 'dsn' and value is not None})
+                             if key == 'log_path' or (key != 'dsn' and value is not None)})
 
         # Set up connection logger
         logger_name = 'vertica_{0}_{1}'.format(id(self), str(uuid.uuid4())) # must be a unique value

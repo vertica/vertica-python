@@ -47,3 +47,7 @@ class Unknown(BackendMessage):
     @property
     def message_id(self):
         return self._message_id
+
+    def __str__(self):
+        return 'Unknown: message_id = {}, data = {}'.format(
+	           self._message_id, repr(self.data))

@@ -54,6 +54,7 @@ except ImportError:
 import six
 # noinspection PyUnresolvedReferences,PyCompatibility
 from six import binary_type, text_type, string_types, BytesIO, StringIO
+from six.moves import zip
 
 from .. import errors
 from ..compat import as_text
@@ -452,13 +453,13 @@ class Cursor(object):
 
     def format_row_as_dict(self, row_data):
         return OrderedDict(
-            (self.description[idx].name, self.description[idx].convert(value))
-            for idx, value in enumerate(row_data.values)
+            (descr.name, descr.convert(value))
+            for descr, value in zip(self.description, row_data.values)
         )
 
     def format_row_as_array(self, row_data):
-        return [self.description[idx].convert(value)
-                for idx, value in enumerate(row_data.values)]
+        return [descr.convert(value)
+                for descr, value in zip(self.description, row_data.values)]
 
     # noinspection PyArgumentList
     def format_operation_with_parameters(self, operation, parameters, is_csv=False):

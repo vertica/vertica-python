@@ -35,7 +35,7 @@
 
 from __future__ import print_function, division, absolute_import
 
-from struct import unpack, unpack_from
+from struct import unpack_from
 
 from six.moves import range
 
@@ -47,21 +47,17 @@ class DataRow(BackendMessage):
 
     def __init__(self, data):
         BackendMessage.__init__(self)
-        self.values = []
-        field_count = unpack('!H', data[0:2])[0]
+        field_count = unpack_from('!H', data, 0)[0]
+        self.values = [None] * field_count
         pos = 2
 
         for i in range(field_count):
             size = unpack_from('!I', data, pos)[0]
+            pos += 4
 
-            if size == 4294967295:
-                size = -1
-
-            if size == -1:
-                self.values.append(None)
-            else:
-                self.values.append(unpack_from('{0}s'.format(size), data, pos + 4)[0])
-            pos += (4 + max(size, 0))
+            if size > 0 and size != 4294967295:
+                self.values[i] = unpack_from('{0}s'.format(size), data, pos)[0]
+                pos += size
 
 
 BackendMessage.register(DataRow)

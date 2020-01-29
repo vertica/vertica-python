@@ -637,13 +637,22 @@ class Connection(object):
             raise errors.MessageError(msg)
 
     def read_bytes(self, n):
-        results = bytes()
-        while len(results) < n:
-            bytes_ = self._socket().recv(n - len(results))
-            if not bytes_:
+        if n == 1:
+            result = self._socket().recv(1)
+            if not result:
                 raise errors.ConnectionError("Connection closed by Vertica")
-            results += bytes_
-        return results
+            return result
+        else:
+            buf = bytearray(n)
+            view = memoryview(buf)
+            to_read = n
+            while to_read > 0:
+                received = self._socket().recv_into(view, to_read)
+                if received == 0:
+                    raise errors.ConnectionError("Connection closed by Vertica")
+                view = view[received:]
+                to_read -= received
+            return buf
 
     def send_GSS_response_and_receive_challenge(self, response):       
         # Send the GSS response data to the vertica server

@@ -52,10 +52,10 @@ class DataRow(BackendMessage):
         pos = 2
 
         for i in range(field_count):
-            size = unpack_from('!I', data, pos)[0]
+            size = unpack_from('!i', data, pos)[0]
             pos += 4
 
-            if size > 0 and size != 4294967295:
+            if size != -1:
                 self.values[i] = unpack_from('{0}s'.format(size), data, pos)[0]
                 pos += size
 

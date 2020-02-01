@@ -5,7 +5,7 @@
 [![Python Version](https://img.shields.io/pypi/pyversions/vertica-python.svg)](https://www.python.org/downloads/)
 [![Downloads](https://pepy.tech/badge/vertica-python/week)](https://pepy.tech/project/vertica-python)
 
-vertica-python is a native Python adapter for the Vertica (http://www.vertica.com) database.
+*vertica-python* is a native Python client for the Vertica (http://www.vertica.com) database. *vertica-python* is the replacement of the deprecated Python client *vertica_db_client*, which was removed since Vertica server version 9.3.
 
 :loudspeaker: 08/14/2018: *vertica-python* becomes Vertica’s first officially supported open source database client, see the blog [here](https://my.vertica.com/blog/vertica-python-becomes-verticas-first-officially-supported-open-source-database-client/).
 
@@ -13,7 +13,7 @@ Please check out [release notes](https://github.com/vertica/vertica-python/relea
 
 vertica-python is currently in beta stage; it has been tested for functionality and has a very basic test suite. Please use with caution, and feel free to submit issues and/or pull requests (Read up on our [contributing guidelines](#contributing-guidelines)).
 
-vertica-python has been tested with Vertica 9.1.1 and Python 2.7/3.4/3.5/3.6/3.7/3.8.
+vertica-python has been tested with Vertica 9.3.1 and Python 2.7/3.4/3.5/3.6/3.7/3.8.
 
 
 ## Installation
@@ -95,7 +95,7 @@ connection = vertica_python.connect(**conn_info)
 
 ```
 
-See more on SSL options [here](https://docs.python.org/3.8/library/ssl.html).
+See more on SSL options [here](https://docs.python.org/3/library/ssl.html).
 
 In order to use Kerberos authentication, install [dependencies](#using-kerberos-authentication) first, and it is the user's responsibility to ensure that an Ticket-Granting Ticket (TGT) is available and valid. Whether a TGT is available can be easily determined by running the `klist` command. If no TGT is available, then it first must be obtained by running the `kinit` command or by logging in. You can pass in optional arguments to customize the authentication. The arguments are `kerberos_service_name`, which defaults to "vertica", and `kerberos_host_name`, which defaults to the value of argument `host`. For example,
 
@@ -116,7 +116,7 @@ with vertica_python.connect(**conn_info) as conn:
     # do things
 ```
 
-Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3.8/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. If ```log_path``` is set to ```''``` (empty string) or ```None```, no file handler is set, logs will be processed by root handlers. For example,
+Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. If ```log_path``` is set to ```''``` (empty string) or ```None```, no file handler is set, logs will be processed by root handlers. For example,
 
 ```python
 import vertica_python

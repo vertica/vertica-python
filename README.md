@@ -19,8 +19,13 @@ vertica-python has been tested with Vertica 9.3.1 and Python 2.7/3.4/3.5/3.6/3.7
 ## Installation
 
 To install vertica-python with pip:
+```bash
+# Latest release version
+pip install vertica-python
 
-    pip install vertica-python
+# Latest commit on master branch
+pip install git+https://github.com/vertica/vertica-python.git@master
+```
 
 To install vertica-python from source, run the following command from the root directory:
 

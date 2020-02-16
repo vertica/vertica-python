@@ -137,7 +137,7 @@ def time_parse(s):
 # Type casting of SQL types bytes representation into Python objects
 def vertica_type_cast(type_code, unicode_error):
     typecaster = {
-        VerticaType.UNKNOWN: None,
+        VerticaType.UNKNOWN: bytes,
         VerticaType.BOOL: lambda s: s == b't',
         VerticaType.INT8: lambda s: int(s),
         VerticaType.FLOAT8: lambda s: float(s),
@@ -147,17 +147,17 @@ def vertica_type_cast(type_code, unicode_error):
         VerticaType.TIME: time_parse,
         VerticaType.TIMESTAMP: timestamp_parse,
         VerticaType.TIMESTAMPTZ: timestamp_tz_parse,
-        VerticaType.INTERVAL: None,
-        VerticaType.TIMETZ: None,
+        VerticaType.INTERVAL: bytes,
+        VerticaType.TIMETZ: bytes,
         VerticaType.NUMERIC: lambda s: Decimal(s.decode('utf-8', unicode_error)),
-        VerticaType.VARBINARY: None,
+        VerticaType.VARBINARY: bytes,
         VerticaType.UUID: lambda s: UUID(s.decode('utf-8', unicode_error)),
-        VerticaType.INTERVALYM: None,
+        VerticaType.INTERVALYM: bytes,
         VerticaType.LONGVARCHAR: lambda s: s.decode('utf-8', unicode_error),
-        VerticaType.LONGVARBINARY: None,
-        VerticaType.BINARY: None
+        VerticaType.LONGVARBINARY: bytes,
+        VerticaType.BINARY: bytes
     }
-    return typecaster.get(type_code, None)
+    return typecaster.get(type_code, bytes)
 
 
 ColumnTuple = namedtuple('Column', ['name', 'type_code', 'display_size', 'internal_size',
@@ -183,7 +183,7 @@ class Column(object):
     def convert(self, s):
         if s is None:
             return
-        return self.converter(s) if self.converter is not None else s
+        return self.converter(s)
 
     def __str__(self):
         return as_str(str(self.props))

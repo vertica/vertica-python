@@ -76,16 +76,16 @@ def as_bytes(bytes_or_text, encoding='utf-8'):
       bytes_or_text: A `bytes`, `bytearray`, `str`, or `unicode` object.
       encoding: A string indicating the charset for encoding unicode.
     Returns:
-      A `bytes` or `bytearray` object.
+      A `bytes` object.
     Raises:
       TypeError: If `bytes_or_text` is not a binary or unicode string.
     """
     if isinstance(bytes_or_text, _six.text_type):
         return bytes_or_text.encode(encoding)
-    elif _six.PY2 and isinstance(bytes_or_text, bytearray):
-        return bytes(bytes_or_text)  # Python 2 would expect an actual bytes (str) object
-    elif isinstance(bytes_or_text, (bytes, bytearray)):
-        return bytes_or_text  # Python 3 can use bytearray and bytes almost interchangeably
+    elif isinstance(bytes_or_text, bytearray):
+        return bytes(bytes_or_text)
+    elif isinstance(bytes_or_text, bytes):
+        return bytes_or_text
     else:
         raise TypeError('Expected binary or unicode string, got %r' %
                         (bytes_or_text,))

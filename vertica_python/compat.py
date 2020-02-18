@@ -73,7 +73,7 @@ import six as _six
 def as_bytes(bytes_or_text, encoding='utf-8'):
     """Converts either bytes or unicode to `bytes`, using utf-8 encoding for text.
     Args:
-      bytes_or_text: A `bytes`, `str`, or `unicode` object.
+      bytes_or_text: A `bytes`, `bytearray`, `str`, or `unicode` object.
       encoding: A string indicating the charset for encoding unicode.
     Returns:
       A `bytes` object.
@@ -82,6 +82,8 @@ def as_bytes(bytes_or_text, encoding='utf-8'):
     """
     if isinstance(bytes_or_text, _six.text_type):
         return bytes_or_text.encode(encoding)
+    elif isinstance(bytes_or_text, bytearray):
+        return bytes(bytes_or_text)
     elif isinstance(bytes_or_text, bytes):
         return bytes_or_text
     else:
@@ -92,7 +94,7 @@ def as_bytes(bytes_or_text, encoding='utf-8'):
 def as_text(bytes_or_text, encoding='utf-8'):
     """Returns the given argument as a unicode string.
     Args:
-      bytes_or_text: A `bytes`, `str, or `unicode` object.
+      bytes_or_text: A `bytes`, `bytearray`, `str`, or `unicode` object.
       encoding: A string indicating the charset for decoding unicode.
     Returns:
       A `unicode` (Python 2) or `str` (Python 3) object.
@@ -101,7 +103,7 @@ def as_text(bytes_or_text, encoding='utf-8'):
     """
     if isinstance(bytes_or_text, _six.text_type):
         return bytes_or_text
-    elif isinstance(bytes_or_text, bytes):
+    elif isinstance(bytes_or_text, (bytes, bytearray)):
         return bytes_or_text.decode(encoding)
     else:
         raise TypeError('Expected binary or unicode string, got %r' % bytes_or_text)
@@ -121,14 +123,14 @@ def as_str_any(value):
     Returns:
       A `str` object.
     """
-    if isinstance(value, bytes):
+    if isinstance(value, (bytes, bytearray)):
         return as_str(value)
     else:
         return str(value)
 
 
 # Either bytes or text.
-bytes_or_text_types = (bytes, _six.text_type)
+bytes_or_text_types = (bytes, bytearray, _six.text_type)
 
 _allowed_symbols = [
     'as_str',

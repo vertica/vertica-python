@@ -56,7 +56,7 @@ class DataRow(BackendMessage):
             pos += 4
 
             if size != -1:
-                self.values[i] = unpack_from('{0}s'.format(size), data, pos)[0]
+                self.values[i] = data[pos : pos + size]
                 pos += size
 
 

@@ -39,6 +39,7 @@ from __future__ import print_function, division, absolute_import
 import datetime
 import inspect
 import re
+from decimal import Decimal
 from io import IOBase
 from tempfile import NamedTemporaryFile, SpooledTemporaryFile, TemporaryFile
 from uuid import UUID
@@ -53,7 +54,7 @@ except ImportError:
 
 import six
 # noinspection PyUnresolvedReferences,PyCompatibility
-from six import binary_type, text_type, string_types, BytesIO, StringIO
+from six import binary_type, text_type, string_types, integer_types, BytesIO, StringIO
 from six.moves import zip
 
 from .. import errors
@@ -115,7 +116,6 @@ if six.PY2:
     # noinspection PyUnresolvedReferences
     file_type = file_type + (file,)
 
-NULL = "NULL"
 
 RE_NAME_BASE = u"[a-zA-Z_][\\w\\d\\$_]*"
 RE_NAME = u'(("{0}")|({0}))'.format(RE_NAME_BASE)
@@ -141,6 +141,7 @@ class Cursor(object):
         self.prepared_sql = None  # last statement been prepared
         self.prepared_name = "s0"
         self.error = None
+        self._sql_literal_adapters = {}
 
         #
         # dbapi attributes
@@ -241,7 +242,7 @@ class Cursor(object):
 
                 values = as_text(m.group('values'))
                 values = ",".join([value.strip().strip('"') for value in values.split(",")])
-                seq_of_values = [self.format_operation_with_parameters(values, parameters, is_csv=True)
+                seq_of_values = [self.format_operation_with_parameters(values, parameters, is_copy_data=True)
                                  for parameters in seq_of_parameters]
                 data = "\n".join(seq_of_values)
 
@@ -412,6 +413,14 @@ class Cursor(object):
         if self.error is not None:
             raise self.error
 
+    def object_to_sql_literal(self, py_obj):
+        return self.object_to_string(py_obj, False)
+
+    def register_sql_literal_adapter(self, obj_type, adapter_func):
+        if not callable(adapter_func):
+            raise TypeError("Cannot register this sql literal adapter. The adapter is not callable.")
+        self._sql_literal_adapters[obj_type] = adapter_func
+
     #############################################
     # internal
     #############################################
@@ -461,8 +470,38 @@ class Cursor(object):
         return [descr.convert(value)
                 for descr, value in zip(self.description, row_data.values)]
 
+    def object_to_string(self, py_obj, is_copy_data):
+        """Return the SQL representation of the object as a string"""
+        if type(py_obj) in self._sql_literal_adapters and not is_copy_data:
+            adapter = self._sql_literal_adapters[type(py_obj)]
+            result = adapter(py_obj)
+            if not isinstance(result, (string_types, bytes)):
+                raise TypeError("Unexpected return type of {} adapter: {}, expected a string type."
+                    .format(type(py_obj), type(result)))
+            return as_text(result)
+
+        if isinstance(py_obj, type(None)):
+            return '' if is_copy_data else 'NULL'
+        elif isinstance(py_obj, bool):
+            return str(py_obj)
+        elif isinstance(py_obj, (string_types, bytes)):
+            return self.format_quote(as_text(py_obj), is_copy_data)
+        elif isinstance(py_obj, (integer_types, float, Decimal)):
+            return str(py_obj)
+        elif isinstance(py_obj, (datetime.datetime, datetime.date, datetime.time, UUID)):
+            return self.format_quote(as_text(str(py_obj)), is_copy_data)
+        else:
+            if is_copy_data:
+                return str(py_obj)
+            else:
+                msg = ("Cannot convert {} type object to an SQL string. "
+                       "Please register a new adapter for this type via the "
+                       "Cursor.register_sql_literal_adapter() function."
+                       .format(type(py_obj)))
+                raise TypeError(msg)
+
     # noinspection PyArgumentList
-    def format_operation_with_parameters(self, operation, parameters, is_csv=False):
+    def format_operation_with_parameters(self, operation, parameters, is_copy_data=False):
         operation = as_text(operation)
 
         if isinstance(parameters, dict):
@@ -471,15 +510,7 @@ class Cursor(object):
                     key = str(key)
                 key = as_text(key)
 
-                if isinstance(param, (string_types, bytes)):
-                    param = self.format_quote(as_text(param), is_csv)
-                elif isinstance(param, (datetime.datetime, datetime.date, datetime.time, UUID)):
-                    param = self.format_quote(as_text(str(param)), is_csv)
-                elif param is None:
-                    param = '' if is_csv else NULL
-                else:
-                    param = str(param)
-                value = as_text(param)
+                value = self.object_to_string(param, is_copy_data)
 
                 # Using a regex with word boundary to correctly handle params with similar names
                 # such as :s and :start
@@ -489,16 +520,7 @@ class Cursor(object):
         elif isinstance(parameters, (tuple, list)):
             tlist = []
             for param in parameters:
-                if isinstance(param, (string_types, bytes)):
-                    param = self.format_quote(as_text(param), is_csv)
-                elif isinstance(param, (datetime.datetime, datetime.date, datetime.time, UUID)):
-                    param = self.format_quote(as_text(str(param)), is_csv)
-                elif param is None:
-                    param = '' if is_csv else NULL
-                else:
-                    param = str(param)
-                value = as_text(param)
-
+                value = self.object_to_string(param, is_copy_data)
                 tlist.append(value)
 
             operation = operation % tuple(tlist)
@@ -507,8 +529,8 @@ class Cursor(object):
 
         return operation
 
-    def format_quote(self, param, is_csv):
-        if is_csv:
+    def format_quote(self, param, is_copy_data):
+        if is_copy_data:
             return u'"{0}"'.format(re.escape(param))
         else:
             return u"'{0}'".format(param.replace(u"'", u"''"))

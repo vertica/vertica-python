@@ -123,6 +123,7 @@ RE_BASIC_INSERT_STAT = (
     u"\\s*\\(\\s*(?P<variables>{0}(\\s*,\\s*{0})*)\\s*\\)"
     u"\\s+VALUES\\s*\\(\\s*(?P<values>(.|\\s)*)\\s*\\)").format(RE_NAME)
 END_OF_RESULT_RESPONSES = (messages.CommandComplete, messages.PortalSuspended)
+DEFAULT_BUFFER_SIZE = 131072
 
 
 class Cursor(object):
@@ -389,8 +390,35 @@ class Cursor(object):
         else:
             raise TypeError("Not valid type of data {0}".format(type(data)))
 
+        # TODO: check sql is a valid `COPY FROM STDIN` SQL statement
+
         self._logger.info(u'Execute COPY statement: [{}]'.format(sql))
+        # Execute a `COPY FROM STDIN` SQL statement
         self.connection.write(messages.Query(sql))
+
+        # Read expected message: CopyInResponse
+        self._message = self.connection.read_expected_message(messages.CopyInResponse,
+                                                              self._copy_error_handler(sql))
+
+        # Send zero or more CopyData messages, forming a stream of input data
+        buffer_size = kwargs['buffer_size'] if 'buffer_size' in kwargs else DEFAULT_BUFFER_SIZE
+
+        while True:
+            try:
+                chunk = stream.read(buffer_size)
+            except Exception as e:
+                # COPY termination: report the cause of failure to the backend
+                self.connection.write(messages.CopyFail(str(e)))
+                self._logger.error(str(e))
+                raise errors.DataError('Failed to read a COPY data stream: {}'.format(str(e)))
+
+            if not chunk:
+                break
+
+            self.connection.write(messages.CopyData(chunk, self.unicode_error))
+
+        # Successful termination for COPY
+        self.connection.write(messages.CopyDone())
 
         while True:
             message = self.connection.read_message()
@@ -400,9 +428,6 @@ class Cursor(object):
                 raise errors.QueryError.from_error_response(message, sql)
             elif isinstance(message, messages.ReadyForQuery):
                 break
-            elif isinstance(message, messages.CopyInResponse):
-                self.connection.write(messages.CopyStream(stream, **kwargs))
-                self.connection.write(messages.CopyDone())
             elif isinstance(message, messages.CommandComplete):
                 pass
             else:
@@ -414,6 +439,12 @@ class Cursor(object):
     #############################################
     # internal
     #############################################
+    def _copy_error_handler(self, sql):
+        def handler(msg):
+            self._message = msg
+            raise errors.QueryError.from_error_response(msg, sql)
+        return handler
+
     def flush_to_query_ready(self):
         # if the last message isn't empty or ReadyForQuery, read all remaining messages
         if self._message is None \

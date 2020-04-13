@@ -280,10 +280,13 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
 
             cur = conn.cursor()
             f.close()
-            with pytest.raises(ValueError, match='closed file'):
+            with pytest.raises(errors.DataError, match='closed file'):
                 cur.copy("COPY {0} (a, b) FROM STDIN DELIMITER ','".format(self._table),
                           f)
-            cur.close()
+            # Must not close the cursor object and able to successfully run queries
+            cur.execute("SELECT 1;")
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [[1]])
 
     # unit test for #78
     def test_copy_with_data_in_buffer(self):

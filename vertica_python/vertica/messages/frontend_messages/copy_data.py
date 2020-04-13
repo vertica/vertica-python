@@ -45,15 +45,12 @@ class CopyData(BulkFrontendMessage):
 
     def __init__(self, data, unicode_error='strict'):
         BulkFrontendMessage.__init__(self)
-        self._unicode_error = unicode_error
         if isinstance(data, text_type):
-            self._data = self._data.encode(encoding='utf-8', errors=self._unicode_error)
+            self.bytes_ = data.encode(encoding='utf-8', errors=unicode_error)
         elif isinstance(data, binary_type):
-            self._data = data
+            self.bytes_ = data
         else:
-            raise TypeError("should be string or bytes")
+            raise TypeError("Data should be string or bytes")
 
     def read_bytes(self):
-        # to deal with unicode strings
-        bytes_ = self._data
-        return bytes_
+        return self.bytes_

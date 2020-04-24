@@ -11,9 +11,7 @@
 
 Please check out [release notes](https://github.com/vertica/vertica-python/releases) to learn about the latest improvements.
 
-vertica-python is currently in beta stage; it has been tested for functionality and has a very basic test suite. Please use with caution, and feel free to submit issues and/or pull requests (Read up on our [contributing guidelines](#contributing-guidelines)).
-
-vertica-python has been tested with Vertica 9.3.1 and Python 2.7/3.4/3.5/3.6/3.7/3.8.
+vertica-python has been tested with Vertica 9.3.1 and Python 2.7/3.4/3.5/3.6/3.7/3.8. Feel free to submit issues and/or pull requests (Read up on our [contributing guidelines](#contributing-guidelines)).
 
 
 ## Installation

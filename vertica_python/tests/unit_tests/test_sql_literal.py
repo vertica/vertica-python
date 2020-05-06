@@ -14,6 +14,7 @@
 
 from __future__ import print_function, division, absolute_import
 
+from collections import namedtuple
 from decimal import Decimal
 from uuid import UUID
 import datetime
@@ -48,6 +49,14 @@ class SqlLiteralTestCase(VerticaPythonUnitTestCase):
         # String
         self.assertEqual(cursor.object_to_sql_literal(u"string'1"), "'string''1'")
         self.assertEqual(cursor.object_to_sql_literal(b"string'1"), "'string''1'")
+        # Tuple and namedtuple
+        self.assertEqual(cursor.object_to_sql_literal(
+            (123, u"string'1", None)), "(123,'string''1',NULL)")
+        self.assertEqual(cursor.object_to_sql_literal(
+            ((1, u"a"), (2, u"b"), (3, u"c"))), "((1,'a'),(2,'b'),(3,'c'))")
+        Point = namedtuple('Point', ['x', 'y', 'z'])
+        p = Point(x=11, y=22, z=33)
+        self.assertEqual(cursor.object_to_sql_literal(p), "(11,22,33)")
 
     def test_register_adapters(self):
         class Point(object):

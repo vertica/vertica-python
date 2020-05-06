@@ -519,6 +519,11 @@ class Cursor(object):
             return self.format_quote(as_text(py_obj), is_copy_data)
         elif isinstance(py_obj, (integer_types, float, Decimal)):
             return str(py_obj)
+        elif isinstance(py_obj, tuple):  # tuple and namedtuple
+            elements = [None] * len(py_obj)
+            for i in range(len(py_obj)):
+                elements[i] = self.object_to_string(py_obj[i], is_copy_data)
+            return "(" + ",".join(elements) + ")"
         elif isinstance(py_obj, (datetime.datetime, datetime.date, datetime.time, UUID)):
             return self.format_quote(as_text(str(py_obj)), is_copy_data)
         else:

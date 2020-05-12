@@ -137,6 +137,17 @@ class QueryError(_NoticeResponseAttrMixin, ProgrammingError):
         else:
             return ''
 
+    def __reduce__(self):
+        # Workaround to make these exception instances (un)picklable. This must
+        # be redefined by any subclass that changes the signature of __init__
+        #
+        # This workaround applies to python3. https://bugs.python.org/issue37489
+        return (
+            type(self),
+            (self.error_response, self.sql),
+            self.__dict__,
+        )
+
     @property
     def _notice_attrs(self):
         # provided for _NoticeResponseAttrMixin

@@ -117,7 +117,7 @@ if six.PY2:
     file_type = file_type + (file,)
 
 
-RE_NAME_BASE = u"[a-zA-Z_][\\w\\d\\$_]*"
+RE_NAME_BASE = u"[0-9_a-zA-Z_][\\w\\d\\$_]*"
 RE_NAME = u'(("{0}")|({0}))'.format(RE_NAME_BASE)
 RE_BASIC_INSERT_STAT = (
     u"INSERT\\s+INTO\\s+(?P<target>({0}\\.)?{0})"

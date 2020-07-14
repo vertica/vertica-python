@@ -36,10 +36,8 @@
 
 from __future__ import print_function, division, absolute_import
 
-import errno
-import os
 import logging
-
+from ..os_utils import ensure_dir_exists
 
 class VerticaLogging(object):
 
@@ -54,22 +52,8 @@ class VerticaLogging(object):
                      '{}/%(process)d:0x%(thread)x <%(levelname)s> '
                      '%(message)s'.format(context)),
                 datefmt='%Y-%m-%d %H:%M:%S')
-            cls.ensure_dir_exists(logfile)
+            ensure_dir_exists(logfile)
             file_handler = logging.FileHandler(logfile, encoding='utf-8')
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
 
-    @classmethod
-    def ensure_dir_exists(cls, filepath):
-        """Ensure that a directory exists
-
-        If it doesn't exist, try to create it and protect against a race condition
-        if another process is doing the same.
-        """
-        directory = os.path.dirname(filepath)
-        if directory != '' and not os.path.exists(directory):
-            try:
-                os.makedirs(directory)
-            except OSError as e:
-                if e.errno != errno.EEXIST:
-                    raise

@@ -109,7 +109,8 @@ def parse_dsn(dsn):
             continue
         elif key == 'backup_server_node':
             continue
-        elif key in ('connection_load_balance', 'use_prepared_statements', 'ssl'):
+        elif key in ('connection_load_balance', 'use_prepared_statements',
+                     'disable_copy_local', 'ssl'):
             lower = value.lower()
             if lower in ('true', 'on', '1'):
                 result[key] = True
@@ -296,6 +297,11 @@ class Connection(object):
         self.options.setdefault('use_prepared_statements', False)
         self._logger.debug('Connection prepared statements is {}'.format(
                      'enabled' if self.options['use_prepared_statements'] else 'disabled'))
+
+        # knob for disabling COPY LOCAL operations
+        self.options.setdefault('disable_copy_local', False)
+        self._logger.debug('COPY LOCAL operation is {}'.format(
+                     'disabled' if self.options['disable_copy_local'] else 'enabled'))
 
         self._logger.info('Connecting as user "{}" to database "{}" on host "{}" with port {}'.format(
                      self.options['user'], self.options['database'],
@@ -594,6 +600,15 @@ class Connection(object):
             else:
                 self._logger.warning(message.error_message())
 
+    def read_string(self):
+        s = bytearray()
+        while True:
+            char = self.read_bytes(1)
+            if char == b'\x00':
+                break
+            s.extend(char)
+        return s
+
     def read_message(self):
         while True:
             try:
@@ -601,7 +616,27 @@ class Connection(object):
                 size = unpack('!I', self.read_bytes(4))[0]
                 if size < 4:
                     raise errors.MessageError("Bad message size: {0}".format(size))
-                message = BackendMessage.from_type(type_, self.read_bytes(size - 4))
+                if type_ == messages.WriteFile.message_id:
+                    # The whole WriteFile message may not be read at here.
+                    # Instead, only the file name and file length is read.
+                    # This is because the message could be too large to read all at once.
+                    f = self.read_string()
+                    filename = f.decode('utf-8')
+                    file_length = unpack('!I', self.read_bytes(4))[0]
+                    size -= 4 + len(f) + 1 + 4
+                    if size != file_length:
+                        raise errors.MessageError("Bad message size: {0}".format(size))
+                    if filename == '':
+                        # If there is no filename, then this is really RETURNREJECTED data, not a rejected file
+                        if file_length % 8 != 0:
+                            raise errors.MessageError("Bad RETURNREJECTED data size: {0}".format(file_length))
+                        data = self.read_bytes(file_length)
+                        message = messages.WriteFile(filename, file_length, data)
+                    else:
+                        # The rest of the message is read later with write_to_disk()
+                        message = messages.WriteFile(filename, file_length)
+                else:
+                    message = BackendMessage.from_type(type_, self.read_bytes(size - 4))
                 self._logger.debug('<= %s', message)
                 self.handle_asynchronous_message(message)
                 # handle transaction status

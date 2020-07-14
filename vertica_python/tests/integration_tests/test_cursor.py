@@ -37,11 +37,14 @@ from __future__ import print_function, division, absolute_import
 
 from datetime import date, datetime, time
 from decimal import Decimal
+from io import open
 from uuid import UUID
 import logging
-import os as _os
+import os
 import pytest
 import re
+import shutil
+import sys
 import tempfile
 
 from parameterized import parameterized
@@ -478,6 +481,20 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
     def setUpClass(cls):
         super(SimpleQueryTestCase, cls).setUpClass()
         cls._conn_info['use_prepared_statements'] = False
+        # Create data files for COPY LOCAL tests
+        with tempfile.NamedTemporaryFile(delete=False) as cls._f1:
+            cls._f1.write(b"1,foo\n2,bar\nx\xc3\xb1,bla")
+        with tempfile.NamedTemporaryFile(delete=False) as cls._f2:
+            cls._f2.write(b"4,\n5," + b'a'*10 + b"\n,baz")
+        with tempfile.NamedTemporaryFile(delete=False) as cls._f3:
+            cls._f3.write(b"10," + b'k'*12 + b"\n11,qux\nxx,corge")
+        with tempfile.NamedTemporaryFile(delete=False) as cls._f4:
+            cls._f4.write(b"13,flob\nf,quux\n15,xyz")
+
+    @classmethod
+    def tearDownClass(cls):
+        for f in (cls._f1, cls._f2, cls._f3, cls._f4):
+            os.remove(f.name)
 
     def setUp(self):
         super(SimpleQueryTestCase, self).setUp()
@@ -690,6 +707,282 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
             cur.execute("SELECT %s, %s", parameters=[all_chars, backslash_data])
             self.assertEqual([all_chars, backslash_data], cur.fetchone())
 
+    def test_disabled_copy_local(self):
+        self._conn_info['disable_copy_local'] = True
+
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {0} (a INT, b VARCHAR(9))".format(self._table))
+            with pytest.raises(errors.InterfaceError, match='disabled'):
+                cur.execute(
+                    "COPY {} FROM LOCAL '{}','{}' DELIMITER ',' ENFORCELENGTH;"
+                    "SELECT 100;"
+                    .format(self._table, self._f1.name, self._f2.name)
+                )
+            self.assertListOfListsEqual(cur.fetchall(), [])
+            self.assertFalse(cur.nextset())
+
+            # Must not close the cursor object and able to successfully run queries
+            cur.execute("SELECT 1;")
+            self.assertListOfListsEqual(cur.fetchall(), [[1]])
+
+    def test_copy_local_stdin_input_options(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {0} (a INT, b VARCHAR(9))".format(self._table))
+            # No STDIN input
+            with pytest.raises(ValueError, match='No STDIN source'):
+                cur.execute(
+                    "COPY {} FROM LOCAL STDIN DELIMITER ',' ENFORCELENGTH"
+                    .format(self._table))
+            with pytest.raises(ValueError, match='No STDIN source'):
+                cur.execute(
+                    "COPY {} FROM LOCAL STDIN DELIMITER ',' ENFORCELENGTH"
+                    .format(self._table), copy_stdin=[])
+            # Invalid STDIN input
+            with pytest.raises(TypeError, match='file-like object'):
+                cur.execute(
+                    "COPY {} FROM LOCAL STDIN DELIMITER ',' ENFORCELENGTH"
+                    .format(self._table), copy_stdin='Not file-like')
+            with pytest.raises(TypeError, match='file-like object'):
+                cur.execute(
+                    "COPY {} FROM LOCAL STDIN DELIMITER ',' ENFORCELENGTH"
+                    .format(self._table), copy_stdin=['Not file-like'])
+            # A file-like object as STDIN input
+            fs = open(self._f1.name)
+            cur.execute(
+                "COPY {} FROM LOCAL STDIN DELIMITER ',' ENFORCELENGTH"
+                .format(self._table), copy_stdin=fs)
+            res1 = cur.fetchall()
+            self.assertListOfListsEqual(res1, [[2]])
+            fs.close()
+
+    def test_copy_local_stdin_multistat(self):
+        # Define paths to rejected files
+        tmpdir = os.path.dirname(self._f1.name)
+        rejdir = os.path.join(tmpdir, 'copylocal1')
+        rej1 = os.path.join(rejdir, 'copy_rej.txt')
+        except1 = os.path.join(rejdir, 'copy_exception.txt')
+        if os.path.isdir(rejdir):
+            shutil.rmtree(rejdir)
+        rej2 = os.path.join(tmpdir, 'copy_rej2.txt')
+        except2 = os.path.join(tmpdir, 'copy_exception2.txt')
+        for f in (rej2, except2):
+            if os.path.isfile(f):
+                os.remove(f)
+
+        # Execute the COPY LOCAL statement as the first and later statement
+        # within a query containing multiple statements
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {0} (a INT, b VARCHAR(9))".format(self._table))
+            # Feed STDIN
+            f1 = open(self._f1.name)
+            f2 = open(self._f3.name)
+            cur.execute(
+                "COPY {} FROM LOCAL STDIN DELIMITER ',' ENFORCELENGTH"
+                " REJECTED DATA '{}' EXCEPTIONS '{}';"
+                "SELECT 100;"
+                "COPY {} FROM LOCAL STDIN DELIMITER ',' ENFORCELENGTH"
+                " REJECTED DATA '{}' EXCEPTIONS '{}';"
+                "SELECT 200;"
+                .format(self._table, rej1, except1,
+                        self._table, rej2, except2),
+                copy_stdin=[f1, f2]
+            )
+
+            res1 = cur.fetchall()
+            self.assertListOfListsEqual(res1, [[2]])
+            self.assertTrue(cur.nextset())
+            f1.close()
+
+            res2 = cur.fetchall()
+            self.assertListOfListsEqual(res2, [[100]])
+            self.assertTrue(cur.nextset())
+
+            res3 = cur.fetchall()
+            self.assertListOfListsEqual(res3, [[1]])
+            self.assertTrue(cur.nextset())
+            f2.close()
+
+            res4 = cur.fetchall()
+            self.assertListOfListsEqual(res4, [[200]])
+            self.assertFalse(cur.nextset())
+
+            # There should be no hang/error in the next execution call
+            cur.execute("SELECT * FROM {0} ORDER BY a ASC".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [[1, 'foo'], [2, 'bar'], [11, 'qux']])
+
+        # Check rejected files
+        with open(rej1, 'r', encoding='utf-8') as f:
+            self.assertEqual(f.read(), u'x\u00f1,bla\n')
+        with open(except1, 'r', encoding='utf-8') as f:
+            content = f.read()
+            self.assertTrue(u"Invalid integer format 'x\u00f1' for column 1 (a)" in content)
+        with open(rej2, 'r', encoding='utf-8') as f:
+            self.assertEqual(f.read(), u'10,kkkkkkkkkkkk\nxx,corge\n')
+        with open(except2, 'r', encoding='utf-8') as f:
+            content = f.read()
+            self.assertTrue(u"The 12-byte value is too long for type Varchar(9), column 2 (b)" in content)
+            self.assertTrue(u"Invalid integer format 'xx' for column 1 (a)" in content)
+
+        # Delete data files
+        try:
+            for f in (rej2, except2):
+                os.remove(f)
+            shutil.rmtree(rejdir)
+        except Exception:
+            pass
+
+    def test_copy_local_file_not_exist(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {0} (a INT, b VARCHAR(9))".format(self._table))
+            with pytest.raises(OSError, match='not_exist.file does not exist'):
+                cur.execute(
+                    "COPY {} FROM LOCAL '{}','not_exist.file' DELIMITER ',' ENFORCELENGTH"
+                    .format(self._table, self._f1.name))
+            self.assertListOfListsEqual(cur.fetchall(), [])
+            self.assertFalse(cur.nextset())
+
+            # Must not close the cursor object and able to successfully run queries
+            cur.execute("SELECT 1;")
+            self.assertListOfListsEqual(cur.fetchall(), [[1]])
+
+    def test_copy_local_glob(self):
+        suffix = ".copy_glob_test"
+        files = (self._f1.name, self._f2.name, self._f3.name, self._f4.name)
+        fdir = os.path.dirname(self._f1.name)
+        for f in files:
+            shutil.copy(f, f + suffix)
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {0} (a INT, b VARCHAR(9))".format(self._table))
+            cur.execute(
+                "COPY {} FROM LOCAL '{}' DELIMITER ',' ENFORCELENGTH"
+                .format(self._table, os.path.join(fdir, '*' + suffix)))
+            self.assertListOfListsEqual(cur.fetchall(), [[7]])
+        for f in files:
+            os.remove(f + suffix)
+
+    @parameterized.expand([(True,), (False,)])
+    def test_copy_local_file_multistat(self, fetch_results):
+        # Define paths to rejected files
+        tmpdir = os.path.dirname(self._f1.name)
+        rejdir = os.path.join(tmpdir, 'copylocal1')
+        rej1 = os.path.join(rejdir, 'copy_rej.txt')
+        except1 = os.path.join(rejdir, 'copy_exception.txt')
+        if os.path.isdir(rejdir):
+            shutil.rmtree(rejdir)
+        rej2 = os.path.join(tmpdir, 'copy_rej2.txt')
+        except2 = os.path.join(tmpdir, 'copy_exception2.txt')
+        for f in (rej2, except2):
+            if os.path.isfile(f):
+                os.remove(f)
+
+        # Execute the COPY LOCAL statement as the first and later statement
+        # within a query containing multiple statements
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {0} (a INT, b VARCHAR(9))".format(self._table))
+            cur.execute(
+                "COPY {} FROM LOCAL '{}','{}' DELIMITER ',' ENFORCELENGTH"
+                " REJECTED DATA '{}' EXCEPTIONS '{}';"
+                "SELECT 100;"
+                "COPY {} FROM LOCAL '{}','{}' DELIMITER ',' ENFORCELENGTH"
+                " REJECTED DATA '{}' EXCEPTIONS '{}';"
+                "SELECT 200;"
+                .format(self._table, self._f1.name, self._f2.name, rej1, except1,
+                        self._table, self._f3.name, self._f4.name, rej2, except2)
+            )
+
+            if fetch_results:
+                res1 = cur.fetchall()
+                self.assertListOfListsEqual(res1, [[4]])
+                self.assertTrue(cur.nextset())
+
+                res2 = cur.fetchall()
+                self.assertListOfListsEqual(res2, [[100]])
+                self.assertTrue(cur.nextset())
+
+                res3 = cur.fetchall()
+                self.assertListOfListsEqual(res3, [[3]])
+                self.assertTrue(cur.nextset())
+
+                res4 = cur.fetchall()
+                self.assertListOfListsEqual(res4, [[200]])
+                self.assertFalse(cur.nextset())
+
+            # There should be no hang/error in the next execution call
+            cur.execute("SELECT * FROM {0} ORDER BY a ASC".format(self._table))
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [[None, 'baz'], [1, 'foo'], [2, 'bar'],
+                    [4, None], [11, 'qux'], [13, 'flob'], [15, 'xyz']])
+
+        # Check rejected files
+        with open(rej1, 'r', encoding='utf-8') as f:
+            self.assertEqual(f.read(), u'x\u00f1,bla\n5,aaaaaaaaaa\n')
+        with open(except1, 'r', encoding='utf-8') as f:
+            content = f.read()
+            self.assertTrue(u"Invalid integer format 'x\u00f1' for column 1 (a)" in content)
+            self.assertTrue(u"The 10-byte value is too long for type Varchar(9), column 2 (b)" in content)
+        with open(rej2, 'r', encoding='utf-8') as f:
+            self.assertEqual(f.read(), u'10,kkkkkkkkkkkk\nxx,corge\nf,quux\n')
+        with open(except2, 'r', encoding='utf-8') as f:
+            content = f.read()
+            self.assertTrue(u"The 12-byte value is too long for type Varchar(9), column 2 (b)" in content)
+            self.assertTrue(u"Invalid integer format 'xx' for column 1 (a)" in content)
+            self.assertTrue(u"Invalid integer format 'f' for column 1 (a)" in content)
+
+        # Delete files
+        try:
+            for f in (rej2, except2):
+                os.remove(f)
+            shutil.rmtree(rejdir)
+        except Exception:
+            pass
+
+    def test_copy_local_returnrejected(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {0} (a INT, b VARCHAR(9))".format(self._table))
+            msg = "COPY LOCAL does not support rejected row numbers with exceptions or rejected data options"
+            with pytest.raises(errors.QueryError, match=msg):
+                cur.execute(
+                    "COPY {} FROM LOCAL '{}','{}' DELIMITER ',' ENFORCELENGTH"
+                    " RETURNREJECTED"
+                    " REJECTED DATA 'copy_rej.txt' EXCEPTIONS 'copy_exp.txt'"
+                    .format(self._table, self._f1.name, self._f2.name))
+            # Rejected row numbers write to log file
+            cur.execute(
+                "COPY {} FROM LOCAL '{}','{}' DELIMITER ',' ENFORCELENGTH"
+                " RETURNREJECTED"
+                .format(self._table, self._f1.name, self._f2.name))
+            self.assertListOfListsEqual(cur.fetchall(), [[4]])
+            cur.execute("SELECT * FROM {0} ORDER BY a ASC".format(self._table))
+            self.assertListOfListsEqual(cur.fetchall(), [[None, 'baz'], [1, 'foo'], [2, 'bar'], [4, None]])
+
+    def test_copy_local_rejected_as_table(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {0} (a INT, b VARCHAR(9))".format(self._table))
+            cur.execute("DROP TABLE IF EXISTS test_loader_rejects CASCADE")
+            cur.execute(
+                "COPY {} FROM LOCAL '{}','{}' DELIMITER ',' ENFORCELENGTH"
+                " REJECTED DATA AS TABLE test_loader_rejects"
+                .format(self._table, self._f1.name, self._f2.name))
+            self.assertListOfListsEqual(cur.fetchall(), [[4]])
+
+            cur.execute("SELECT rejected_data, rejected_reason FROM test_loader_rejects ORDER BY row_number ASC")
+            self.assertListOfListsEqual(cur.fetchall(),
+                [['5,aaaaaaaaaa', 'The 10-byte value is too long for type Varchar(9), column 2 (b)'],
+                 [u'x\u00f1,bla', u"Invalid integer format 'x\u00f1' for column 1 (a)"]])
+
+            cur.execute("SELECT * FROM {0} ORDER BY a ASC".format(self._table))
+            self.assertListOfListsEqual(cur.fetchall(), [[None, 'baz'], [1, 'foo'], [2, 'bar'], [4, None]])
+
+            cur.execute("DROP TABLE IF EXISTS test_loader_rejects CASCADE")
 
 class SimpleQueryExecutemanyTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):

@@ -37,8 +37,11 @@
 from __future__ import print_function, division, absolute_import
 
 import datetime
+import glob
 import inspect
 import re
+import sys
+import traceback
 from decimal import Decimal
 from io import IOBase
 from tempfile import NamedTemporaryFile, SpooledTemporaryFile, TemporaryFile
@@ -57,7 +60,7 @@ import six
 from six import binary_type, text_type, string_types, integer_types, BytesIO, StringIO
 from six.moves import zip
 
-from .. import errors
+from .. import errors, os_utils
 from ..compat import as_text
 from ..vertica import messages
 from ..vertica.column import Column
@@ -124,6 +127,7 @@ RE_BASIC_INSERT_STAT = (
     u"\\s*\\(\\s*(?P<variables>{0}(\\s*,\\s*{0})*)\\s*\\)"
     u"\\s+VALUES\\s*\\(\\s*(?P<values>(.|\\s)*)\\s*\\)").format(RE_NAME)
 END_OF_RESULT_RESPONSES = (messages.CommandComplete, messages.PortalSuspended)
+END_OF_BATCH_RESPONSES = (messages.WriteFile, messages.EndOfBatchResponse)
 DEFAULT_BUFFER_SIZE = 131072
 
 
@@ -173,16 +177,29 @@ class Cursor(object):
             self._close_prepared_statement()
         self._closed = True
 
-    def execute(self, operation, parameters=None, use_prepared_statements=None):
-        operation = as_text(operation)
-        self.operation = operation
-
+    def execute(self, operation, parameters=None, use_prepared_statements=None,
+                copy_stdin=None, buffer_size=DEFAULT_BUFFER_SIZE):
         if self.closed():
             raise errors.InterfaceError('Cursor is closed')
 
         self.flush_to_query_ready()
 
+        operation = as_text(operation)
+        self.operation = operation
+
         self.rowcount = -1
+
+        if copy_stdin is None:
+            self.copy_stdin_list = []
+        elif (isinstance(copy_stdin, list) and
+              all(callable(getattr(i, 'read', None)) for i in copy_stdin)):
+            self.copy_stdin_list = copy_stdin
+        elif callable(getattr(copy_stdin, 'read', None)):
+            self.copy_stdin_list = [copy_stdin]
+        else:
+            raise TypeError("Cursor.execute 'copy_stdin' parameter should be"
+                            " a file-like object or a list of file-like objects")
+        self.buffer_size = buffer_size   # For copy-local read and write
 
         use_prepared = bool(self.connection.options['use_prepared_statements']
                 if use_prepared_statements is None else use_prepared_statements)
@@ -207,9 +224,6 @@ class Cursor(object):
         return self
 
     def executemany(self, operation, seq_of_parameters, use_prepared_statements=None):
-        operation = as_text(operation)
-        self.operation = operation
-
         if not isinstance(seq_of_parameters, (list, tuple)):
             raise TypeError("seq_of_parameters should be list/tuple")
 
@@ -217,6 +231,10 @@ class Cursor(object):
             raise errors.InterfaceError('Cursor is closed')
 
         self.flush_to_query_ready()
+
+        operation = as_text(operation)
+        self.operation = operation
+
         use_prepared = bool(self.connection.options['use_prepared_statements']
                 if use_prepared_statements is None else use_prepared_statements)
 
@@ -278,6 +296,12 @@ class Cursor(object):
                 return None
             elif isinstance(self._message, messages.EmptyQueryResponse):
                 pass
+            elif isinstance(self._message, messages.VerifyFiles):
+                self._handle_copy_local_protocol()
+            elif isinstance(self._message, messages.EndOfBatchResponse):
+                pass
+            elif isinstance(self._message, messages.CopyDoneResponse):
+                pass
             elif isinstance(self._message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(self._message, self.operation)
             else:
@@ -322,6 +346,8 @@ class Cursor(object):
             if isinstance(self._message, messages.RowDescription):
                 self.description = [Column(fd, self.unicode_error) for fd in self._message.fields]
                 self._message = self.connection.read_message()
+                if isinstance(self._message, messages.VerifyFiles):
+                    self._handle_copy_local_protocol()
                 return True
             elif isinstance(self._message, messages.BindComplete):
                 self._message = self.connection.read_message()
@@ -398,29 +424,7 @@ class Cursor(object):
         # Execute a `COPY FROM STDIN` SQL statement
         self.connection.write(messages.Query(sql))
 
-        # Read expected message: CopyInResponse
-        self._message = self.connection.read_expected_message(messages.CopyInResponse,
-                                                              self._copy_error_handler(sql))
-
-        # Send zero or more CopyData messages, forming a stream of input data
         buffer_size = kwargs['buffer_size'] if 'buffer_size' in kwargs else DEFAULT_BUFFER_SIZE
-
-        while True:
-            try:
-                chunk = stream.read(buffer_size)
-            except Exception as e:
-                # COPY termination: report the cause of failure to the backend
-                self.connection.write(messages.CopyFail(str(e)))
-                self._logger.error(str(e))
-                raise errors.DataError('Failed to read a COPY data stream: {}'.format(str(e)))
-
-            if not chunk:
-                break
-
-            self.connection.write(messages.CopyData(chunk, self.unicode_error))
-
-        # Successful termination for COPY
-        self.connection.write(messages.CopyDone())
 
         while True:
             message = self.connection.read_message()
@@ -432,6 +436,18 @@ class Cursor(object):
                 break
             elif isinstance(message, messages.CommandComplete):
                 pass
+            elif isinstance(message, messages.CopyInResponse):
+                try:
+                    self._send_copy_data(stream, buffer_size)
+                except Exception as e:
+                    # COPY termination: report the cause of failure to the backend
+                    self.connection.write(messages.CopyFail(str(e)))
+                    self._logger.error(str(e))
+                    self.flush_to_query_ready()
+                    raise errors.DataError('Failed to send a COPY data stream: {}'.format(str(e)))
+
+                # Successful termination for COPY
+                self.connection.write(messages.CopyDone())
             else:
                 raise errors.MessageError('Unexpected message: {0}'.format(message))
 
@@ -449,12 +465,6 @@ class Cursor(object):
     #############################################
     # internal
     #############################################
-    def _copy_error_handler(self, sql):
-        def handler(msg):
-            self._message = msg
-            raise errors.QueryError.from_error_response(msg, sql)
-        return handler
-
     def flush_to_query_ready(self):
         # if the last message isn't empty or ReadyForQuery, read all remaining messages
         if self._message is None \
@@ -466,6 +476,9 @@ class Cursor(object):
             if isinstance(message, messages.ReadyForQuery):
                 self._message = message
                 break
+            elif isinstance(message, messages.VerifyFiles):
+                self._message = message
+                self._handle_copy_local_protocol()
 
     def flush_to_end_of_result(self):
         # if the last message isn't empty or END_OF_RESULT_RESPONSES,
@@ -595,6 +608,147 @@ class Cursor(object):
             self._message = self.connection.read_message()
             if isinstance(self._message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(self._message, query)
+            elif isinstance(self._message, messages.VerifyFiles):
+                self._handle_copy_local_protocol()
+
+    def _handle_copy_local_protocol(self):
+        if self.connection.options['disable_copy_local']:
+            msg = 'COPY LOCAL operation is disabled.'
+            self.connection.write(messages.CopyError(msg))
+            self.flush_to_query_ready()
+            raise errors.InterfaceError(msg)
+
+        # Extract info from VerifyFiles message
+        input_files = self._message.input_files
+        rejections_file = self._message.rejections_file
+        exceptions_file = self._message.exceptions_file
+
+        # Verify the file(s) present in the COPY FROM LOCAL statement are indeed accessible
+        self.valid_write_file_path = []
+        try:
+            # Check that the output files are writable
+            if rejections_file != '':
+                if rejections_file not in self.operation:
+                    raise errors.MessageError('Server requests for writing to'
+                        ' invalid rejected file path: {}'.format(rejections_file))
+                os_utils.check_file_writable(rejections_file)
+                self.valid_write_file_path.append(rejections_file)
+            if exceptions_file != '':
+                if exceptions_file not in self.operation:
+                    raise errors.MessageError('Server requests for writing to'
+                        ' invalid exceptions file path: {}'.format(exceptions_file))
+                os_utils.check_file_writable(exceptions_file)
+                self.valid_write_file_path.append(exceptions_file)
+
+            # Check that the input files are readable
+            self.valid_read_file_path = self._check_copy_local_files(input_files)
+
+            self.connection.write(messages.VerifiedFiles(self.valid_read_file_path))
+        except Exception as e:
+            tb = sys.exc_info()[2]
+            stk = traceback.extract_tb(tb, 1)
+            self.connection.write(messages.CopyError(str(e), stk[0]))
+            self.flush_to_query_ready()
+            raise
+
+        # Server should be ready to receive copy data from STDIN/files
+        self._message = self.connection.read_message()
+        if isinstance(self._message, messages.ErrorResponse):
+            raise errors.QueryError.from_error_response(self._message, self.operation)
+        elif not isinstance(self._message, (messages.CopyInResponse, messages.LoadFile)):
+            raise errors.MessageError('Unexpected COPY FROM LOCAL state: {}'.format(
+                                      type(self._message).__name__))
+        try:
+            if isinstance(self._message, messages.CopyInResponse):
+                self._logger.info('Sending STDIN data to server')
+                if len(self.copy_stdin_list) == 0:
+                    raise ValueError('No STDIN source to load. Please specify "copy_stdin" parameter in Cursor.execute()')
+                stdin = self.copy_stdin_list.pop(0)
+                self._send_copy_data(stdin, self.buffer_size)
+                self.connection.write(messages.EndOfBatchRequest())
+                self._read_copy_data_response(is_stdin_copy=True)
+            elif isinstance(self._message, messages.LoadFile):
+                while True:
+                    self._send_copy_file_data()
+                    if not self._read_copy_data_response():
+                        break
+        except Exception as e:
+            tb = sys.exc_info()[2]
+            stk = traceback.extract_tb(tb, 1)
+            self.connection.write(messages.CopyError(str(e), stk[0]))
+            self.flush_to_query_ready()
+            raise
+
+    def _check_copy_local_files(self, input_files):
+        # Return an empty list when the copy input is STDIN
+        if len(input_files) == 0:
+            return []
+
+        file_list = []
+        for file_pattern in input_files:
+            if file_pattern not in self.operation:
+                raise errors.MessageError('Server requests for loading invalid'
+                    ' file: {}, Query: {}'.format(file_pattern, self.operation))
+            # Expand the glob patterns
+            expanded_files = glob.glob(file_pattern)
+            if len(expanded_files) == 0:
+                raise OSError('{} does not exist'.format(file_pattern))
+            # Check file permissions
+            for f in expanded_files:
+                os_utils.check_file_readable(f)
+                file_list.append(f)
+        # Return a non-empty list when the copy input is FILE
+        # Note: Sending an empty list of files will make server kill the session.
+        return file_list
+
+    def _send_copy_data(self, stream, buffer_size):
+        # Send zero or more CopyData messages, forming a stream of input data
+        while True:
+            chunk = stream.read(buffer_size)
+            if not chunk:
+                break
+            self.connection.write(messages.CopyData(chunk, self.unicode_error))
+
+    def _send_copy_file_data(self):
+        filename = self._message.filename
+        self._logger.info('Sending {} data to server'.format(filename))
+
+        if filename not in self.valid_read_file_path:
+            raise errors.MessageError('Server requests for loading invalid'
+                    ' file: {}'.format(filename))
+
+        with open(filename, "rb") as f:
+            self._send_copy_data(f, self.buffer_size)
+        self.connection.write(messages.EndOfBatchRequest())
+
+    def _read_copy_data_response(self, is_stdin_copy=False):
+        """Return True if the server wants us to load more data, false if we are done"""
+        self._message = self.connection.read_expected_message(END_OF_BATCH_RESPONSES)
+        # Check for rejections during this load
+        while isinstance(self._message, messages.WriteFile):
+            if self._message.filename == '':
+                self._logger.info('COPY-LOCAL rejected row numbers: {}'.format(self._message.rejected_rows))
+            elif self._message.filename in self.valid_write_file_path:
+                self._message.write_to_disk(self.connection, self.buffer_size)
+            else:
+                raise errors.MessageError('Server requests for writing to'
+                    ' invalid file path: {}'.format(self._message.filename))
+            self._message = self.connection.read_expected_message(END_OF_BATCH_RESPONSES)
+
+        # For STDIN copy, there will be no incoming message until we send
+        # another EndOfBatchRequest or CopyDone
+        if is_stdin_copy:
+            self.connection.write(messages.CopyDone())  # End this copy
+            return False
+
+        # For file copy, peek the next message
+        self._message = self.connection.read_message()
+        if isinstance(self._message, messages.LoadFile):
+            # Indicate there are more local files to load
+            return True
+        elif not isinstance(self._message, messages.CopyDoneResponse):
+            raise errors.MessageError('Unexpected COPY-LOCAL message: {0}'.format(message))
+        return False
 
     def _error_handler(self, msg):
         self.connection.write(messages.Sync())

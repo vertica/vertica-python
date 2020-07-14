@@ -437,6 +437,9 @@ connection.commit()
 
 **Copy** :
 
+There are 2 methods to do copy:
+
+Method 1: "COPY FROM STDIN" sql with Cursor.copy()
 ```python
 cur = connection.cursor()
 cur.copy("COPY test_copy (id, name) from stdin DELIMITER ',' ",  csv)
@@ -450,6 +453,52 @@ with open("/tmp/binary_file.csv", "rb") as fs:
                 fs, buffer_size=65536)
 ```
 
+Method 2: "COPY FROM LOCAL" sql with Cursor.execute() 
+
+```python
+import sys
+import vertica_python
+
+conn_info = {'host': '127.0.0.1',
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             # False by default
+             #'disable_copy_local': True,
+             # Don't support executing COPY LOCAL operations with prepared statements
+             'use_prepared_statements': False
+             }
+
+with vertica_python.connect(**conn_info) as connection:
+    cur = connection.cursor()
+    
+    # Copy from local file
+    cur.execute("COPY table(field1, field2) FROM LOCAL"
+                " 'data_Jan_*.csv','data_Feb_01.csv' DELIMITER ','"
+                " REJECTED DATA 'path/to/write/rejects.txt'"
+                " EXCEPTIONS 'path/to/write/exceptions.txt'",
+                buffer_size=65536
+    )
+    print("Rows loaded:", cur.fetchall())
+    
+    # Copy from local stdin
+    cur.execute("COPY table(field1, field2) FROM LOCAL STDIN DELIMITER ','", copy_stdin=sys.stdin)
+    print("Rows loaded:", cur.fetchall())
+
+    # Copy from local stdin (compound statements)
+    with open('f1.csv', 'r') as fs1, open('f2.csv', 'r') as fs2:
+        cur.execute("COPY tlb1(field1, field2) FROM LOCAL STDIN DELIMITER ',';"
+                    "COPY tlb2(field1, field2) FROM LOCAL STDIN DELIMITER ',';",
+                    copy_stdin=[fs1, fs2], buffer_size=65536)
+    print("Rows loaded 1:", cur.fetchall())
+    cur.nextset()
+    print("Rows loaded 2:", cur.fetchall())
+```
+When connection option `disable_copy_local` set to True, disables COPY LOCAL operations, including copying data from local files/stdin and using local files to store data and exceptions. You can use this property to prevent users from writing to and copying from files on a Vertica host, including an MC host. Note that this property doesn't apply to `Cursor.copy()`.
+
+The data for copying from/writing to local files is streamed in chunks of `buffer_size` bytes, which defaults to 128 * 2 ** 10.
+
+When executing "COPY FROM LOCAL STDIN", `copy_stdin` should be a file-like object or a list of file-like objects (specifically, any object with a `read()` method).
 
 **Cancel the current database operation** :
 

@@ -41,8 +41,10 @@ from .cancel_request import CancelRequest
 from .close import Close
 from .copy_data import CopyData
 from .copy_done import CopyDone
+from .copy_error import CopyError
 from .copy_fail import CopyFail
 from .describe import Describe
+from .end_of_batch_request import EndOfBatchRequest
 from .execute import Execute
 from .flush import Flush
 from .load_balance_request import LoadBalanceRequest
@@ -53,7 +55,9 @@ from .ssl_request import SslRequest
 from .startup import Startup
 from .sync import Sync
 from .terminate import Terminate
+from .verified_files import VerifiedFiles
 
-__all__ = ['Bind', 'Query', 'CancelRequest', 'Close', 'CopyData', 'CopyDone', 'CopyFail',
-           'Describe', 'Execute', 'Flush', 'LoadBalanceRequest', 'Parse',
-           'Password', 'SslRequest', 'Startup', 'Sync', 'Terminate']
+__all__ = ['Bind', 'CancelRequest', 'Close', 'CopyData', 'CopyDone', 'CopyError',
+           'CopyFail', 'Describe', 'EndOfBatchRequest', 'Execute', 'Flush',
+           'LoadBalanceRequest', 'Parse', 'Password', 'Query', 'SslRequest', 'Startup',
+           'Sync', 'Terminate', 'VerifiedFiles']

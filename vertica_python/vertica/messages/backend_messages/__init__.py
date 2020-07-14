@@ -41,11 +41,14 @@ from .bind_complete import BindComplete
 from .close_complete import CloseComplete
 from .command_complete import CommandComplete
 from .command_description import CommandDescription
+from .copy_done_response import CopyDoneResponse
 from .copy_in_response import CopyInResponse
 from .data_row import DataRow
 from .empty_query_response import EmptyQueryResponse
+from .end_of_batch_response import EndOfBatchResponse
 from .error_response import ErrorResponse
 from .load_balance_response import LoadBalanceResponse
+from .load_file import LoadFile
 from .no_data import NoData
 from .notice_response import NoticeResponse
 from .parameter_description import ParameterDescription
@@ -55,9 +58,12 @@ from .portal_suspended import PortalSuspended
 from .ready_for_query import ReadyForQuery
 from .row_description import RowDescription
 from .unknown import Unknown
+from .verify_files import VerifyFiles
+from .write_file import WriteFile
 
-__all__ = ['RowDescription', 'ReadyForQuery', 'PortalSuspended', 'ParseComplete', 'ParameterStatus',
-           'ParameterDescription', 'NoticeResponse', 'NoData', 'LoadBalanceResponse',
-           'ErrorResponse', 'EmptyQueryResponse', 'DataRow', 'CopyInResponse', 'CommandDescription',
-           'CommandComplete', 'CloseComplete', 'BindComplete', 'BackendKeyData', 'Authentication',
-           'Unknown']
+__all__ = ['Authentication', 'BackendKeyData', 'BindComplete', 'CloseComplete',
+           'CommandComplete', 'CommandDescription', 'CopyDoneResponse', 'CopyInResponse', 'DataRow',
+           'EmptyQueryResponse', 'EndOfBatchResponse', 'ErrorResponse', 'LoadBalanceResponse',
+           'LoadFile', 'NoData', 'NoticeResponse', 'ParameterDescription', 'ParameterStatus',
+           'ParseComplete', 'PortalSuspended', 'ReadyForQuery', 'RowDescription',
+           'Unknown', 'VerifyFiles', 'WriteFile']

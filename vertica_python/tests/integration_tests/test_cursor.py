@@ -618,11 +618,13 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
             cur.execute("SELECT 1; SELECT 'foo';")
 
             res1 = cur.fetchall()
+            self.assertEqual(cur.rowcount, 1)
             self.assertListOfListsEqual(res1, [[1]])
             self.assertIsNone(cur.fetchone())
             self.assertTrue(cur.nextset())
 
             res2 = cur.fetchall()
+            self.assertEqual(cur.rowcount, 1)
             self.assertListOfListsEqual(res2, [['foo']])
             self.assertIsNone(cur.fetchone())
             self.assertFalse(cur.nextset())

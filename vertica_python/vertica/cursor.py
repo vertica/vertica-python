@@ -348,14 +348,17 @@ class Cursor(object):
                 self._message = self.connection.read_message()
                 if isinstance(self._message, messages.VerifyFiles):
                     self._handle_copy_local_protocol()
+                self.rowcount = -1
                 return True
             elif isinstance(self._message, messages.BindComplete):
                 self._message = self.connection.read_message()
+                self.rowcount = -1
                 return True
             elif isinstance(self._message, messages.ReadyForQuery):
                 return False
             elif isinstance(self._message, END_OF_RESULT_RESPONSES):
                 # result of a DDL/transaction
+                self.rowcount = -1
                 return True
             elif isinstance(self._message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(self._message, self.operation)

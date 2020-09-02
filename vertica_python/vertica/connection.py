@@ -323,10 +323,6 @@ class Connection(object):
         return self
 
     def __exit__(self, type_, value, traceback):
-        if type_ is not None:
-            print("ERRORSSSSS")
-        else:
-            print('CORRECT')
         self.close()
 
     #############################################

@@ -418,7 +418,7 @@ with vertica_python.connect(**conn_info) as connection:
 ```
 Note: In other drivers, the batch insert is converted into a COPY statement by using prepared statements. vertica-python currently does not support that.
 
-**Insert and commits** :
+**Insert and commits**:
 
 ```python
 cur = connection.cursor()
@@ -434,9 +434,13 @@ cur.execute("commit;")
 # connection.commit()
 cur.execute("INSERT INTO a_table (a, b) VALUES (1, 'aa')")
 connection.commit()
+
+# connection.rollback()
+cur.execute("INSERT INTO a_table (a, b) VALUES (0, 'bad')")
+connection.rollback()
 ```
 
-**Autocommit**
+**Autocommit**:
 ```python
 import vertica_python
 
@@ -459,7 +463,7 @@ with vertica_python.connect(**conn_info) as connection:
 ```
 
 
-**Copy** :
+**Copy**:
 
 There are 2 methods to do copy:
 
@@ -524,7 +528,7 @@ The data for copying from/writing to local files is streamed in chunks of `buffe
 
 When executing "COPY FROM LOCAL STDIN", `copy_stdin` should be a file-like object or a list of file-like objects (specifically, any object with a `read()` method).
 
-**Cancel the current database operation** :
+**Cancel the current database operation**:
 
 `Connection.cancel()` interrupts the processing of the current operation. Interrupting query execution will cause the cancelled method to raise a `vertica_python.errors.QueryCanceled`. If no query is being executed, it does nothing. You can call this function from a different thread/process than the one currently executing a database operation.
 

@@ -68,9 +68,11 @@ conn_info = {'host': '127.0.0.1',
              'connection_timeout': 5}
 
 # simple connection, with manual close
-connection = vertica_python.connect(**conn_info)
-# do things
-connection.close()
+try:
+    connection = vertica_python.connect(**conn_info)
+    # do things
+finally:
+    connection.close()
 
 # using with for auto connection closing after usage
 with vertica_python.connect(**conn_info) as connection:
@@ -432,6 +434,28 @@ cur.execute("commit;")
 # connection.commit()
 cur.execute("INSERT INTO a_table (a, b) VALUES (1, 'aa')")
 connection.commit()
+```
+
+**Autocommit**
+```python
+import vertica_python
+
+# Enable autocommit at startup
+conn_info = {'host': '127.0.0.1',
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             # autocommit is off by default
+             'autocommit': True,
+             }
+             
+with vertica_python.connect(**conn_info) as connection:
+    # Check current session autocommit setting
+    print(connection.autocommit)    # should be True
+    
+    # Set autocommit setting with attribute
+    connection.autocommit = False
+    print(connection.autocommit)    # should be False
 ```
 
 

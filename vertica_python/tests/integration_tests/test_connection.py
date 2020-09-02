@@ -46,6 +46,8 @@ class ConnectionTestCase(VerticaPythonIntegrationTestCase):
         super(ConnectionTestCase, self).tearDown()
         if 'session_label' in self._conn_info:
             del self._conn_info['session_label']
+        if 'autocommit' in self._conn_info:
+            del self._conn_info['autocommit']
 
     def test_client_os_user_name_metadata(self):
         value = getpass.getuser()
@@ -87,5 +89,22 @@ class ConnectionTestCase(VerticaPythonIntegrationTestCase):
         res = self._query_and_fetchone(query)
         self.assertEqual(res[0], label)
 
+    def test_autocommit_on(self):
+        # Set with connection option
+        self._conn_info['autocommit'] = True
+        with self._connect() as conn:
+            self.assertTrue(conn.autocommit)
+            # Set with attribute setter
+            conn.autocommit = False
+            self.assertFalse(conn.autocommit)
+
+    def test_autocommit_off(self):
+        # Set with connection option
+        self._conn_info['autocommit'] = False
+        with self._connect() as conn:
+            self.assertFalse(conn.autocommit)
+            # Set with attribute setter
+            conn.autocommit = True
+            self.assertTrue(conn.autocommit)
 
 exec(ConnectionTestCase.createPrepStmtClass())

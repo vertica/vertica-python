@@ -61,6 +61,8 @@ conn_info = {'host': '127.0.0.1',
              'unicode_error': 'strict',
              # SSL is disabled by default
              'ssl': False,
+             # autocommit is off by default
+             'autocommit': True,
              # using server-side prepared statements is disabled by default
              'use_prepared_statements': False,
              # connection timeout is not enabled by default
@@ -441,6 +443,8 @@ connection.rollback()
 ```
 
 **Autocommit**:
+
+Session parameter AUTOCOMMIT can be configured by the connection option and the `Connection.autocommit` read/write attribute:
 ```python
 import vertica_python
 
@@ -456,11 +460,15 @@ conn_info = {'host': '127.0.0.1',
 with vertica_python.connect(**conn_info) as connection:
     # Check current session autocommit setting
     print(connection.autocommit)    # should be True
+    # If autocommit is True, statements automatically commit their transactions when they complete.
     
     # Set autocommit setting with attribute
     connection.autocommit = False
     print(connection.autocommit)    # should be False
+    # If autocommit is False, the methods commit() or rollback() must be manually invoked to terminate the transaction.
 ```
+
+To set AUTOCOMMIT to a new value, vertica-python uses `Cursor.execute()` to execute a command internally, and that would clear your previous query results, so be sure to call `Cursor.fetch*()` to save your results before you set autocommit.
 
 
 **Copy**:

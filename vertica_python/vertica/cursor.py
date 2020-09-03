@@ -265,12 +265,10 @@ class Cursor(object):
                                  for parameters in seq_of_parameters]
                 data = "\n".join(seq_of_values)
 
-                copy_autocommit = self.connection.parameters.get('auto_commit', 'on')
-
                 copy_statement = (
                     u"COPY {0} ({1}) FROM STDIN DELIMITER ',' ENCLOSED BY '\"' "
                     u"ENFORCELENGTH ABORT ON ERROR{2}").format(target, variables,
-                    " NO COMMIT" if copy_autocommit == 'off' else '')
+                    " NO COMMIT" if not self.connection.autocommit else '')
 
                 self.copy(copy_statement, data)
             else:

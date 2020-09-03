@@ -1041,7 +1041,7 @@ class SimpleQueryExecutemanyTestCase(VerticaPythonIntegrationTestCase):
     def test_executemany_autocommit(self):
         with self._connect() as conn:
             cur = conn.cursor()
-            cur.execute('SET SESSION AUTOCOMMIT TO off')
+            conn.autocommit = False
             cur.execute('BEGIN')
             cur.executemany("INSERT INTO {0} (a, b) VALUES (%s, %s)".format(self._table),
                             ((None, 'foo'), [2, None], [3, 'bar']))

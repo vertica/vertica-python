@@ -61,6 +61,8 @@ conn_info = {'host': '127.0.0.1',
              'unicode_error': 'strict',
              # SSL is disabled by default
              'ssl': False,
+             # autocommit is off by default
+             'autocommit': True,
              # using server-side prepared statements is disabled by default
              'use_prepared_statements': False,
              # connection timeout is not enabled by default
@@ -68,9 +70,11 @@ conn_info = {'host': '127.0.0.1',
              'connection_timeout': 5}
 
 # simple connection, with manual close
-connection = vertica_python.connect(**conn_info)
-# do things
-connection.close()
+try:
+    connection = vertica_python.connect(**conn_info)
+    # do things
+finally:
+    connection.close()
 
 # using with for auto connection closing after usage
 with vertica_python.connect(**conn_info) as connection:
@@ -416,7 +420,7 @@ with vertica_python.connect(**conn_info) as connection:
 ```
 Note: In other drivers, the batch insert is converted into a COPY statement by using prepared statements. vertica-python currently does not support that.
 
-**Insert and commits** :
+**Insert and commits**:
 
 ```python
 cur = connection.cursor()
@@ -432,10 +436,42 @@ cur.execute("commit;")
 # connection.commit()
 cur.execute("INSERT INTO a_table (a, b) VALUES (1, 'aa')")
 connection.commit()
+
+# connection.rollback()
+cur.execute("INSERT INTO a_table (a, b) VALUES (0, 'bad')")
+connection.rollback()
 ```
 
+**Autocommit**:
 
-**Copy** :
+Session parameter AUTOCOMMIT can be configured by the connection option and the `Connection.autocommit` read/write attribute:
+```python
+import vertica_python
+
+# Enable autocommit at startup
+conn_info = {'host': '127.0.0.1',
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             # autocommit is off by default
+             'autocommit': True,
+             }
+             
+with vertica_python.connect(**conn_info) as connection:
+    # Check current session autocommit setting
+    print(connection.autocommit)    # should be True
+    # If autocommit is True, statements automatically commit their transactions when they complete.
+    
+    # Set autocommit setting with attribute
+    connection.autocommit = False
+    print(connection.autocommit)    # should be False
+    # If autocommit is False, the methods commit() or rollback() must be manually invoked to terminate the transaction.
+```
+
+To set AUTOCOMMIT to a new value, vertica-python uses `Cursor.execute()` to execute a command internally, and that would clear your previous query results, so be sure to call `Cursor.fetch*()` to save your results before you set autocommit.
+
+
+**Copy**:
 
 There are 2 methods to do copy:
 
@@ -500,7 +536,7 @@ The data for copying from/writing to local files is streamed in chunks of `buffe
 
 When executing "COPY FROM LOCAL STDIN", `copy_stdin` should be a file-like object or a list of file-like objects (specifically, any object with a `read()` method).
 
-**Cancel the current database operation** :
+**Cancel the current database operation**:
 
 `Connection.cancel()` interrupts the processing of the current operation. Interrupting query execution will cause the cancelled method to raise a `vertica_python.errors.QueryCanceled`. If no query is being executed, it does nothing. You can call this function from a different thread/process than the one currently executing a database operation.
 

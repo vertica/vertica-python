@@ -64,6 +64,7 @@ from ..vertica.log import VerticaLogging
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 5433
 DEFAULT_PASSWORD = ''
+DEFAULT_AUTOCOMMIT = False
 DEFAULT_BACKUP_SERVER_NODE = []
 DEFAULT_KRB_SERVICE_NAME = 'vertica'
 DEFAULT_LOG_LEVEL = logging.WARNING
@@ -110,7 +111,7 @@ def parse_dsn(dsn):
         elif key == 'backup_server_node':
             continue
         elif key in ('connection_load_balance', 'use_prepared_statements',
-                     'disable_copy_local', 'ssl'):
+                     'disable_copy_local', 'ssl', 'autocommit'):
             lower = value.lower()
             if lower in ('true', 'on', '1'):
                 result[key] = True
@@ -278,6 +279,7 @@ class Connection(object):
                 raise KeyError(msg)
         self.options.setdefault('database', self.options['user'])
         self.options.setdefault('password', DEFAULT_PASSWORD)
+        self.options.setdefault('autocommit', DEFAULT_AUTOCOMMIT)
         self.options.setdefault('session_label', _generate_session_label())
         self.options.setdefault('backup_server_node', DEFAULT_BACKUP_SERVER_NODE)
         self.options.setdefault('kerberos_service_name', DEFAULT_KRB_SERVICE_NAME)
@@ -307,6 +309,11 @@ class Connection(object):
                      self.options['user'], self.options['database'],
                      self.options['host'], self.options['port']))
         self.startup_connection()
+
+        # Initially, for a new session, autocommit is off
+        if self.options['autocommit']:
+            self.autocommit = True
+
         self._logger.info('Connection is ready')
 
     #############################################
@@ -316,20 +323,7 @@ class Connection(object):
         return self
 
     def __exit__(self, type_, value, traceback):
-        try:
-            # get the transaction status
-            if not self.closed():
-                self.cursor().flush_to_query_ready()
-            # if there's no outstanding transaction, we can simply close the connection
-            if self.transaction_status in (None, 'in_transaction'):
-                return
-
-            if type_ is not None:
-                self.rollback()
-            else:
-                self.commit()
-        finally:
-            self.close()
+        self.close()
 
     #############################################
     # dbapi methods
@@ -369,6 +363,21 @@ class Connection(object):
     #############################################
     # non-dbapi methods
     #############################################
+    @property
+    def autocommit(self):
+        """Read the connection's AUTOCOMMIT setting from cache"""
+        return self.parameters.get('auto_commit', 'off') == 'on'
+
+    @autocommit.setter
+    def autocommit(self, value):
+        """Change the connection's AUTOCOMMIT setting"""
+        if self.autocommit is value:
+            return
+        val = 'on' if value else 'off'
+        cur = self.cursor()
+        cur.execute('SET SESSION AUTOCOMMIT TO {}'.format(val), use_prepared_statements=False)
+        cur.fetchall()   # check for errors and update the cache
+
     def cancel(self):
         """Cancel the current database operation. This can be called from a
            different thread than the one currently executing a database operation.

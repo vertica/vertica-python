@@ -375,7 +375,7 @@ class Connection(object):
             return
         val = 'on' if value else 'off'
         cur = self.cursor()
-        cur.execute('SET SESSION AUTOCOMMIT TO {}'.format(val))
+        cur.execute('SET SESSION AUTOCOMMIT TO {}'.format(val), use_prepared_statements=False)
         cur.fetchall()   # check for errors and update the cache
 
     def cancel(self):

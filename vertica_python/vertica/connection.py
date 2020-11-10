@@ -577,7 +577,10 @@ class Connection(object):
         except Exception as e:
             self.close_socket()
             self._logger.error(str(e))
-            raise
+            if isinstance(e, IOError):
+                raise_from(errors.ConnectionError(str(e)), e)
+            else:
+                raise
 
     def close_socket(self):
         try:

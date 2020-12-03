@@ -52,5 +52,52 @@ class ColumnTestCase(VerticaPythonIntegrationTestCase):
 
         self.assertListEqual([d.name for d in description], columns)
 
+    def test_column_description(self):
+        type_descriptions = [
+            ['boolVal', 5, 1, 1, None, None, True],
+            ['intVal', 6, 20, 8, None, None, True],
+            ['floatVal', 7, 22, 8, None, None, True],
+            ['charVal', 8, 1, -1, None, None, True],
+            ['varCharVal', 9, 128, -1, None, None, True],
+            ['dateVal', 10, 13, 8, None, None, True],
+            ['timestampVal', 12, 29, 8, 6, None, True],
+            ['timestampTZVal', 13, 35, 8, 6, None, True],
+            ['intervalVal', 14, 24, 8, 4, None, True],
+            ['intervalYMVal', 114, 22, 8, 0, None, True],
+            ['timeVal', 11, 15, 8, 6, None, True],
+            ['timeTZVal', 15, 21, 8, 6, None, True],
+            ['varBinVal', 17, 80, -1, None, None, True],
+            ['uuidVal', 20, 36, 16, None, None, True],
+            ['lVarCharVal', 115, 65536, -1, None, None, True],
+            ['lVarBinaryVal', 116, 65536, -1, None, None, True],
+            ['binaryVal', 117, 1, -1, None, None, True],
+            ['numericVal', 16, 1002, -1, 1000, 18, True]]
+
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("DROP TABLE IF EXISTS full_type_tbl")
+            cur.execute("""CREATE TABLE full_type_tbl(
+                boolVal BOOLEAN,
+                intVal INT,
+                floatVal FLOAT,
+                charVal CHAR,
+                varCharVal VARCHAR(128),
+                dateVal DATE,
+                timestampVal TIMESTAMP,
+                timestampTZVal TIMESTAMPTZ,
+                intervalVal INTERVAL DAY TO SECOND(4),
+                intervalYMVal INTERVAL YEAR TO MONTH,
+                timeVal TIME,
+                timeTZVal TIMETZ,
+                varBinVal VARBINARY,
+                uuidVal UUID,
+                lVarCharVal LONG VARCHAR(65536),
+                lVarBinaryVal LONG VARBINARY(65536),
+                binaryVal BINARY,
+                numericVal NUMERIC(1000,18))""")
+            cur.execute("SELECT * FROM full_type_tbl")
+            self.assertListOfListsEqual([list(i) for i in cur.description], type_descriptions)
+            cur.execute("DROP TABLE IF EXISTS full_type_tbl")
+
 
 exec(ColumnTestCase.createPrepStmtClass())

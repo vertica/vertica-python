@@ -92,7 +92,7 @@ class RowDescription(BackendMessage):
                 pos += len(table_name) + 1
                 table_name = table_name.decode('utf-8')
 
-            field_info = unpack_from("!HBIHHHiH", data, pos)
+            field_info = unpack_from("!HBIhHHiH", data, pos)
             pos += offset
 
             if field_info[1] == 1:

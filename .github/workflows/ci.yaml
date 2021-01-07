@@ -1,0 +1,35 @@
+name: CI
+
+on: [push, pull_request_target]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Set up a Vertica server
+        env:
+          VERTICA_CE_URL: "https://vertica-community-edition-for-testing.s3.amazonaws.com/XCz9cp7m/vertica-10.0.1-0.x86_64.RHEL6.rpm"
+        run: |
+          git clone https://github.com/jbfavre/docker-vertica.git
+          curl $VERTICA_CE_URL --create-dirs -o docker-vertica/packages/vertica-ce.latest.rpm
+          docker build -f docker-vertica/Dockerfile.centos.7_9.x --build-arg VERTICA_PACKAGE=vertica-ce.latest.rpm -t jbfavre/vertica docker-vertica
+          docker images
+          docker run -d -p 5433:5433 jbfavre/vertica
+          sleep 60
+      - name: Install dependencies
+        run: pip install tox
+      - name: Run tests
+        run: |
+          export VP_TEST_USER=dbadmin
+          tox -e py

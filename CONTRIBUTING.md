@@ -150,6 +150,10 @@ the Python environments/versions that are enumerated in `tox.ini`.
 
 For more usages about [tox](https://tox.readthedocs.io), see the Python documentation.
 
+The Github Actions [CI workflow](.github/workflows/ci.yaml) committed as part of the project will automatically run test suite through different python versions.
+These CI tests must pass before any PR will be considered. This CI workflow can be run on your forked repository after you enabling Github Actions on your fork.
+
+
 ## Step 5: Implement your fix or feature
 
 At this point, you're ready to make your changes! Feel free to ask for help; everyone is a beginner at first.

@@ -40,6 +40,7 @@ import re
 from collections import namedtuple
 from datetime import date, datetime
 from decimal import Decimal
+from six import PY2
 from uuid import UUID
 
 # noinspection PyCompatibility,PyUnresolvedReferences
@@ -133,6 +134,30 @@ def time_parse(s):
         return datetime.strptime(s, '%H:%M:%S').time()
     return datetime.strptime(s, '%H:%M:%S.%f').time()
 
+def binary_data_parse(s):
+    """
+    Parses text value of a BINARY/VARBINARY/LONG VARBINARY type.
+    :param s: bytearray
+    :return: bytes
+    """
+    buf = []
+    i = 0
+    while i < len(s):
+        c = s[i: i+1]
+        if c == b'\\':
+            c2 = s[i+1: i+2]
+            if c2 == b'\\':  # escaped \
+                if PY2: c = str(c)
+                i += 2
+            else:   # A \xxx octal string
+                c = chr(int(str(s[i+1: i+4]), 8)) if PY2 else bytes([int(s[i+1: i+4], 8)])
+                i += 4
+        else:
+            if PY2: c = str(c)
+            i += 1
+        buf.append(c)
+    return b''.join(buf)
+
 
 # Type casting of SQL types bytes representation into Python objects
 def vertica_type_cast(type_code, unicode_error):
@@ -150,12 +175,12 @@ def vertica_type_cast(type_code, unicode_error):
         VerticaType.INTERVAL: bytes,
         VerticaType.TIMETZ: bytes,
         VerticaType.NUMERIC: lambda s: Decimal(s.decode('utf-8', unicode_error)),
-        VerticaType.VARBINARY: bytes,
+        VerticaType.VARBINARY: binary_data_parse,
         VerticaType.UUID: lambda s: UUID(s.decode('utf-8', unicode_error)),
         VerticaType.INTERVALYM: bytes,
         VerticaType.LONGVARCHAR: lambda s: s.decode('utf-8', unicode_error),
-        VerticaType.LONGVARBINARY: bytes,
-        VerticaType.BINARY: bytes
+        VerticaType.LONGVARBINARY: binary_data_parse,
+        VerticaType.BINARY: binary_data_parse
     }
     return typecaster.get(type_code, bytes)
 

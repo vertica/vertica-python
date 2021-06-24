@@ -1248,8 +1248,8 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
     def test_bind_binary(self):
         values = [b'binary data', b'\\backslash data\\', u'\\backslash data\\',
                   u'\u00f1 encoding', 'raw data', 'long varbinary data', None]
-        expected = [[b'binary data\\000\\000\\000', b'\\\\backslash data\\\\',
-                     b'\\\\backslash data\\\\', b'\\303\\261 encoding',
+        expected = [[b'binary data\x00\x00\x00', b'\\backslash data\\',
+                     b'\\backslash data\\', b'\xc3\xb1 encoding',
                      b'raw data', b'long varbinary data', None]]
         with self._connect() as conn:
             cur = conn.cursor()

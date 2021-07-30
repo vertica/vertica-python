@@ -123,7 +123,7 @@ if six.PY2:
 RE_NAME_BASE = u"[0-9a-zA-Z_][\\w\\d\\$_]*"
 RE_NAME = u'(("{0}")|({0}))'.format(RE_NAME_BASE)
 RE_BASIC_INSERT_STAT = (
-    u"INSERT\\s+INTO\\s+(?P<target>({0}\\.)?{0})"
+    u"\\s*INSERT\\s+INTO\\s+(?P<target>({0}\\.)?{0})"
     u"\\s*\\(\\s*(?P<variables>{0}(\\s*,\\s*{0})*)\\s*\\)"
     u"\\s+VALUES\\s*\\(\\s*(?P<values>(.|\\s)*)\\s*\\)").format(RE_NAME)
 END_OF_RESULT_RESPONSES = (messages.CommandComplete, messages.PortalSuspended)

@@ -55,6 +55,11 @@ class CancelTestCase(VerticaPythonIntegrationTestCase):
                 cur.execute(long_running_query)
             p1.join()
 
+            # Must be able to successfully run next query
+            cur.execute("SELECT 1")
+            res = cur.fetchall()
+            self.assertListOfListsEqual(res, [[1]])
+
     def test_connection_cancel_returned_query(self):
         with self._connect() as conn:
             cur = conn.cursor()
@@ -86,6 +91,11 @@ class CancelTestCase(VerticaPythonIntegrationTestCase):
                 # 100,000 seems to leave a safe margin while still falling well short of
                 # the 30,000,000+ rows we'd have read if the cancel didn't work.
                 self.assertTrue(100 <= nCount < 100000)
+
+                # Must be able to successfully run next query
+                cur.execute("SELECT 1")
+                res = cur.fetchall()
+                self.assertListOfListsEqual(res, [[1]])
             finally:
                 cur.execute("DROP TABLE IF EXISTS vptest")
 

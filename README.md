@@ -549,6 +549,8 @@ def cancel_query(connection, timeout=5):
     time.sleep(timeout)
     connection.cancel()
 
+# Example 1: Cancel the query before Cursor.execute() return.
+#            The query stops executing in a shorter time after the cancel message is sent.
 with vertica_python.connect(**conn_info) as conn:
     cur = conn.cursor()
 
@@ -562,7 +564,24 @@ with vertica_python.connect(**conn_info) as conn:
         pass
 
     p1.join()
+    
+# Example 2: Cancel the query after Cursor.execute() return.
+#            Less number of rows read after the cancel message is sent.
+with vertica_python.connect(**conn_info) as conn:
+    cur = conn.cursor()
+    cur.execute("SELECT id, time FROM large_table")
+    nCount = 0
+    try:
+        while cur.fetchone():
+            nCount += 1
+            if nCount == 100:
+                conn.cancel()
+    except vertica_python.errors.QueryCanceled as e:
+        pass
+        # nCount is less than the number of rows in large_table
+
 ```
+
 
 
 ## Rowcount oddities

@@ -673,7 +673,14 @@ class Cursor(object):
                     self._send_copy_file_data()
                     if not self._read_copy_data_response():
                         break
+        except errors.QueryError:
+            # A server-detected error.
+            # The server issues an ErrorResponse message and a ReadyForQuery message.
+            raise
         except Exception as e:
+            # A client-detected error.
+            # The client terminates COPY LOCAL protocol by sending a CopyError message,
+            # which will cause the COPY SQL statement to fail with an ErrorResponse message.
             tb = sys.exc_info()[2]
             stk = traceback.extract_tb(tb, 1)
             self.connection.write(messages.CopyError(str(e), stk[0]))
@@ -740,6 +747,9 @@ class Cursor(object):
         # another EndOfBatchRequest or CopyDone
         if is_stdin_copy:
             self.connection.write(messages.CopyDone())  # End this copy
+            self._message = self.connection.read_message()
+            if isinstance(self._message, messages.ErrorResponse):
+                raise errors.QueryError.from_error_response(self._message, self.operation)
             return False
 
         # For file copy, peek the next message
@@ -747,8 +757,11 @@ class Cursor(object):
         if isinstance(self._message, messages.LoadFile):
             # Indicate there are more local files to load
             return True
+        elif isinstance(self._message, messages.ErrorResponse):
+            raise errors.QueryError.from_error_response(self._message, self.operation)
         elif not isinstance(self._message, messages.CopyDoneResponse):
-            raise errors.MessageError('Unexpected COPY-LOCAL message: {0}'.format(message))
+            raise errors.MessageError('Unexpected COPY FROM LOCAL state: {}'.format(
+                                      type(self._message).__name__))
         return False
 
     def _error_handler(self, msg):

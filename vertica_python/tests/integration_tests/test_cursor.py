@@ -986,6 +986,32 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
 
             cur.execute("DROP TABLE IF EXISTS test_loader_rejects CASCADE")
 
+    def test_copy_local_abort_on_error(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {0} (a INT, b VARCHAR(9))".format(self._table))
+            msg = r"The 12-byte value is too long for type Varchar\(9\), column 2 \(b\)"
+
+            # COPY LOCAL FILE
+            with pytest.raises(errors.CopyRejected, match=msg):
+                cur.execute(
+                    "COPY {} FROM LOCAL '{}' DELIMITER ',' ENFORCELENGTH ABORT ON ERROR"
+                    .format(self._table, self._f3.name))
+            # Must not close the cursor object and able to successfully run queries
+            cur.execute("SELECT 1;")
+            self.assertListOfListsEqual(cur.fetchall(), [[1]])
+
+            # COPY LOCAL STDIN
+            with pytest.raises(errors.CopyRejected, match=msg):
+                cur.execute(
+                    "COPY {} FROM LOCAL STDIN DELIMITER ',' ENFORCELENGTH ABORT ON ERROR"
+                    .format(self._table),
+                    copy_stdin=[open(self._f3.name)])
+            # Must not close the cursor object and able to successfully run queries
+            cur.execute("SELECT 1;")
+            self.assertListOfListsEqual(cur.fetchall(), [[1]])
+
+
 class SimpleQueryExecutemanyTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):
         super(SimpleQueryExecutemanyTestCase, self).setUp()

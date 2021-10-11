@@ -990,13 +990,13 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("CREATE TABLE {0} (a INT, b VARCHAR(9))".format(self._table))
-            msg = r"Input record 3 has been rejected \(Invalid integer format 'x\u00f1' for column 1 \(a\)\)"
+            msg = r"The 12-byte value is too long for type Varchar\(9\), column 2 \(b\)"
 
             # COPY LOCAL FILE
             with pytest.raises(errors.CopyRejected, match=msg):
                 cur.execute(
                     "COPY {} FROM LOCAL '{}' DELIMITER ',' ENFORCELENGTH ABORT ON ERROR"
-                    .format(self._table, self._f1.name))
+                    .format(self._table, self._f3.name))
             # Must not close the cursor object and able to successfully run queries
             cur.execute("SELECT 1;")
             self.assertListOfListsEqual(cur.fetchall(), [[1]])
@@ -1006,7 +1006,7 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
                 cur.execute(
                     "COPY {} FROM LOCAL STDIN DELIMITER ',' ENFORCELENGTH ABORT ON ERROR"
                     .format(self._table),
-                    copy_stdin=[open(self._f1.name)])
+                    copy_stdin=[open(self._f3.name)])
             # Must not close the cursor object and able to successfully run queries
             cur.execute("SELECT 1;")
             self.assertListOfListsEqual(cur.fetchall(), [[1]])

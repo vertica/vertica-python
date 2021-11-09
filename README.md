@@ -45,7 +45,7 @@ Note that `kerberos` is a python extension module, which means you need to insta
 ## Usage
 
 
-**Create connection**
+### Create connection
 
 ```python
 import vertica_python
@@ -255,7 +255,7 @@ for row in cur.iterate():
 Streaming is recommended if you want to further process each row, save the results in a non-list/dict format (e.g. Pandas DataFrame), or save the results in a file.
 
 
-**In-memory results as list**:
+### In-memory results as list
 
 ```python
 cur = connection.cursor()
@@ -265,7 +265,7 @@ cur.fetchall()
 ```
 
 
-**In-memory results as dictionary**:
+### In-memory results as dictionary
 
 ```python
 cur = connection.cursor('dict')
@@ -276,7 +276,7 @@ connection.close()
 ```
 
 
-**Query using named parameters or format parameters**:
+### Query using named parameters or format parameters
 
 vertica-python can automatically convert Python objects to SQL literals: using this feature your code will be more robust and reliable to prevent SQL injection attacks.
 

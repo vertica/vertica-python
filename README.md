@@ -45,7 +45,7 @@ Note that `kerberos` is a python extension module, which means you need to insta
 ## Usage
 
 
-### Create connection
+### Create a connection
 
 ```python
 import vertica_python
@@ -81,6 +81,7 @@ with vertica_python.connect(**conn_info) as connection:
     # do things
 ```
 
+#### TLS/SSL
 You can pass an `ssl.SSLContext` to `ssl` to customize the SSL connection options. For example,
 
 ```python
@@ -104,6 +105,7 @@ connection = vertica_python.connect(**conn_info)
 
 See more on SSL options [here](https://docs.python.org/3/library/ssl.html).
 
+#### Kerberos Authentication
 In order to use Kerberos authentication, install [dependencies](#using-kerberos-authentication) first, and it is the user's responsibility to ensure that an Ticket-Granting Ticket (TGT) is available and valid. Whether a TGT is available can be easily determined by running the `klist` command. If no TGT is available, then it first must be obtained by running the `kinit` command or by logging in. You can pass in optional arguments to customize the authentication. The arguments are `kerberos_service_name`, which defaults to "vertica", and `kerberos_host_name`, which defaults to the value of argument `host`. For example,
 
 ```python
@@ -188,6 +190,7 @@ conn_info = {'host': 'unreachable.server.com',
 connection = vertica_python.connect(**conn_info)
 ```
 
+#### Connection Load Balancing
 Connection Load Balancing helps automatically spread the overhead caused by client connections across the cluster by having hosts redirect client connections to other hosts. Both the server and the client need to enable load balancing for it to function. If the server disables connection load balancing, the load balancing request from client will be ignored.
 
 ```python
@@ -217,6 +220,7 @@ with vertica_python.connect(**conn_info) as conn:
 #  Client redirects to node: v_vdb_node0005
 ```
 
+#### Connection String
 Another way to set connection properties is passing a connection string to the keyword parameter `dsn` of `vertica_python.connect(dsn='...', **kwargs)`. The connection string is of the form:
 ```
 vertica://(user):(password)@(host):(port)/(database)?(arg1=val1&arg2=val2&...)

@@ -123,6 +123,7 @@ with vertica_python.connect(**conn_info) as conn:
     # do things
 ```
 
+#### Logging
 Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. If ```log_path``` is set to ```''``` (empty string) or ```None```, no file handler is set, logs will be processed by root handlers. For example,
 
 ```python
@@ -172,7 +173,8 @@ with vertica_python.connect(**conn_info) as connection:
     # do things
 ```
 
-Connection Failover: Supply a list of backup hosts to ```backup_server_node``` for the client to try if the primary host you specify in the connection parameters (```host```, ```port```) is unreachable. Each item in the list should be either a host string (using default port 5433) or a (host, port) tuple. A host can be a host name or an IP address.
+#### Connection Failover
+Supply a list of backup hosts to ```backup_server_node``` for the client to try if the primary host you specify in the connection parameters (```host```, ```port```) is unreachable. Each item in the list should be either a host string (using default port 5433) or a (host, port) tuple. A host can be a host name or an IP address.
 
 ```python
 import vertica_python
@@ -240,7 +242,7 @@ with vertica_python.connect(dsn=connection_str, **additional_info) as conn:
 ```
 
 
-**Stream query results**:
+### Stream query results
 
 ```python
 cur = connection.cursor()
@@ -346,7 +348,7 @@ cur.object_to_sql_literal(Point(-71.13, 42.36))  # "STV_GeometryPoint(-71.13,42.
 ```
 
 
-**Query using server-side prepared statements**:
+### Query using server-side prepared statements
 
 Vertica server-side prepared statements let you define a statement once and then run it many times with different parameters. Placeholders in the statement are represented by question marks (?). Server-side prepared statements are useful for preventing SQL injection attacks.
 
@@ -420,7 +422,7 @@ with vertica_python.connect(**conn_info) as connection:
 ```
 Note: In other drivers, the batch insert is converted into a COPY statement by using prepared statements. vertica-python currently does not support that.
 
-**Insert and commits**:
+### Insert and commits
 
 ```python
 cur = connection.cursor()
@@ -442,7 +444,7 @@ cur.execute("INSERT INTO a_table (a, b) VALUES (0, 'bad')")
 connection.rollback()
 ```
 
-**Autocommit**:
+### Autocommit
 
 Session parameter AUTOCOMMIT can be configured by the connection option and the `Connection.autocommit` read/write attribute:
 ```python
@@ -471,7 +473,7 @@ with vertica_python.connect(**conn_info) as connection:
 To set AUTOCOMMIT to a new value, vertica-python uses `Cursor.execute()` to execute a command internally, and that would clear your previous query results, so be sure to call `Cursor.fetch*()` to save your results before you set autocommit.
 
 
-**Copy**:
+### Copy
 
 There are 2 methods to do copy:
 
@@ -536,7 +538,7 @@ The data for copying from/writing to local files is streamed in chunks of `buffe
 
 When executing "COPY FROM LOCAL STDIN", `copy_stdin` should be a file-like object or a list of file-like objects (specifically, any object with a `read()` method).
 
-**Cancel the current database operation**:
+### Cancel the current database operation
 
 `Connection.cancel()` interrupts the processing of the current operation. Interrupting query execution will cause the cancelled method to raise a `vertica_python.errors.QueryCanceled`. If no query is being executed, it does nothing. You can call this function from a different thread/process than the one currently executing a database operation.
 

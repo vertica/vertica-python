@@ -41,6 +41,8 @@ vertica-python has optional Kerberos authentication support for Unix-like system
 Note that `kerberos` is a python extension module, which means you need to install `python-dev`. The command depends on the package manager and will look like
 
     sudo [yum|apt-get|etc] install python-dev
+    
+Then see [this section](#kerberos-authentication) for how to config a connection.
 
 ## Usage
 

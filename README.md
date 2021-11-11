@@ -285,78 +285,11 @@ cur.fetchall()
 connection.close()
 ```
 
-
-### Query using named parameters or format parameters
-
-vertica-python can automatically convert Python objects to SQL literals: using this feature your code will be more robust and reliable to prevent SQL injection attacks.
+### Passing parameters to SQL queries
 
 Prerequisites: Only SQL literals (i.e. query values) should be bound via these methods: they shouldn’t be used to merge table or field names to the query (_vertica-python_ will try quoting the table name as a string value, generating invalid SQL as it is actually a SQL Identifier). If you need to generate dynamically SQL queries (for instance choosing dynamically a table name) you have to construct the full query yourself.
 
-Variables can be specified with named (__:name__) placeholders.
-```python
-cur = connection.cursor()
-data = {'propA': 1, 'propB': 'stringValue'}
-cur.execute("SELECT * FROM a_table WHERE a = :propA AND b = :propB", data)
-# converted into a SQL command similar to: "SELECT * FROM a_table WHERE a = 1 AND b = 'stringValue'"
-
-cur.fetchall()
-# [ [1, 'stringValue'] ]
-```
-
-Variables can also be specified with positional format (__%s__) placeholders. The placeholder __must always be a %s__, even if a different placeholder (such as a %d for integers or %f for floats) may look more appropriate. __Never__ use Python string concatenation (+) or string parameters interpolation (%) to pass variables to a SQL query string.
-```python
-cur = connection.cursor()
-data = (1, "O'Reilly")
-cur.execute("SELECT * FROM a_table WHERE a = %s AND b = %s" % data) # WRONG: % operator
-cur.execute("SELECT * FROM a_table WHERE a = %d AND b = %s", data)  # WRONG: %d placeholder
-cur.execute("SELECT * FROM a_table WHERE a = %s AND b = %s", data)  # correct
-# converted into a SQL command similar to: "SELECT * FROM a_table WHERE a = 1 AND b = 'O''Reilly'"
-
-cur.fetchall()
-# [ [1, "O'Reilly"] ]
-```
-
-The placeholder must not be quoted. _vertica-python_ will add quotes where needed.
-```python
->>> cur.execute("INSERT INTO table VALUES (':propA')", {'propA': "someString"}) # WRONG
->>> cur.execute("INSERT INTO table VALUES (:propA)", {'propA': "someString"})   # correct
->>> cur.execute("INSERT INTO table VALUES ('%s')", ("someString",)) # WRONG
->>> cur.execute("INSERT INTO table VALUES (%s)", ("someString",))   # correct
-```
-
-_vertica-python_ supports default mapping for many standard Python types. It is possible to adapt new Python types to SQL literals via `Cursor.register_sql_literal_adapter(py_class_or_type, adapter_function)` function. Example:
-```python
-class Point(object):
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
-# Adapter should return a string value
-def adapt_point(point):
-    return "STV_GeometryPoint({},{})".format(point.x, point.y)
-
-cur = conn.cursor()
-cur.register_sql_literal_adapter(Point, adapt_point)
-
-cur.execute("INSERT INTO geom_data (geom) VALUES (%s)", [Point(1.23, 4.56)])
-cur.execute("select ST_asText(geom) from geom_data")
-cur.fetchall()
-# [['POINT (1.23 4.56)']]
-```
-
-To help you debug the binding process during Cursor.execute*(), `Cursor.object_to_sql_literal(py_object)` function can be used to inspect the SQL literal string converted from a Python object.
-```python
-cur = conn.cursor
-cur.object_to_sql_literal("O'Reilly")  # "'O''Reilly'"
-cur.object_to_sql_literal(None)  # "NULL"
-cur.object_to_sql_literal(True)  # "True"
-cur.object_to_sql_literal(Decimal("10.00000"))  # "10.00000"
-cur.object_to_sql_literal(datetime.date(2018, 9, 7))  # "'2018-09-07'"
-cur.object_to_sql_literal(Point(-71.13, 42.36))  # "STV_GeometryPoint(-71.13,42.36)" if you registered in previous step
-```
-
-
-### Query using server-side prepared statements
+#### Server-side binding: Query using prepared statements
 
 Vertica server-side prepared statements let you define a statement once and then run it many times with different parameters. Placeholders in the statement are represented by question marks (?). Server-side prepared statements are useful for preventing SQL injection attacks.
 
@@ -429,6 +362,75 @@ with vertica_python.connect(**conn_info) as connection:
     # [[2, 'bb'], [3, 'foo']]
 ```
 Note: In other drivers, the batch insert is converted into a COPY statement by using prepared statements. vertica-python currently does not support that.
+
+#### Client-side binding: Query using named parameters or format parameters
+
+vertica-python can automatically convert Python objects to SQL literals, merge the query and the parameters on the client side, and then send the query to the server: using this feature your code will be more robust and reliable to prevent SQL injection attacks.
+
+Variables can be specified with named (__:name__) placeholders.
+```python
+cur = connection.cursor()
+data = {'propA': 1, 'propB': 'stringValue'}
+cur.execute("SELECT * FROM a_table WHERE a = :propA AND b = :propB", data)
+# converted into a SQL command similar to: "SELECT * FROM a_table WHERE a = 1 AND b = 'stringValue'"
+
+cur.fetchall()
+# [ [1, 'stringValue'] ]
+```
+
+Variables can also be specified with positional format (__%s__) placeholders. The placeholder __must always be a %s__, even if a different placeholder (such as a %d for integers or %f for floats) may look more appropriate. __Never__ use Python string concatenation (+) or string parameters interpolation (%) to pass variables to a SQL query string.
+```python
+cur = connection.cursor()
+data = (1, "O'Reilly")
+cur.execute("SELECT * FROM a_table WHERE a = %s AND b = %s" % data) # WRONG: % operator
+cur.execute("SELECT * FROM a_table WHERE a = %d AND b = %s", data)  # WRONG: %d placeholder
+cur.execute("SELECT * FROM a_table WHERE a = %s AND b = %s", data)  # correct
+# converted into a SQL command similar to: "SELECT * FROM a_table WHERE a = 1 AND b = 'O''Reilly'"
+
+cur.fetchall()
+# [ [1, "O'Reilly"] ]
+```
+
+The placeholder must not be quoted. _vertica-python_ will add quotes where needed.
+```python
+>>> cur.execute("INSERT INTO table VALUES (':propA')", {'propA': "someString"}) # WRONG
+>>> cur.execute("INSERT INTO table VALUES (:propA)", {'propA': "someString"})   # correct
+>>> cur.execute("INSERT INTO table VALUES ('%s')", ("someString",)) # WRONG
+>>> cur.execute("INSERT INTO table VALUES (%s)", ("someString",))   # correct
+```
+
+_vertica-python_ supports default mapping for many standard Python types. It is possible to adapt new Python types to SQL literals via `Cursor.register_sql_literal_adapter(py_class_or_type, adapter_function)` function. Example:
+```python
+class Point(object):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+# Adapter should return a string value
+def adapt_point(point):
+    return "STV_GeometryPoint({},{})".format(point.x, point.y)
+
+cur = conn.cursor()
+cur.register_sql_literal_adapter(Point, adapt_point)
+
+cur.execute("INSERT INTO geom_data (geom) VALUES (%s)", [Point(1.23, 4.56)])
+cur.execute("select ST_asText(geom) from geom_data")
+cur.fetchall()
+# [['POINT (1.23 4.56)']]
+```
+
+To help you debug the binding process during Cursor.execute*(), `Cursor.object_to_sql_literal(py_object)` function can be used to inspect the SQL literal string converted from a Python object.
+```python
+cur = conn.cursor
+cur.object_to_sql_literal("O'Reilly")  # "'O''Reilly'"
+cur.object_to_sql_literal(None)  # "NULL"
+cur.object_to_sql_literal(True)  # "True"
+cur.object_to_sql_literal(Decimal("10.00000"))  # "10.00000"
+cur.object_to_sql_literal(datetime.date(2018, 9, 7))  # "'2018-09-07'"
+cur.object_to_sql_literal(Point(-71.13, 42.36))  # "STV_GeometryPoint(-71.13,42.36)" if you registered in previous step
+```
+
+
 
 ### Insert and commits
 
@@ -592,7 +594,14 @@ with vertica_python.connect(**conn_info) as conn:
 
 ```
 
+### Shortcuts
+The `Cursor.execute()` method returns `self`. This means that you can chain a fetch operation, such as `fetchone()`, to the `execute()` call:
+```python
+row = cursor.execute(...).fetchone()
 
+for row in cur.execute(...).fetchall():
+    ...
+```
 
 ## Rowcount oddities
 

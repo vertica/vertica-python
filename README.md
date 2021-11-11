@@ -45,9 +45,11 @@ Note that `kerberos` is a python extension module, which means you need to insta
 Then see [this section](#kerberos-authentication) for how to config a connection.
 
 ## Usage
-
+The basic vertica-python usage is common to all the database adapters implementing the [DB-API v2.0](https://www.python.org/dev/peps/pep-0249/) protocol.
 
 ### Create a connection
+
+The example below shows how to create a `Connection` object:
 
 ```python
 import vertica_python
@@ -78,7 +80,7 @@ try:
 finally:
     connection.close()
 
-# using with for auto connection closing after usage
+# using `with` for auto connection closing after usage
 with vertica_python.connect(**conn_info) as connection:
     # do things
 ```

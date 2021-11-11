@@ -287,11 +287,14 @@ connection.close()
 
 ### Passing parameters to SQL queries
 
-Prerequisites: Only SQL literals (i.e. query values) should be bound via these methods: they shouldn’t be used to merge table or field names to the query (_vertica-python_ will try quoting the table name as a string value, generating invalid SQL as it is actually a SQL Identifier). If you need to generate dynamically SQL queries (for instance choosing dynamically a table name) you have to construct the full query yourself.
+vertica-python provides two methods for passing parameters to a SQL query:
+1. [Server-side binding]()
+2. [Client-side binding]()
+:warning: Prerequisites: Only SQL literals (i.e. query values) should be bound via these methods: they shouldn’t be used to merge table or field names to the query (_vertica-python_ will try quoting the table name as a string value, generating invalid SQL as it is actually a SQL Identifier). If you need to generate dynamically SQL queries (for instance choosing dynamically a table name) you have to construct the full query yourself.
 
 #### Server-side binding: Query using prepared statements
 
-Vertica server-side prepared statements let you define a statement once and then run it many times with different parameters. Placeholders in the statement are represented by question marks (?). Server-side prepared statements are useful for preventing SQL injection attacks.
+Vertica server-side prepared statements let you define a statement once and then run it many times with different parameters. Internally, vertica-python sends the query and the parameters to the server separately. Placeholders in the statement are represented by question marks (?). Server-side prepared statements are useful for preventing SQL injection attacks.
 
 ```python
 import vertica_python
@@ -317,7 +320,9 @@ with vertica_python.connect(**conn_info) as connection:
     # [[2, 'bb'], [3, 'foo'], [4, 'xx']]
 ```
 
-Vertica does not support executing a command string containing multiple statements using server-side prepared statements. You can set ```use_prepared_statements``` option in ```cursor.execute*()``` functions to override the connection level setting.
+:no_entry_sign: Vertica server-side prepared statements does not support executing a command string containing multiple statements.
+
+You can set ```use_prepared_statements``` option in ```cursor.execute*()``` functions to override the connection level setting.
 
 ```python
 import vertica_python

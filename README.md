@@ -288,8 +288,9 @@ connection.close()
 ### Passing parameters to SQL queries
 
 vertica-python provides two methods for passing parameters to a SQL query:
-1. [Server-side binding]()
-2. [Client-side binding]()
+1. [Server-side binding](#server-side-binding-query-using-prepared-statements)
+2. [Client-side binding](#client-side-binding-query-using-named-parameters-or-format-parameters)
+
 :warning: Prerequisites: Only SQL literals (i.e. query values) should be bound via these methods: they shouldn’t be used to merge table or field names to the query (_vertica-python_ will try quoting the table name as a string value, generating invalid SQL as it is actually a SQL Identifier). If you need to generate dynamically SQL queries (for instance choosing dynamically a table name) you have to construct the full query yourself.
 
 #### Server-side binding: Query using prepared statements
@@ -320,7 +321,7 @@ with vertica_python.connect(**conn_info) as connection:
     # [[2, 'bb'], [3, 'foo'], [4, 'xx']]
 ```
 
-:no_entry_sign: Vertica server-side prepared statements does not support executing a command string containing multiple statements.
+:no_entry_sign: Vertica server-side prepared statements does not support executing a query string containing multiple statements.
 
 You can set ```use_prepared_statements``` option in ```cursor.execute*()``` functions to override the connection level setting.
 
@@ -576,124 +577,4 @@ with vertica_python.connect(**conn_info) as conn:
     p1.start()
 
     try:
-        cur.execute("<Long running query>")
-    except vertica_python.errors.QueryCanceled as e:
-        pass
-
-    p1.join()
-    
-# Example 2: Cancel the query after Cursor.execute() return.
-#            Less number of rows read after the cancel message is sent.
-with vertica_python.connect(**conn_info) as conn:
-    cur = conn.cursor()
-    cur.execute("SELECT id, time FROM large_table")
-    nCount = 0
-    try:
-        while cur.fetchone():
-            nCount += 1
-            if nCount == 100:
-                conn.cancel()
-    except vertica_python.errors.QueryCanceled as e:
-        pass
-        # nCount is less than the number of rows in large_table
-
-```
-
-### Shortcuts
-The `Cursor.execute()` method returns `self`. This means that you can chain a fetch operation, such as `fetchone()`, to the `execute()` call:
-```python
-row = cursor.execute(...).fetchone()
-
-for row in cur.execute(...).fetchall():
-    ...
-```
-
-## Rowcount oddities
-
-vertica_python behaves a bit differently than dbapi when returning rowcounts.
-
-After a select execution, the rowcount will be -1, indicating that the row count is unknown. The rowcount value will be updated as data is streamed.
-
-```python
-cur.execute('SELECT 10 things')
-
-cur.rowcount == -1  # indicates unknown rowcount
-
-cur.fetchone()
-cur.rowcount == 1
-cur.fetchone()
-cur.rowcount == 2
-cur.fetchall()
-cur.rowcount == 10
-```
-
-After an insert/update/delete, the rowcount will be returned as a single element row:
-
-```python
-cur.execute("DELETE 3 things")
-
-cur.rowcount == -1  # indicates unknown rowcount
-cur.fetchone()[0] == 3
-```
-
-## Nextset
-
-If you execute multiple statements in a single call to execute(), you can use cursor.nextset() to retrieve all of the data.
-
-```python
-cur.execute('SELECT 1; SELECT 2;')
-
-cur.fetchone()
-# [1]
-cur.fetchone()
-# None
-
-cur.nextset()
-# True
-
-cur.fetchone()
-# [2]
-cur.fetchone()
-# None
-
-cur.nextset()
-# None
-```
-
-## UTF-8 encoding issues
-
-While Vertica expects varchars stored to be UTF-8 encoded, sometimes invalid strings get into the database. You can specify how to handle reading these characters using the unicode_error connection option. This uses the same values as the unicode type (https://docs.python.org/2/library/functions.html#unicode)
-
-```python
-cur = vertica_python.Connection({..., 'unicode_error': 'strict'}).cursor()
-cur.execute(r"SELECT E'\xC2'")
-cur.fetchone()
-# caught 'utf8' codec can't decode byte 0xc2 in position 0: unexpected end of data
-
-cur = vertica_python.Connection({..., 'unicode_error': 'replace'}).cursor()
-cur.execute(r"SELECT E'\xC2'")
-cur.fetchone()
-# �
-
-cur = vertica_python.Connection({..., 'unicode_error': 'ignore'}).cursor()
-cur.execute(r"SELECT E'\xC2'")
-cur.fetchone()
-# 
-```
-
-## License
-
-Apache 2.0 License, please see `LICENSE` for details.
-
-## Contributing guidelines
-
-Have a bug or an idea? Please see `CONTRIBUTING.md` for details.
-
-## Acknowledgements
-
-We would like to thank the contributors to the Ruby Vertica gem (https://github.com/sprsquish/vertica), as this project gave us inspiration and help in understanding Vertica's wire protocol. These contributors are:
-
- * [Matt Bauer](http://github.com/mattbauer)
- * [Jeff Smick](http://github.com/sprsquish)
- * [Willem van Bergen](http://github.com/wvanbergen)
- * [Camilo Lopez](http://github.com/camilo)
+        cur.execute("<Long

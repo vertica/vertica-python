@@ -309,7 +309,11 @@ with vertica_python.connect(**conn_info) as conn:
 ```
 #### FAQ :speech_balloon:
 - Why does my query return empty results?
-  - If you think fetch*() should return something, check whether your query contains multiple statements. It is very likely you miss to call [nextset()](#nextset).
+
+  If you think fetch*() should return something, check whether your query contains multiple statements. It is very likely that you miss to call [nextset()](#nextset).
+- Why does my query not throw an error?
+
+  vertica-python tries to throw exceptions in the `Cursor.execute()` method, but depending on your query, there are some exceptions that can only be raised when you call `fetchone()` or `fetchall()`. If your query has multiple statements, errors that is not in the first statement cannot be thrown by `execute()`. It is recommended to always call `fetchall()` after `execute()` in order to capture any error (For a query with multiple statements, call `fetchall()` and `nextset()` as the above example code shows).
 
 ### Stream query results
 Streaming is recommended if you want to further process each row, save the results in a non-list/dict format (e.g. Pandas DataFrame), or save the results in a file.

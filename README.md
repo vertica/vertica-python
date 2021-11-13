@@ -47,6 +47,15 @@ Then see [this section](#kerberos-authentication) for how to config Kerberos for
 ## Usage
 :scroll: The basic vertica-python usage is common to all the database adapters implementing the [DB-API v2.0](https://www.python.org/dev/peps/pep-0249/) protocol.
 
+<details>
+<summary>Menu</summary>
+<ul>
+    <li>[Create a connection](#create-a-connection)</li>
+    <li>[Send Queries and Retrieve Results](#send-queries-and-retrieve-results)</li>
+    <li>[Passing parameters to SQL queries](#passing-parameters-to-sql-queries)</li>
+</ul>
+</details>
+
 ### Create a connection
 
 The example below shows how to create a `Connection` object:
@@ -248,6 +257,7 @@ additional_info = {
 with vertica_python.connect(dsn=connection_str, **additional_info) as conn:
    # do things
 ```
+
 
 ### Send Queries and Retrieve Results
 The `Connection` class encapsulates a database session. It allows to:

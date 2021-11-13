@@ -249,6 +249,10 @@ with vertica_python.connect(dsn=connection_str, **additional_info) as conn:
    # do things
 ```
 
+### Send Query and Retrieve Results
+The class `Cursor` allows interaction with the database:
+- send commands to the database using methods such as `execute()` and `executemany()`,
+- retrieve data from the database, [iterating on the cursor]() or using methods such as `fetchone()`, `fetchmany()`, `fetchall()`.
 
 ### Stream query results
 

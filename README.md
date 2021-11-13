@@ -307,6 +307,9 @@ with vertica_python.connect(**conn_info) as conn:
     # [[N]]
 
 ```
+#### FAQ :speech_balloon:
+- Why does my query return empty results?
+  - If you think fetch*() should return something, check whether your query contains multiple statements. It is very likely you miss to call [nextset()](#nextset).
 
 ### Stream query results
 Streaming is recommended if you want to further process each row, save the results in a non-list/dict format (e.g. Pandas DataFrame), or save the results in a file.

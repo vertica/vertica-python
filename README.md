@@ -292,9 +292,24 @@ with vertica_python.connect(**conn_info) as conn:
 
     # Make the changes to the database persistent
     conn.commit()
+    
+    # Execute a query with MULTIPLE statements
+    cur.execute("SELECT 1; SELECT 2; ...; SELECT N")
+    while True:
+        rows = cur.fetchall()
+        print(rows)
+        if not cur.nextset():
+            break
+    # Output:        
+    # [[1]]
+    # [[2]]
+    # ...
+    # [[N]]
+
 ```
 
 ### Stream query results
+Streaming is recommended if you want to further process each row, save the results in a non-list/dict format (e.g. Pandas DataFrame), or save the results in a file.
 
 ```python
 cur = connection.cursor()
@@ -306,7 +321,6 @@ for row in cur.iterate():
 # [ 2, 'something else', None ]
 
 ```
-Streaming is recommended if you want to further process each row, save the results in a non-list/dict format (e.g. Pandas DataFrame), or save the results in a file.
 
 
 ### In-memory results as list

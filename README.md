@@ -255,9 +255,44 @@ The `Connection` class encapsulates a database session. It allows to:
 - [terminate transactions](#insert-and-commitrollback) using the methods `commit()` or `rollback()`.
 
 The class `Cursor` allows interaction with the database:
-- send commands to the database using methods such as `execute()` and `executemany()`.
+- send commands to the database using methods such as `execute()`, `executemany()` and [copy](#using-copy-from).
 - retrieve data from the database, [iterating on the cursor](#stream-query-results) or using methods such as `fetchone()`, `fetchmany()`, `fetchall()`, `nextset()`.
 
+```python
+import vertica_python
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'vdb'}
+
+# Connect to a vertica database
+with vertica_python.connect(**conn_info) as conn:
+    # Open a cursor to perform database operations
+    cur = conn.cursor()
+    
+    # Execute a command: create a table
+    cur.execute("CREATE TABLE tbl (a INT, b VARCHAR)")
+    
+    # Insert a row
+    cur.execute("INSERT INTO tbl VALUES (1, 'aa')")
+    inserted = cur.fetchall()  # [[1]]
+    
+    # Bulk Insert with executemany()
+    # Pass data to fill a query placeholders and let vertica-python perform the correct conversion
+    cur.executemany("INSERT INTO tbl(a, b) VALUES (?, ?)", [(2, 'bb'), (3, 'foo'), (4, 'xx'), (5, 'bar')], use_prepared_statements=True)
+    # OR
+    # cur.executemany("INSERT INTO tbl(a, b) VALUES (%s, %s)", [(2, 'bb'), (3, 'foo'), (4, 'xx'), (5, 'bar')], use_prepared_statements=False)
+    
+    # Query the database and obtain data as Python objects.
+    cur.execute("SELECT * FROM tbl")
+    datarow = cur.fetchone()         # [1, 'aa']
+    remaining_rows = cur.fetchall()  # [[2, 'bb'], [3, 'foo'], [4, 'xx'], [5, 'bar']]
+
+    # Make the changes to the database persistent
+    conn.commit()
+```
 
 ### Stream query results
 

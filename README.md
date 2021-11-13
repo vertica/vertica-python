@@ -285,6 +285,30 @@ cur.fetchall()
 connection.close()
 ```
 
+### Nextset
+
+If you execute multiple statements in a single call to execute(), you can use `Cursor.nextset()` to retrieve all of the data.
+
+```python
+cur.execute('SELECT 1; SELECT 2;')
+
+cur.fetchone()
+# [1]
+cur.fetchone()
+# None
+
+cur.nextset()
+# True
+
+cur.fetchone()
+# [2]
+cur.fetchone()
+# None
+
+cur.nextset()
+# False
+```
+
 ### Passing parameters to SQL queries
 
 vertica-python provides two methods for passing parameters to a SQL query:
@@ -438,7 +462,7 @@ cur.object_to_sql_literal(Point(-71.13, 42.36))  # "STV_GeometryPoint(-71.13,42.
 
 
 
-### Insert and commits
+### Insert and commit/rollback
 
 ```python
 cur = connection.cursor()
@@ -576,6 +600,7 @@ with vertica_python.connect(**conn_info) as conn:
     p1 = Process(target=cancel_query, args=(conn,))
     p1.start()
 
+    try:
         cur.execute("<Long running query>")
     except vertica_python.errors.QueryCanceled as e:
         pass
@@ -614,7 +639,9 @@ After a select execution, the rowcount will be -1, indicating that the row count
 
 ```python
 cur.execute('SELECT 10 things')
+
 cur.rowcount == -1  # indicates unknown rowcount
+
 cur.fetchone()
 cur.rowcount == 1
 cur.fetchone()
@@ -627,29 +654,11 @@ After an insert/update/delete, the rowcount will be returned as a single element
 
 ```python
 cur.execute("DELETE 3 things")
+
 cur.rowcount == -1  # indicates unknown rowcount
 cur.fetchone()[0] == 3
 ```
 
-## Nextset
-
-If you execute multiple statements in a single call to execute(), you can use cursor.nextset() to retrieve all of the data.
-
-```python
-cur.execute('SELECT 1; SELECT 2;')
-cur.fetchone()
-# [1]
-cur.fetchone()
-# None
-cur.nextset()
-# True
-cur.fetchone()
-# [2]
-cur.fetchone()
-# None
-cur.nextset()
-# None
-```
 
 ## UTF-8 encoding issues
 
@@ -660,10 +669,12 @@ cur = vertica_python.Connection({..., 'unicode_error': 'strict'}).cursor()
 cur.execute(r"SELECT E'\xC2'")
 cur.fetchone()
 # caught 'utf8' codec can't decode byte 0xc2 in position 0: unexpected end of data
+
 cur = vertica_python.Connection({..., 'unicode_error': 'replace'}).cursor()
 cur.execute(r"SELECT E'\xC2'")
 cur.fetchone()
 # �
+
 cur = vertica_python.Connection({..., 'unicode_error': 'ignore'}).cursor()
 cur.execute(r"SELECT E'\xC2'")
 cur.fetchone()

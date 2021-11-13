@@ -489,11 +489,11 @@ with vertica_python.connect(**conn_info) as connection:
 To set AUTOCOMMIT to a new value, vertica-python uses `Cursor.execute()` to execute a command internally, and that would clear your previous query results, so be sure to call `Cursor.fetch*()` to save your results before you set autocommit.
 
 
-### Copy
+### Using COPY FROM
 
 There are 2 methods to do copy:
 
-Method 1: "COPY FROM STDIN" sql with Cursor.copy()
+#### Method 1: "COPY FROM STDIN" sql with Cursor.copy()
 ```python
 cur = connection.cursor()
 cur.copy("COPY test_copy (id, name) from stdin DELIMITER ',' ",  csv)
@@ -507,7 +507,7 @@ with open("/tmp/binary_file.csv", "rb") as fs:
                 fs, buffer_size=65536)
 ```
 
-Method 2: "COPY FROM LOCAL" sql with Cursor.execute() 
+#### Method 2: "COPY FROM LOCAL" sql with Cursor.execute() 
 
 ```python
 import sys

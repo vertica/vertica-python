@@ -41,11 +41,15 @@ vertica-python has optional Kerberos authentication support for Unix-like system
 Note that `kerberos` is a python extension module, which means you need to install `python-dev`. The command depends on the package manager and will look like
 
     sudo [yum|apt-get|etc] install python-dev
+    
+Then see [this section](#kerberos-authentication) for how to config Kerberos for a connection.
 
 ## Usage
+:scroll: The basic vertica-python usage is common to all the database adapters implementing the [DB-API v2.0](https://www.python.org/dev/peps/pep-0249/) protocol.
 
+### Create a connection
 
-**Create connection**
+The example below shows how to create a `Connection` object:
 
 ```python
 import vertica_python
@@ -76,11 +80,14 @@ try:
 finally:
     connection.close()
 
-# using with for auto connection closing after usage
+# using `with` for auto connection closing after usage
 with vertica_python.connect(**conn_info) as connection:
     # do things
 ```
 
+Below are a few important connection topics you may deal with, or you can skip and jump to the next section: [Send Queries and Retrieve Results](#send-queries-and-retrieve-results)
+
+#### TLS/SSL
 You can pass an `ssl.SSLContext` to `ssl` to customize the SSL connection options. For example,
 
 ```python
@@ -104,6 +111,7 @@ connection = vertica_python.connect(**conn_info)
 
 See more on SSL options [here](https://docs.python.org/3/library/ssl.html).
 
+#### Kerberos Authentication
 In order to use Kerberos authentication, install [dependencies](#using-kerberos-authentication) first, and it is the user's responsibility to ensure that an Ticket-Granting Ticket (TGT) is available and valid. Whether a TGT is available can be easily determined by running the `klist` command. If no TGT is available, then it first must be obtained by running the `kinit` command or by logging in. You can pass in optional arguments to customize the authentication. The arguments are `kerberos_service_name`, which defaults to "vertica", and `kerberos_host_name`, which defaults to the value of argument `host`. For example,
 
 ```python
@@ -123,6 +131,7 @@ with vertica_python.connect(**conn_info) as conn:
     # do things
 ```
 
+#### Logging
 Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. If ```log_path``` is set to ```''``` (empty string) or ```None```, no file handler is set, logs will be processed by root handlers. For example,
 
 ```python
@@ -172,7 +181,8 @@ with vertica_python.connect(**conn_info) as connection:
     # do things
 ```
 
-Connection Failover: Supply a list of backup hosts to ```backup_server_node``` for the client to try if the primary host you specify in the connection parameters (```host```, ```port```) is unreachable. Each item in the list should be either a host string (using default port 5433) or a (host, port) tuple. A host can be a host name or an IP address.
+#### Connection Failover
+Supply a list of backup hosts to ```backup_server_node``` for the client to try if the primary host you specify in the connection parameters (```host```, ```port```) is unreachable. Each item in the list should be either a host string (using default port 5433) or a (host, port) tuple. A host can be a host name or an IP address.
 
 ```python
 import vertica_python
@@ -186,6 +196,7 @@ conn_info = {'host': 'unreachable.server.com',
 connection = vertica_python.connect(**conn_info)
 ```
 
+#### Connection Load Balancing
 Connection Load Balancing helps automatically spread the overhead caused by client connections across the cluster by having hosts redirect client connections to other hosts. Both the server and the client need to enable load balancing for it to function. If the server disables connection load balancing, the load balancing request from client will be ignored.
 
 ```python
@@ -215,6 +226,7 @@ with vertica_python.connect(**conn_info) as conn:
 #  Client redirects to node: v_vdb_node0005
 ```
 
+#### Set Properties with Connection String
 Another way to set connection properties is passing a connection string to the keyword parameter `dsn` of `vertica_python.connect(dsn='...', **kwargs)`. The connection string is of the form:
 ```
 vertica://(user):(password)@(host):(port)/(database)?(arg1=val1&arg2=val2&...)
@@ -240,7 +252,74 @@ with vertica_python.connect(dsn=connection_str, **additional_info) as conn:
 ```
 
 
-**Stream query results**:
+### Send Queries and Retrieve Results
+The `Connection` class encapsulates a database session. It allows to:
+- create new `Cursor` instances using the `cursor()` method to execute database commands and queries.
+- [terminate transactions](#insert-and-commitrollback) using the methods `commit()` or `rollback()`.
+
+The class `Cursor` allows interaction with the database:
+- send commands to the database using methods such as `execute()`, `executemany()` and [copy](#using-copy-from).
+- retrieve data from the database, [iterating on the cursor](#stream-query-results) or using methods such as `fetchone()`, `fetchmany()`, `fetchall()`, `nextset()`.
+
+```python
+import vertica_python
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'vdb'}
+
+# Connect to a vertica database
+with vertica_python.connect(**conn_info) as conn:
+    # Open a cursor to perform database operations
+    cur = conn.cursor()
+    
+    # Execute a command: create a table
+    cur.execute("CREATE TABLE tbl (a INT, b VARCHAR)")
+    
+    # Insert a row
+    cur.execute("INSERT INTO tbl VALUES (1, 'aa')")
+    inserted = cur.fetchall()  # [[1]]
+    
+    # Bulk Insert with executemany()
+    # Pass data to fill a query placeholders and let vertica-python perform the correct conversion
+    cur.executemany("INSERT INTO tbl(a, b) VALUES (?, ?)", [(2, 'bb'), (3, 'foo'), (4, 'xx'), (5, 'bar')], use_prepared_statements=True)
+    # OR
+    # cur.executemany("INSERT INTO tbl(a, b) VALUES (%s, %s)", [(2, 'bb'), (3, 'foo'), (4, 'xx'), (5, 'bar')], use_prepared_statements=False)
+    
+    # Query the database and obtain data as Python objects.
+    cur.execute("SELECT * FROM tbl")
+    datarow = cur.fetchone()         # [1, 'aa']
+    remaining_rows = cur.fetchall()  # [[2, 'bb'], [3, 'foo'], [4, 'xx'], [5, 'bar']]
+
+    # Make the changes to the database persistent
+    conn.commit()
+    
+    # Execute a query with MULTIPLE statements
+    cur.execute("SELECT 1; SELECT 2; ...; SELECT N")
+    while True:
+        rows = cur.fetchall()
+        print(rows)
+        if not cur.nextset():
+            break
+    # Output:        
+    # [[1]]
+    # [[2]]
+    # ...
+    # [[N]]
+
+```
+#### FAQ :speech_balloon:
+- Why does my query return empty results?
+
+  If you think fetch*() should return something, check whether your query contains multiple statements. It is very likely that you miss to call [nextset()](#nextset).
+- Why does my query not throw an error?
+
+  vertica-python tries to throw exceptions in the `Cursor.execute()` method, but depending on your query, there are some exceptions that can only be raised when you call `fetchone()` or `fetchall()`. If your query has multiple statements, errors that is not in the first statement cannot be thrown by `execute()`. It is recommended to always call `fetchall()` after `execute()` in order to capture any error (For a query with multiple statements, call `fetchall()` and `nextset()` as the above example code shows).
+
+### Stream query results
+Streaming is recommended if you want to further process each row, save the results in a non-list/dict format (e.g. Pandas DataFrame), or save the results in a file.
 
 ```python
 cur = connection.cursor()
@@ -252,10 +331,9 @@ for row in cur.iterate():
 # [ 2, 'something else', None ]
 
 ```
-Streaming is recommended if you want to further process each row, save the results in a non-list/dict format (e.g. Pandas DataFrame), or save the results in a file.
 
 
-**In-memory results as list**:
+### In-memory results as list
 
 ```python
 cur = connection.cursor()
@@ -265,7 +343,7 @@ cur.fetchall()
 ```
 
 
-**In-memory results as dictionary**:
+### In-memory results as dictionary
 
 ```python
 cur = connection.cursor('dict')
@@ -275,12 +353,117 @@ cur.fetchall()
 connection.close()
 ```
 
+### Nextset
 
-**Query using named parameters or format parameters**:
+If you execute multiple statements in a single call to execute(), you can use `Cursor.nextset()` to retrieve all of the data.
 
-vertica-python can automatically convert Python objects to SQL literals: using this feature your code will be more robust and reliable to prevent SQL injection attacks.
+```python
+cur.execute('SELECT 1; SELECT 2;')
 
-Prerequisites: Only SQL literals (i.e. query values) should be bound via these methods: they shouldn’t be used to merge table or field names to the query (_vertica-python_ will try quoting the table name as a string value, generating invalid SQL as it is actually a SQL Identifier). If you need to generate dynamically SQL queries (for instance choosing dynamically a table name) you have to construct the full query yourself.
+cur.fetchone()
+# [1]
+cur.fetchone()
+# None
+
+cur.nextset()
+# True
+
+cur.fetchone()
+# [2]
+cur.fetchone()
+# None
+
+cur.nextset()
+# False
+```
+
+### Passing parameters to SQL queries
+
+vertica-python provides two methods for passing parameters to a SQL query:
+1. [Server-side binding](#server-side-binding-query-using-prepared-statements)
+2. [Client-side binding](#client-side-binding-query-using-named-parameters-or-format-parameters)
+
+:warning: Prerequisites: Only SQL literals (i.e. query values) should be bound via these methods: they shouldn’t be used to merge table or field names to the query (_vertica-python_ will try quoting the table name as a string value, generating invalid SQL as it is actually a SQL Identifier). If you need to generate dynamically SQL queries (for instance choosing dynamically a table name) you have to construct the full query yourself.
+
+#### Server-side binding: Query using prepared statements
+
+Vertica server-side prepared statements let you define a statement once and then run it many times with different parameters. Internally, vertica-python sends the query and the parameters to the server separately. Placeholders in the statement are represented by question marks (?). Server-side prepared statements are useful for preventing SQL injection attacks.
+
+```python
+import vertica_python
+
+# Enable using server-side prepared statements at connection level
+conn_info = {'host': '127.0.0.1',
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'use_prepared_statements': True,
+             }
+
+with vertica_python.connect(**conn_info) as connection:
+    cur = connection.cursor()
+    cur.execute("CREATE TABLE tbl (a INT, b VARCHAR)")
+    cur.execute("INSERT INTO tbl VALUES (?, ?)", [1, 'aa'])
+    cur.execute("INSERT INTO tbl VALUES (?, ?)", [2, 'bb'])
+    cur.executemany("INSERT INTO tbl VALUES (?, ?)", [(3, 'foo'), (4, 'xx'), (5, 'bar')])
+    cur.execute("COMMIT")
+
+    cur.execute("SELECT * FROM tbl WHERE a>=? AND a<=? ORDER BY a", (2,4))
+    cur.fetchall()
+    # [[2, 'bb'], [3, 'foo'], [4, 'xx']]
+```
+
+:no_entry_sign: Vertica server-side prepared statements does not support executing a query string containing multiple statements.
+
+You can set ```use_prepared_statements``` option in ```cursor.execute*()``` functions to override the connection level setting.
+
+```python
+import vertica_python
+
+# Enable using server-side prepared statements at connection level
+conn_info = {'host': '127.0.0.1',
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'use_prepared_statements': True,
+             }
+
+with vertica_python.connect(**conn_info) as connection:
+    cur = connection.cursor()
+    cur.execute("CREATE TABLE tbl (a INT, b VARCHAR)")
+
+    # Executing compound statements
+    cur.execute("INSERT INTO tbl VALUES (?, ?); COMMIT", [1, 'aa'])
+    # Error message: Cannot insert multiple commands into a prepared statement
+
+    # Disable prepared statements but forget to change placeholders (?)
+    cur.execute("INSERT INTO tbl VALUES (?, ?); COMMIT;", [1, 'aa'], use_prepared_statements=False)
+    # TypeError: not all arguments converted during string formatting
+
+    cur.execute("INSERT INTO tbl VALUES (%s, %s); COMMIT;", [1, 'aa'], use_prepared_statements=False)
+    cur.execute("INSERT INTO tbl VALUES (:a, :b); COMMIT;", {'a': 2, 'b': 'bb'}, use_prepared_statements=False)
+
+# Disable using server-side prepared statements at connection level
+conn_info['use_prepared_statements'] = False
+with vertica_python.connect(**conn_info) as connection:
+    cur = connection.cursor()
+
+    # Try using prepared statements
+    cur.execute("INSERT INTO tbl VALUES (?, ?)", [3, 'foo'])
+    # TypeError: not all arguments converted during string formatting
+
+    cur.execute("INSERT INTO tbl VALUES (?, ?)", [3, 'foo'], use_prepared_statements=True)
+
+    # Query using named parameters
+    cur.execute("SELECT * FROM tbl WHERE a>=:n1 AND a<=:n2 ORDER BY a", {'n1': 2, 'n2': 4})
+    cur.fetchall()
+    # [[2, 'bb'], [3, 'foo']]
+```
+Note: In other drivers, the batch insert is converted into a COPY statement by using prepared statements. vertica-python currently does not support that.
+
+#### Client-side binding: Query using named parameters or format parameters
+
+vertica-python can automatically convert Python objects to SQL literals, merge the query and the parameters on the client side, and then send the query to the server: using this feature your code will be more robust and reliable to prevent SQL injection attacks.
 
 Variables can be specified with named (__:name__) placeholders.
 ```python
@@ -346,81 +529,8 @@ cur.object_to_sql_literal(Point(-71.13, 42.36))  # "STV_GeometryPoint(-71.13,42.
 ```
 
 
-**Query using server-side prepared statements**:
 
-Vertica server-side prepared statements let you define a statement once and then run it many times with different parameters. Placeholders in the statement are represented by question marks (?). Server-side prepared statements are useful for preventing SQL injection attacks.
-
-```python
-import vertica_python
-
-# Enable using server-side prepared statements at connection level
-conn_info = {'host': '127.0.0.1',
-             'user': 'some_user',
-             'password': 'some_password',
-             'database': 'a_database',
-             'use_prepared_statements': True,
-             }
-
-with vertica_python.connect(**conn_info) as connection:
-    cur = connection.cursor()
-    cur.execute("CREATE TABLE tbl (a INT, b VARCHAR)")
-    cur.execute("INSERT INTO tbl VALUES (?, ?)", [1, 'aa'])
-    cur.execute("INSERT INTO tbl VALUES (?, ?)", [2, 'bb'])
-    cur.executemany("INSERT INTO tbl VALUES (?, ?)", [(3, 'foo'), (4, 'xx'), (5, 'bar')])
-    cur.execute("COMMIT")
-
-    cur.execute("SELECT * FROM tbl WHERE a>=? AND a<=? ORDER BY a", (2,4))
-    cur.fetchall()
-    # [[2, 'bb'], [3, 'foo'], [4, 'xx']]
-```
-
-Vertica does not support executing a command string containing multiple statements using server-side prepared statements. You can set ```use_prepared_statements``` option in ```cursor.execute*()``` functions to override the connection level setting.
-
-```python
-import vertica_python
-
-# Enable using server-side prepared statements at connection level
-conn_info = {'host': '127.0.0.1',
-             'user': 'some_user',
-             'password': 'some_password',
-             'database': 'a_database',
-             'use_prepared_statements': True,
-             }
-
-with vertica_python.connect(**conn_info) as connection:
-    cur = connection.cursor()
-    cur.execute("CREATE TABLE tbl (a INT, b VARCHAR)")
-
-    # Executing compound statements
-    cur.execute("INSERT INTO tbl VALUES (?, ?); COMMIT", [1, 'aa'])
-    # Error message: Cannot insert multiple commands into a prepared statement
-
-    # Disable prepared statements but forget to change placeholders (?)
-    cur.execute("INSERT INTO tbl VALUES (?, ?); COMMIT;", [1, 'aa'], use_prepared_statements=False)
-    # TypeError: not all arguments converted during string formatting
-
-    cur.execute("INSERT INTO tbl VALUES (%s, %s); COMMIT;", [1, 'aa'], use_prepared_statements=False)
-    cur.execute("INSERT INTO tbl VALUES (:a, :b); COMMIT;", {'a': 2, 'b': 'bb'}, use_prepared_statements=False)
-
-# Disable using server-side prepared statements at connection level
-conn_info['use_prepared_statements'] = False
-with vertica_python.connect(**conn_info) as connection:
-    cur = connection.cursor()
-
-    # Try using prepared statements
-    cur.execute("INSERT INTO tbl VALUES (?, ?)", [3, 'foo'])
-    # TypeError: not all arguments converted during string formatting
-
-    cur.execute("INSERT INTO tbl VALUES (?, ?)", [3, 'foo'], use_prepared_statements=True)
-
-    # Query using named parameters
-    cur.execute("SELECT * FROM tbl WHERE a>=:n1 AND a<=:n2 ORDER BY a", {'n1': 2, 'n2': 4})
-    cur.fetchall()
-    # [[2, 'bb'], [3, 'foo']]
-```
-Note: In other drivers, the batch insert is converted into a COPY statement by using prepared statements. vertica-python currently does not support that.
-
-**Insert and commits**:
+### Insert and commit/rollback
 
 ```python
 cur = connection.cursor()
@@ -442,7 +552,7 @@ cur.execute("INSERT INTO a_table (a, b) VALUES (0, 'bad')")
 connection.rollback()
 ```
 
-**Autocommit**:
+### Autocommit
 
 Session parameter AUTOCOMMIT can be configured by the connection option and the `Connection.autocommit` read/write attribute:
 ```python
@@ -471,11 +581,11 @@ with vertica_python.connect(**conn_info) as connection:
 To set AUTOCOMMIT to a new value, vertica-python uses `Cursor.execute()` to execute a command internally, and that would clear your previous query results, so be sure to call `Cursor.fetch*()` to save your results before you set autocommit.
 
 
-**Copy**:
+### Using COPY FROM
 
 There are 2 methods to do copy:
 
-Method 1: "COPY FROM STDIN" sql with Cursor.copy()
+#### Method 1: "COPY FROM STDIN" sql with Cursor.copy()
 ```python
 cur = connection.cursor()
 cur.copy("COPY test_copy (id, name) from stdin DELIMITER ',' ",  csv)
@@ -489,7 +599,7 @@ with open("/tmp/binary_file.csv", "rb") as fs:
                 fs, buffer_size=65536)
 ```
 
-Method 2: "COPY FROM LOCAL" sql with Cursor.execute() 
+#### Method 2: "COPY FROM LOCAL" sql with Cursor.execute() 
 
 ```python
 import sys
@@ -536,7 +646,7 @@ The data for copying from/writing to local files is streamed in chunks of `buffe
 
 When executing "COPY FROM LOCAL STDIN", `copy_stdin` should be a file-like object or a list of file-like objects (specifically, any object with a `read()` method).
 
-**Cancel the current database operation**:
+### Cancel the current database operation
 
 `Connection.cancel()` interrupts the processing of the current operation. Interrupting query execution will cause the cancelled method to raise a `vertica_python.errors.QueryCanceled`. If no query is being executed, it does nothing. You can call this function from a different thread/process than the one currently executing a database operation.
 
@@ -562,7 +672,6 @@ with vertica_python.connect(**conn_info) as conn:
         cur.execute("<Long running query>")
     except vertica_python.errors.QueryCanceled as e:
         pass
-
     p1.join()
     
 # Example 2: Cancel the query after Cursor.execute() return.
@@ -579,10 +688,16 @@ with vertica_python.connect(**conn_info) as conn:
     except vertica_python.errors.QueryCanceled as e:
         pass
         # nCount is less than the number of rows in large_table
-
 ```
 
+### Shortcuts
+The `Cursor.execute()` method returns `self`. This means that you can chain a fetch operation, such as `fetchone()`, to the `execute()` call:
+```python
+row = cursor.execute(...).fetchone()
 
+for row in cur.execute(...).fetchall():
+    ...
+```
 
 ## Rowcount oddities
 
@@ -612,29 +727,6 @@ cur.rowcount == -1  # indicates unknown rowcount
 cur.fetchone()[0] == 3
 ```
 
-## Nextset
-
-If you execute multiple statements in a single call to execute(), you can use cursor.nextset() to retrieve all of the data.
-
-```python
-cur.execute('SELECT 1; SELECT 2;')
-
-cur.fetchone()
-# [1]
-cur.fetchone()
-# None
-
-cur.nextset()
-# True
-
-cur.fetchone()
-# [2]
-cur.fetchone()
-# None
-
-cur.nextset()
-# None
-```
 
 ## UTF-8 encoding issues
 

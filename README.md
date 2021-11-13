@@ -249,10 +249,15 @@ with vertica_python.connect(dsn=connection_str, **additional_info) as conn:
    # do things
 ```
 
-### Send Query and Retrieve Results
+### Send Queries and Retrieve Results
+The `Connection` class encapsulates a database session. It allows to:
+- create new `Cursor` instances using the `cursor()` method to execute database commands and queries.
+- [terminate transactions](#insert-and-commitrollback) using the methods `commit()` or `rollback()`.
+
 The class `Cursor` allows interaction with the database:
-- send commands to the database using methods such as `execute()` and `executemany()`,
-- retrieve data from the database, [iterating on the cursor]() or using methods such as `fetchone()`, `fetchmany()`, `fetchall()`.
+- send commands to the database using methods such as `execute()` and `executemany()`.
+- retrieve data from the database, [iterating on the cursor](#stream-query-results) or using methods such as `fetchone()`, `fetchmany()`, `fetchall()`, `nextset()`.
+
 
 ### Stream query results
 

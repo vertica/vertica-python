@@ -164,7 +164,7 @@ class _AddressList(object):
                            ' must be a host string or a (host, port) tuple')
                 self._logger.error(err_msg)
                 raise TypeError(err_msg)
-        random.shuffle(self.address_deque())
+        random.shuffle(self.address_deque)
         self._logger.debug('Address list: {0}'.format(list(self.address_deque)))
 
     def _append(self, host, port):

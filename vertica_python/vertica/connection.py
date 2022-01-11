@@ -44,6 +44,7 @@ import getpass
 import uuid
 from struct import unpack
 from collections import deque, namedtuple
+import random
 
 # noinspection PyCompatibility,PyUnresolvedReferences
 from six import raise_from, string_types, integer_types, PY2
@@ -163,7 +164,7 @@ class _AddressList(object):
                            ' must be a host string or a (host, port) tuple')
                 self._logger.error(err_msg)
                 raise TypeError(err_msg)
-
+        random.shuffle(self.address_deque())
         self._logger.debug('Address list: {0}'.format(list(self.address_deque)))
 
     def _append(self, host, port):
@@ -210,7 +211,8 @@ class _AddressList(object):
                 return entry.data
             else:
                 # DNS resolve a single host name to multiple IP addresses
-                self.address_deque.popleft()
+                self.pop()
+                # keep host and port info for adding address entry to deque once it has been resolved
                 host, port = entry.host, entry.data
                 try:
                     resolved_hosts = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)

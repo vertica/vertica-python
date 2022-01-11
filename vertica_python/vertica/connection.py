@@ -43,7 +43,7 @@ import ssl
 import getpass
 import uuid
 from struct import unpack
-from collections import deque, namedtuple, Iterable
+from collections import deque, namedtuple
 import random
 
 # noinspection PyCompatibility,PyUnresolvedReferences
@@ -220,11 +220,11 @@ class _AddressList(object):
                     continue
 
                 # add resolved addrinfo (AF_INET and AF_INET6 only) to deque
-                if hasattr(resolved_hosts, '__itr__'):
-                    for addrinfo in random.shuffle(resolved_hosts):
-                        if addrinfo[0] in (socket.AF_INET, socket.AF_INET6):
-                            self.address_deque.appendleft(_AddressEntry(
-                                host=host, resolved=True, data=addrinfo))
+                random.shuffle(resolved_hosts)
+                for addrinfo in resolved_hosts:
+                    if addrinfo[0] in (socket.AF_INET, socket.AF_INET6):
+                        self.address_deque.appendleft(_AddressEntry(
+                            host=host, resolved=True, data=addrinfo))
         return None
 
     def peek_host(self):

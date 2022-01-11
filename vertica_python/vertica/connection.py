@@ -43,7 +43,7 @@ import ssl
 import getpass
 import uuid
 from struct import unpack
-from collections import deque, namedtuple
+from collections import deque, namedtuple, Iterable
 import random
 
 # noinspection PyCompatibility,PyUnresolvedReferences
@@ -164,7 +164,6 @@ class _AddressList(object):
                            ' must be a host string or a (host, port) tuple')
                 self._logger.error(err_msg)
                 raise TypeError(err_msg)
-        random.shuffle(self.address_deque)
         self._logger.debug('Address list: {0}'.format(list(self.address_deque)))
 
     def _append(self, host, port):
@@ -221,10 +220,11 @@ class _AddressList(object):
                     continue
 
                 # add resolved addrinfo (AF_INET and AF_INET6 only) to deque
-                for addrinfo in reversed(resolved_hosts):
-                    if addrinfo[0] in (socket.AF_INET, socket.AF_INET6):
-                        self.address_deque.appendleft(_AddressEntry(
-                            host=host, resolved=True, data=addrinfo))
+                if hasattr(resolved_hosts, '__itr__'):
+                    for addrinfo in random.shuffle(resolved_hosts):
+                        if addrinfo[0] in (socket.AF_INET, socket.AF_INET6):
+                            self.address_deque.appendleft(_AddressEntry(
+                                host=host, resolved=True, data=addrinfo))
         return None
 
     def peek_host(self):

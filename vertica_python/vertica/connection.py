@@ -568,12 +568,13 @@ class Connection(object):
         self._logger.debug('=> %s', message)
         try:
             for data in message.fetch_message():
-                try:
-                    vsocket.sendall(data)
-                except Exception:
-                    self._logger.error("couldn't send message")
-                    raise
-
+                size = 8192 # Max msg size, consistent with how the server works
+                pos = 0
+                while pos < len(data):
+                    sent = vsocket.send(data[pos : pos + size])
+                    if sent == 0:
+                        raise errors.ConnectionError("Couldn't send message: Socket connection broken")
+                    pos += sent
         except Exception as e:
             self.close_socket()
             self._logger.error(str(e))

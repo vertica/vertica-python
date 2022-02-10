@@ -596,7 +596,7 @@ There are 2 methods to do copy:
 #### Method 1: "COPY FROM STDIN" sql with Cursor.copy()
 ```python
 cur = connection.cursor()
-cur.copy("COPY test_copy (id, name) from stdin DELIMITER ',' ",  csv)
+cur.copy("COPY test_copy (id, name) FROM stdin DELIMITER ',' ",  csv)
 ```
 
 Where `csv` is either a string or a file-like object (specifically, any object with a `read()` method). If using a file, the data is streamed (in chunks of `buffer_size` bytes, which defaults to 128 * 2 ** 10).

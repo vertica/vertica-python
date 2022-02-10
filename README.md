@@ -298,7 +298,7 @@ with vertica_python.connect(**conn_info) as conn:
     
     # Execute a query with MULTIPLE statements
     cur.execute("SELECT 1; SELECT 2; ...; SELECT N")
-    while True:
+    while True:  # Fetch the result set for each statement
         rows = cur.fetchall()
         print(rows)
         if not cur.nextset():

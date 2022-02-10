@@ -310,13 +310,21 @@ with vertica_python.connect(**conn_info) as conn:
     # [[N]]
 
 ```
-#### FAQ :speech_balloon:
-- Why does my query return empty results?
+#### Frequently Asked Questions :speech_balloon:
+<details>
+<summary>Why does my query return empty results?</summary>
+  If you think <code>Cursor.fetch*()</code> should return something, check whether your query contains multiple statements. It is very likely that you miss to call <code>Cursor.nextset()</code>.
+</details>
 
-  If you think fetch*() should return something, check whether your query contains multiple statements. It is very likely that you miss to call [nextset()](#nextset).
-- Why does my query not throw an error?
+<details>
+<summary>Why does my query not throw an error?</summary>
+  vertica-python tries to throw exceptions in the <code>Cursor.execute()</code> method, but depending on your query, there are some exceptions that can only be raised when you call <code>fetchone()</code> <code>fetchmany()</code> or <code>fetchall()</code>. In addition, if your query has multiple statements, errors that is not in the first statement cannot be thrown by <code>execute()</code>. It is recommended to always call <code>fetchall()</code> after <code>execute()</code> in order to capture any error. And for a query with multiple statements, call <code>fetchall()</code> and <code>nextset()</code> as the above example code shows.
+</details>
 
-  vertica-python tries to throw exceptions in the `Cursor.execute()` method, but depending on your query, there are some exceptions that can only be raised when you call `fetchone()` or `fetchall()`. If your query has multiple statements, errors that is not in the first statement cannot be thrown by `execute()`. It is recommended to always call `fetchall()` after `execute()` in order to capture any error (For a query with multiple statements, call `fetchall()` and `nextset()` as the above example code shows).
+<details>
+<summary>Why is this client N times slower than another vertica client?</summary>
+  You may find vertica-python performs much slower executing same query on same machine than another python client (e.g. pyodbc) or client in other programming language. This is because vertica-python is a pure Python program and CPython (the official implementation of Python, which is an interpreted, dynamic language) computation is often many times slower than compiled languages like C and Go, or JIT (Just-in-Time) compiled languages like Java and JavaScript. Therefore, if you want to get better performance, instead of using the official CPython interpreter, try other performance-oriented interpreters such as PyPy.
+</details>
 
 ### Stream query results
 Streaming is recommended if you want to further process each row, save the results in a non-list/dict format (e.g. Pandas DataFrame), or save the results in a file.

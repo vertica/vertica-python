@@ -591,6 +591,8 @@ To set AUTOCOMMIT to a new value, vertica-python uses `Cursor.execute()` to exec
 
 ### Using COPY FROM
 
+:warning: Prerequisites: Only files on the client system should be loaded via these methods below. Files on the server system should run "COPY target-table FROM 'path‑to‑data'" with `Cursor.execute()`.
+
 There are 2 methods to do copy:
 
 #### Method 1: "COPY FROM STDIN" sql with Cursor.copy()

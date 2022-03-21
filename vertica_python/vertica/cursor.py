@@ -237,7 +237,7 @@ class Cursor(object):
         return self
 
     def executemany(self, operation, seq_of_parameters, use_prepared_statements=None):
-        # type: (str, Sequence[Union[List[Any], Tuple[Any]]], Optional[bool]) -> None
+        # type: (str, Sequence[Union[List[Any], Tuple[Any], Dict[str, Any]]], Optional[bool]) -> None
 
         if not isinstance(seq_of_parameters, (list, tuple)):
             raise TypeError("seq_of_parameters should be list/tuple")

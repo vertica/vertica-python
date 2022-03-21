@@ -11,7 +11,7 @@
 
 Please check out [release notes](https://github.com/vertica/vertica-python/releases) to learn about the latest improvements.
 
-vertica-python has been tested with Vertica 11.0.1 and Python 2.7/3.5/3.6/3.7/3.8/3.9. Feel free to submit issues and/or pull requests (Read up on our [contributing guidelines](#contributing-guidelines)).
+vertica-python has been tested with Vertica 11.1.0 and Python 2.7/3.5/3.6/3.7/3.8/3.9. Feel free to submit issues and/or pull requests (Read up on our [contributing guidelines](#contributing-guidelines)).
 
 
 ## Installation
@@ -273,6 +273,7 @@ conn_info = {'host': '127.0.0.1',
 # Connect to a vertica database
 with vertica_python.connect(**conn_info) as conn:
     # Open a cursor to perform database operations
+    # vertica-python only support one cursor per connection
     cur = conn.cursor()
     
     # Execute a command: create a table
@@ -286,7 +287,7 @@ with vertica_python.connect(**conn_info) as conn:
     # Pass data to fill a query placeholders and let vertica-python perform the correct conversion
     cur.executemany("INSERT INTO tbl(a, b) VALUES (?, ?)", [(2, 'bb'), (3, 'foo'), (4, 'xx'), (5, 'bar')], use_prepared_statements=True)
     # OR
-    # cur.executemany("INSERT INTO tbl(a, b) VALUES (%s, %s)", [(2, 'bb'), (3, 'foo'), (4, 'xx'), (5, 'bar')], use_prepared_statements=False)
+    # cur.executemany("INSERT INTO tbl(a, b) VALUES (%s, %s)", [(6, 'bb'), (7, 'foo'), (8, 'xx'), (9, 'bar')], use_prepared_statements=False)
     
     # Query the database and obtain data as Python objects.
     cur.execute("SELECT * FROM tbl")
@@ -467,7 +468,7 @@ with vertica_python.connect(**conn_info) as connection:
     cur.fetchall()
     # [[2, 'bb'], [3, 'foo']]
 ```
-Note: In other drivers, the batch insert is converted into a COPY statement by using prepared statements. vertica-python currently does not support that.
+Note: In other drivers, the batch insert is converted into a COPY statement by using prepared statements. vertica-python currently does not support that. [More details](#cursorexecutemany-server-side-binding-vs-client-side-binding)
 
 #### Client-side binding: Query using named parameters or format parameters
 
@@ -536,6 +537,29 @@ cur.object_to_sql_literal(datetime.date(2018, 9, 7))  # "'2018-09-07'"
 cur.object_to_sql_literal(Point(-71.13, 42.36))  # "STV_GeometryPoint(-71.13,42.36)" if you registered in previous step
 ```
 
+#### Cursor.executemany(): Server-side binding vs Client-side binding
+```
+Cursor.executemany(query, seq_of_parameters, use_prepared_statements=None)
+```
+Execute the same query or command with a sequence of input data.
+
+PARAMETERS
+
+ - query (str or bytes) – The query to execute.
+ - seq_of_parameters (a list/tuple of Sequences or Mappings) – The parameters to pass to the query.
+ - use_prepared_statements (bool) – Use connection level setting by default. If set, execute the query using server-side prepared statements or not.
+
+When `use_prepared_statements=True` (Server-side binding), the query should contain only a single statement. Internally, vertica-python sends the query and each set of parameters to the server separately.
+
+When `use_prepared_statements=False` (Client-side binding), the query is limited to simple INSERT statements only. The batch insert is converted into a COPY FROM  STDIN statement by the client. This is more efficient than performing separate queries (may even faster than Server-side binding), but in case of other statements you may consider using [copy](#using-copy-from).
+
+```python
+# Note the query parameter placeholders difference!
+cur.executemany("INSERT INTO tbl(a, b) VALUES (?, ?)", [(2, 'bb'), (3, 'foo'), (4, 'xx'), (5, 'bar')], use_prepared_statements=True)
+
+cur.executemany("INSERT INTO tbl(a, b) VALUES (%s, %s)", [(6, 'bb'), (7, 'foo'), (8, 'xx'), (9, 'bar')], use_prepared_statements=False)
+cur.executemany("INSERT INTO tbl(a, b) VALUES (:a, :b)", [{'a': 2, 'b': 'bb'}, {'a': 3, 'b': 'foo'}], use_prepared_statements=False)
+```
 
 
 ### Insert and commit/rollback
@@ -591,7 +615,7 @@ To set AUTOCOMMIT to a new value, vertica-python uses `Cursor.execute()` to exec
 
 ### Using COPY FROM
 
-:warning: Prerequisites: Only files on the client system should be loaded via these methods below. Files on the server system should run "COPY target-table FROM 'path‑to‑data'" with `Cursor.execute()`.
+:warning: Prerequisites: If the data is in files not STDIN, only files on the client system should be loaded via these methods below. For files on the server system, run "COPY target-table FROM 'path‑to‑data'" with `Cursor.execute()`.
 
 There are 2 methods to do copy:
 

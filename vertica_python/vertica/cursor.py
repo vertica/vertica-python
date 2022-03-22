@@ -603,7 +603,11 @@ class Cursor(object):
 
     def format_quote(self, param, is_copy_data):
         if is_copy_data:
-            return u'"{0}"'.format(re.escape(param))
+            s = list(param)
+            for i, c in enumerate(param):
+                if c in u'()[]{}?"*+-|^$\\.&~# \t\n\r\v\f':
+                    s[i] = "\\" + c
+            return u'"{0}"'.format(u"".join(s))
         else:
             return u"'{0}'".format(param.replace(u"'", u"''"))
 

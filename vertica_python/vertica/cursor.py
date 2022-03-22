@@ -60,6 +60,16 @@ import six
 from six import binary_type, text_type, string_types, integer_types, BytesIO, StringIO
 from six.moves import zip
 
+if six.PY3:
+    from typing import TYPE_CHECKING
+
+    if TYPE_CHECKING:
+        from typing import IO, Any, AnyStr, Callable, Dict, Generator, List, Literal, Optional, Sequence, Tuple, Type, TypeVar, Union
+        from typing_extensions import Self
+        from .connection import Connection
+        from logging import Logger
+        T = TypeVar('T')
+
 from .. import errors, os_utils
 from ..compat import as_text
 from ..vertica import messages
@@ -136,6 +146,7 @@ class Cursor(object):
     _insert_statement = re.compile(RE_BASIC_INSERT_STAT, re.U | re.I)
 
     def __init__(self, connection, logger, cursor_type=None, unicode_error=None):
+        # type: (Connection, Logger, Optional[Union[Literal['list', 'dict'], Type[list[Any]], Type[dict[Any, Any]]]], Optional[str]) -> None
         self.connection = connection
         self._logger = logger
         self.cursor_type = cursor_type
@@ -159,6 +170,7 @@ class Cursor(object):
     # supporting `with` statements
     #############################################
     def __enter__(self):
+        # type: () -> Self
         return self
 
     def __exit__(self, type_, value, traceback):
@@ -179,6 +191,7 @@ class Cursor(object):
 
     def execute(self, operation, parameters=None, use_prepared_statements=None,
                 copy_stdin=None, buffer_size=DEFAULT_BUFFER_SIZE):
+        # type: (str, Optional[Union[List[Any], Tuple[Any], Dict[str, Any]]], Optional[bool], Optional[Union[IO[AnyStr], List[IO[AnyStr]]]], int) -> Self
         if self.closed():
             raise errors.InterfaceError('Cursor is closed')
 
@@ -224,6 +237,8 @@ class Cursor(object):
         return self
 
     def executemany(self, operation, seq_of_parameters, use_prepared_statements=None):
+        # type: (str, Sequence[Union[List[Any], Tuple[Any], Dict[str, Any]]], Optional[bool]) -> None
+
         if not isinstance(seq_of_parameters, (list, tuple)):
             raise TypeError("seq_of_parameters should be list/tuple")
 
@@ -276,6 +291,7 @@ class Cursor(object):
                     "executemany is implemented for simple INSERT statements only")
 
     def fetchone(self):
+        # type: () -> Optional[Union[List[Any], OrderedDict[str, Any]]]
         while True:
             if isinstance(self._message, messages.DataRow):
                 if self.rowcount == -1:
@@ -309,6 +325,7 @@ class Cursor(object):
             self._message = self.connection.read_message()
 
     def fetchmany(self, size=None):
+        # type: (Optional[int]) -> List[Union[List[Any], OrderedDict[str, Any]]]
         if not size:
             size = self.arraysize
         results = []
@@ -325,6 +342,7 @@ class Cursor(object):
         return list(self.iterate())
 
     def nextset(self):
+        # type: () -> bool
         """
         Skip to the next available result set, discarding any remaining rows
         from the current result set.
@@ -379,6 +397,7 @@ class Cursor(object):
     # non-dbapi methods
     #############################################
     def closed(self):
+        # type: () -> bool
         return self._closed or self.connection.closed()
 
     def cancel(self):
@@ -389,12 +408,14 @@ class Cursor(object):
             'to cancel the current database operation.')
 
     def iterate(self):
+        # type: () -> Generator[Union[List[Any], OrderedDict[str, Any]], None, None]
         row = self.fetchone()
         while row:
             yield row
             row = self.fetchone()
 
     def copy(self, sql, data, **kwargs):
+        # type: (str, IO[AnyStr], Any) -> None
         """
 
         EXAMPLE:
@@ -459,6 +480,7 @@ class Cursor(object):
         return self.object_to_string(py_obj, False)
 
     def register_sql_literal_adapter(self, obj_type, adapter_func):
+        # type: (T, Callable[[T], str]) -> None
         if not callable(adapter_func):
             raise TypeError("Cannot register this sql literal adapter. The adapter is not callable.")
         self._sql_literal_adapters[obj_type] = adapter_func

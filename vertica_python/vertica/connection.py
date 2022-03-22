@@ -54,6 +54,11 @@ if PY2:
 else:
     from urllib.parse import urlparse, parse_qs
 
+    from typing import TYPE_CHECKING
+    if TYPE_CHECKING:
+        from typing import Any, Dict, Literal, Optional, Type, Union
+        from typing_extensions import Self
+
 import vertica_python
 from .. import errors
 from ..vertica import messages
@@ -78,6 +83,7 @@ except Exception as e:
 
 
 def connect(**kwargs):
+    # type: (Any) -> Connection
     """Opens a new connection to a Vertica database."""
     return Connection(kwargs)
 
@@ -245,6 +251,7 @@ def _generate_session_label():
 
 class Connection(object):
     def __init__(self, options=None):
+        # type: (Optional[Dict[str, Any]]) -> None
         self.parameters = {}
         self.session_id = None
         self.backend_pid = None
@@ -322,6 +329,7 @@ class Connection(object):
     # supporting `with` statements
     #############################################
     def __enter__(self):
+        # type: () -> Self
         return self
 
     def __exit__(self, type_, value, traceback):
@@ -352,6 +360,7 @@ class Connection(object):
         cur.execute('ROLLBACK;')
 
     def cursor(self, cursor_type=None):
+        # type: (Self, Optional[Union[Literal['list', 'dict'], Type[list[Any]], Type[dict[Any, Any]]]]) -> Cursor
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 

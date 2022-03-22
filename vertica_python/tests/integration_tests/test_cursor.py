@@ -1054,7 +1054,7 @@ class SimpleQueryExecutemanyTestCase(VerticaPythonIntegrationTestCase):
             self.assertIsNone(cur.fetchone())
 
     def test_executemany(self):
-        self._test_executemany(self._table, [(1, 'aa'), (2, 'bb')])
+        self._test_executemany(self._table, [(i, chr(i)) for i in range(0, 128)])
 
     def test_executemany_quoted_path(self):
         table = '.'.join(['"{}"'.format(s.strip('"')) for s in self._table.split('.')])

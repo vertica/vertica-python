@@ -441,13 +441,6 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
                     cur.execute("SELECT 1;")
                 cur = conn.cursor()
 
-    def test_format_quote_unicode(self):
-        with self._connect() as conn:
-            cur = conn.cursor()
-            bad_word = u'Fr\xfchst\xfcck'
-            formatted_word = u''.join((u'"', re.escape(bad_word), u'"'))
-            self.assertEqual(formatted_word, cur.format_quote(bad_word, True))
-
     def test_udtype(self):
         poly = "POLYGON ((1 2, 2 3, 3 1, 1 2))"
         line = "LINESTRING (42.1 71, 41.4 70, 41.3 72.9, 42.99 71.46, 44.47 73.21)"

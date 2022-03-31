@@ -454,6 +454,7 @@ class Connection(object):
             raw_socket = self.enable_ssl(raw_socket, ssl_options)
 
         self.socket = raw_socket
+        self.socket_as_file = self.socket.makefile('rb', 10*1024*1024)
         return self.socket
 
     def create_socket(self, family):
@@ -600,6 +601,7 @@ class Connection(object):
                 self._socket().close()
         finally:
             self.reset_values()
+            self.socket_as_file.close()
 
     def reset_connection(self):
         self.close()
@@ -695,6 +697,7 @@ class Connection(object):
             self._logger.error(msg)
             raise errors.MessageError(msg)
 
+    # TODO: left for testing
     def read_bytes(self, n):
         if n == 1:
             result = self._socket().recv(1)
@@ -712,6 +715,26 @@ class Connection(object):
                 view = view[received:]
                 to_read -= received
             return buf
+
+    def read_bytes_using_file(self, n):
+        if n == 1:
+            result = self.socket_as_file.read(1)
+            if not result:
+                raise errors.ConnectionError("Connection closed by Vertica")
+            return result
+        else:
+            buf = b""
+            to_read = n
+            while to_read > 0:
+                data = self.socket_as_file.read(to_read)
+                received = len(data)
+                to_read -= received
+                buf += data
+                if received == 0:
+                    raise errors.ConnectionError("Connection closed by Vertica")
+            return buf
+
+    read_bytes = read_bytes_using_file
 
     def send_GSS_response_and_receive_challenge(self, response):       
         # Send the GSS response data to the vertica server

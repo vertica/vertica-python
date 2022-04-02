@@ -709,10 +709,10 @@ class Connection(object):
             while to_read > 0:
                 data = self.socket_as_file.read(to_read)
                 received = len(data)
-                to_read -= received
-                buf += data
                 if received == 0:
                     raise errors.ConnectionError("Connection closed by Vertica")
+                buf += data
+                to_read -= received
             return buf
 
     def send_GSS_response_and_receive_challenge(self, response):       

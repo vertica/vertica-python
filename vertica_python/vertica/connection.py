@@ -460,7 +460,7 @@ class Connection(object):
 
     def _socket_as_file(self):
         if self.socket_as_file is None:
-            self.socket_as_file = self._socket().makefile('rb', 10*1024*1024)
+            self.socket_as_file = self._socket().makefile('rb')
         return self.socket_as_file
 
     def create_socket(self, family):

@@ -258,6 +258,7 @@ class Connection(object):
         self.backend_key = None
         self.transaction_status = None
         self.socket = None
+        self.socket_as_file = None
 
         options = options or {}
         self.options = parse_dsn(options['dsn']) if 'dsn' in options else {}
@@ -430,6 +431,7 @@ class Connection(object):
         self.backend_key = None
         self.transaction_status = None
         self.socket = None
+        self.socket_as_file = None
         self.address_list = _AddressList(self.options['host'], self.options['port'],
                                          self.options['backup_server_node'], self._logger)
 
@@ -455,6 +457,11 @@ class Connection(object):
 
         self.socket = raw_socket
         return self.socket
+
+    def _socket_as_file(self):
+        if self.socket_as_file is None:
+            self.socket_as_file = self._socket().makefile('rb')
+        return self.socket_as_file
 
     def create_socket(self, family):
         """Create a TCP socket object"""
@@ -598,6 +605,8 @@ class Connection(object):
         try:
             if self.socket is not None:
                 self._socket().close()
+            if self.socket_as_file is not None:
+                self._socket_as_file().close()
         finally:
             self.reset_values()
 
@@ -697,19 +706,19 @@ class Connection(object):
 
     def read_bytes(self, n):
         if n == 1:
-            result = self._socket().recv(1)
+            result = self._socket_as_file().read(1)
             if not result:
                 raise errors.ConnectionError("Connection closed by Vertica")
             return result
         else:
-            buf = bytearray(n)
-            view = memoryview(buf)
+            buf = b""
             to_read = n
             while to_read > 0:
-                received = self._socket().recv_into(view, to_read)
+                data = self._socket_as_file().read(to_read)
+                received = len(data)
                 if received == 0:
                     raise errors.ConnectionError("Connection closed by Vertica")
-                view = view[received:]
+                buf += data
                 to_read -= received
             return buf
 

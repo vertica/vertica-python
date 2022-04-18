@@ -45,6 +45,7 @@ from uuid import UUID
 
 # noinspection PyCompatibility,PyUnresolvedReferences
 from dateutil import parser, tz
+from dateutil.relativedelta import relativedelta
 
 from .. import errors
 from ..datatypes import VerticaType, getDisplaySize, getPrecision, getScale
@@ -52,6 +53,7 @@ from ..compat import as_str, as_text
 
 
 YEARS_RE = re.compile(r"^([0-9]+)-")
+YEAR_TO_MONTH_RE = re.compile(r"(-)?(\d+)-(\d+)")
 
 
 # these methods are bad...
@@ -134,10 +136,10 @@ def time_parse(s):
         return datetime.strptime(s, '%H:%M:%S').time()
     return datetime.strptime(s, '%H:%M:%S.%f').time()
 
-def binary_data_parse(s):
+def load_varbinary_text(s):
     """
-    Parses text value of a BINARY/VARBINARY/LONG VARBINARY type.
-    :param s: bytearray
+    Parses text representation of a BINARY / VARBINARY / LONG VARBINARY type.
+    :param s: bytes
     :return: bytes
     """
     buf = []
@@ -158,31 +160,105 @@ def binary_data_parse(s):
         buf.append(c)
     return b''.join(buf)
 
+def load_intervalYM_text(val, type_name):
+    """
+    Parses text representation of a INTERVAL YEAR TO MONTH / INTERVAL YEAR / INTERVAL MONTH type.
+    :param val: bytes
+    :param type_name: str
+    :return: dateutil.relativedelta.relativedelta
+    """
+    s = as_str(val)
+    if type_name == 'Interval Year to Month':
+        m = YEAR_TO_MONTH_RE.match(s)
+        if not m:
+            raise errors.DataError("Cannot parse interval '{}'".format(s))
+        sign, year, month = m.groups()
+        sign = -1 if sign else 1
+        return relativedelta(years=sign*int(year), months=sign*int(month))
+    else:
+        try:
+            interval = int(s)
+        except ValueError:
+            raise errors.DataError("Cannot parse interval '{}'".format(s))
+        if type_name == 'Interval Year':
+            return relativedelta(years=interval)
+        else:   # Interval Month
+            return relativedelta(months=interval)
+
+def load_interval_text(val, type_name):
+    """
+    Parses text representation of a INTERVAL day-time type.
+    :param val: bytes
+    :param type_name: str
+    :return: dateutil.relativedelta.relativedelta
+    """
+    # [-]dd hh:mm:ss.ffffff
+    interval = as_str(val)
+    sign = -1 if interval[0] == '-' else 1
+    parts = [0] * 5  # value of [day, hour, minute, second, fraction]
+
+    sp = interval.split('.')
+    if len(sp) > 1: # Extract the fractional second part
+        fraction = sp[1]
+        pad = 6 - len(fraction) # pad the fraction until it represents 6 digits
+        parts[4] = sign * int(fraction) * (10**pad)
+        interval = sp[0]
+
+    # Extract the first number
+    idx = 0
+    while idx < len(interval) and interval[idx] not in (' ', ':'):
+        idx += 1
+    num = int(interval[:idx])
+    saw_days = idx < len(interval) and interval[idx] == ' '
+    idx += 1
+
+    # Determine the unit for the first number
+    parts_idx = 0  # Interval Day
+    if type_name in ('Interval Day to Hour', 'Interval Day to Minute', 'Interval Day to Second'):
+        parts_idx = 0 if (saw_days or idx > len(interval)) else 1
+    elif type_name in ('Interval Hour', 'Interval Hour to Minute', 'Interval Hour to Second'):
+        parts_idx = 1
+    elif type_name in ('Interval Minute', 'Interval Minute to Second'):
+        parts_idx = 2
+    elif type_name == 'Interval Second':
+        parts_idx = 3
+
+    parts[parts_idx] = num  # Save the first number
+    if idx < len(interval): # Parse the rest of interval
+        parts_idx += 1
+        ts = interval[idx:].split(':')
+        for val in ts:
+            parts[parts_idx] = sign * int(val)
+            parts_idx += 1
+
+    return relativedelta(days=parts[0], hours=parts[1], minutes=parts[2], seconds=parts[3], microseconds=parts[4])
+
+
 
 # Type casting of SQL types bytes representation into Python objects
-def vertica_type_cast(type_code, unicode_error):
+def vertica_type_cast(column):
     typecaster = {
         VerticaType.UNKNOWN: bytes,
         VerticaType.BOOL: lambda s: s == b't',
         VerticaType.INT8: lambda s: int(s),
         VerticaType.FLOAT8: lambda s: float(s),
-        VerticaType.CHAR: lambda s: s.decode('utf-8', unicode_error),
-        VerticaType.VARCHAR: lambda s: s.decode('utf-8', unicode_error),
+        VerticaType.NUMERIC: lambda s: Decimal(s.decode('utf-8', column.unicode_error)),
+        VerticaType.CHAR: lambda s: s.decode('utf-8', column.unicode_error),
+        VerticaType.VARCHAR: lambda s: s.decode('utf-8', column.unicode_error),
+        VerticaType.LONGVARCHAR: lambda s: s.decode('utf-8', column.unicode_error),
         VerticaType.DATE: date_parse,
         VerticaType.TIME: time_parse,
+        VerticaType.TIMETZ: bytes,
         VerticaType.TIMESTAMP: timestamp_parse,
         VerticaType.TIMESTAMPTZ: timestamp_tz_parse,
-        VerticaType.INTERVAL: bytes,
-        VerticaType.TIMETZ: bytes,
-        VerticaType.NUMERIC: lambda s: Decimal(s.decode('utf-8', unicode_error)),
-        VerticaType.VARBINARY: binary_data_parse,
-        VerticaType.UUID: lambda s: UUID(s.decode('utf-8', unicode_error)),
-        VerticaType.INTERVALYM: bytes,
-        VerticaType.LONGVARCHAR: lambda s: s.decode('utf-8', unicode_error),
-        VerticaType.LONGVARBINARY: binary_data_parse,
-        VerticaType.BINARY: binary_data_parse
+        VerticaType.INTERVAL: lambda s: load_interval_text(s, column.type_name),
+        VerticaType.INTERVALYM: lambda s: load_intervalYM_text(s, column.type_name),
+        VerticaType.UUID: lambda s: UUID(s.decode('utf-8', column.unicode_error)),
+        VerticaType.BINARY: load_varbinary_text,
+        VerticaType.VARBINARY: load_varbinary_text,
+        VerticaType.LONGVARBINARY: load_varbinary_text,
     }
-    return typecaster.get(type_code, bytes)
+    return typecaster.get(column.type_code, bytes)
 
 
 ColumnTuple = namedtuple('Column', ['name', 'type_code', 'display_size', 'internal_size',
@@ -201,7 +277,9 @@ class Column(object):
         self.scale = getScale(col['data_type_oid'], col['type_modifier'])
         self.null_ok = col['null_ok']
         self.is_identity = col['is_identity']
-        self.converter = vertica_type_cast(self.type_code, unicode_error)
+        self.format_code = col['format_code']
+        self.unicode_error = unicode_error
+        self.converter = vertica_type_cast(self)
         self.props = ColumnTuple(self.name, self.type_code, self.display_size, self.internal_size,
                                  self.precision, self.scale, self.null_ok)
 

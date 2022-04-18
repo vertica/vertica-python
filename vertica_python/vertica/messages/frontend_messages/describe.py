@@ -74,3 +74,7 @@ class Describe(BulkFrontendMessage):
         utf_name = self._describe_name.encode('utf-8')
         bytes_ = pack('c{0}sx'.format(len(utf_name)), self._describe_type, utf_name)
         return bytes_
+
+    def __str__(self):
+        return 'Describe: type = {}, name = "{}"'.format(
+               'Portal' if self._describe_type == b'P' else 'Prepared Statement' , self._describe_name)

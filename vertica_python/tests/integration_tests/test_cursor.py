@@ -36,6 +36,7 @@
 from __future__ import print_function, division, absolute_import
 
 from datetime import date, datetime, time
+from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 from io import open
 from uuid import UUID
@@ -1333,9 +1334,15 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
                   '2 days 12 hours 15 mins 1235 milliseconds',
                   '2 days 12 hours 15 mins ago', '2 days 12 hours 15 mins ago',
                   None, None]
-        expected = [[b'1', b'1-2', b'22', b'365', b'-6537150 01:03:06.0051',
-                     b'74', b'01:03', b'8760:15:20', b'15', b'525605:20',
-                     b'216901.24', b'-2 12', b'-2 12:15', None, None]]
+        expected = [[relativedelta(years=+1), relativedelta(years=+1, months=+2),
+                     relativedelta(years=+1, months=+10), relativedelta(days=+365),
+                     relativedelta(days=-6537150, hours=-1, minutes=-3, seconds=-6, microseconds=-5100),
+                     relativedelta(days=+3, hours=+2), relativedelta(hours=+1, minutes=+3),
+                     relativedelta(days=+365, minutes=+15, seconds=+20),
+                     relativedelta(minutes=+15), relativedelta(days=+365, minutes=+5, seconds=+20),
+                     relativedelta(days=+2, hours=+12, minutes=+15, seconds=+1, microseconds=+240000),
+                     relativedelta(days=-2, hours=-12), relativedelta(days=-2, hours=-12, minutes=-15),
+                     None, None]]
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("""CREATE TABLE {} (

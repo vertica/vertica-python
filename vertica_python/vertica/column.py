@@ -280,7 +280,6 @@ class Column(object):
         self.format_code = col['format_code']
         self.unicode_error = unicode_error
         self.converter = vertica_type_cast(self)
-        #self.converter = vertica_type_cast(self.type_code, unicode_error)
         self.props = ColumnTuple(self.name, self.type_code, self.display_size, self.internal_size,
                                  self.precision, self.scale, self.null_ok)
 

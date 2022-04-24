@@ -38,7 +38,7 @@ from __future__ import print_function, division, absolute_import
 
 import re
 from collections import namedtuple
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from six import PY2
 from uuid import UUID
@@ -54,6 +54,14 @@ from ..compat import as_str, as_text
 
 YEARS_RE = re.compile(r"^([0-9]+)-")
 YEAR_TO_MONTH_RE = re.compile(r"(-)?(\d+)-(\d+)")
+TIMETZ_RE = re.compile(
+    r"""(?ix)
+    ^
+    (\d+) : (\d+) : (\d+) (?: \. (\d+) )?       # Time and micros
+    ([-+]) (\d+) (?: : (\d+) )? (?: : (\d+) )?  # Timezone
+    $
+    """
+)
 
 
 # these methods are bad...
@@ -135,6 +143,37 @@ def time_parse(s):
     if len(s) == 8:
         return datetime.strptime(s, '%H:%M:%S').time()
     return datetime.strptime(s, '%H:%M:%S.%f').time()
+
+def load_timetz_text(val):
+    """
+    Parses text representation of a TIMETZ type.
+    :param val: bytes
+    :return: datetime.time
+    """
+    s = as_str(val)
+    m = TIMETZ_RE.match(s)
+    if not m:
+        raise errors.DataError("Cannot parse time with time zone '{}'".format(s))
+    hr, mi, sec, fr, sign, oh, om, os = m.groups()
+
+    # Pad the fraction of second until it represents 6 digits
+    us = 0
+    if fr:
+        pad = 6 - len(fr)
+        us = int(fr) * (10**pad)
+
+    # Calculate timezone
+    # Note: before python version 3.7 timezone offset is restricted to a whole number of minutes
+    #       tz.tzoffset() will round seconds in the offset to whole minutes
+    tz_offset = 60 * 60 * int(oh)
+    if om:
+        tz_offset += 60 * int(om)
+    if os:
+        tz_offset += int(os)
+    if sign == "-":
+        tz_offset = -tz_offset
+
+    return time(int(hr), int(mi), int(sec), us, tz.tzoffset(None, tz_offset))
 
 def load_varbinary_text(s):
     """
@@ -248,7 +287,7 @@ def vertica_type_cast(column):
         VerticaType.LONGVARCHAR: lambda s: s.decode('utf-8', column.unicode_error),
         VerticaType.DATE: date_parse,
         VerticaType.TIME: time_parse,
-        VerticaType.TIMETZ: bytes,
+        VerticaType.TIMETZ: load_timetz_text,
         VerticaType.TIMESTAMP: timestamp_parse,
         VerticaType.TIMESTAMPTZ: timestamp_tz_parse,
         VerticaType.INTERVAL: lambda s: load_interval_text(s, column.type_name),

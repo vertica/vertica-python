@@ -37,6 +37,7 @@ from __future__ import print_function, division, absolute_import
 
 from datetime import date, datetime, time
 from dateutil.relativedelta import relativedelta
+from dateutil.tz import tzoffset
 from decimal import Decimal
 from io import open
 from uuid import UUID
@@ -1255,11 +1256,12 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
     def test_bind_datetime(self):
         with self._connect() as conn:
             cur = conn.cursor()
-            cur.execute("CREATE TABLE {} (a TIMESTAMP, b DATE, c TIME, "
-                        "d TIMESTAMP, e DATE, f TIME)".format(self._table))
+            cur.execute("CREATE TABLE {} (a TIMESTAMP, b DATE, c TIME, d TIMETZ,"
+                        "e TIMESTAMP, f DATE, g TIME, h TIMETZ)".format(self._table))
             values = [datetime(2018, 9, 7, 15, 38, 19, 769000), date(2018, 9, 7),
-                      time(13, 50, 9), None, None, None]
-            cur.execute("INSERT INTO {} VALUES (?,?,?,?,?,?)".format(self._table), values)
+                      time(13, 50, 9), time(22, 36, 33, 123400, tzinfo=tzoffset(None, -19800)),
+                      None, None, None, None]
+            cur.execute("INSERT INTO {} VALUES ({})".format(self._table, ','.join(['?']*8)), values)
             conn.commit()
             cur.execute("SELECT * FROM {}".format(self._table))
             res = cur.fetchall()

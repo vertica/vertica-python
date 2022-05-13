@@ -724,6 +724,31 @@ with vertica_python.connect(**conn_info) as conn:
         # nCount is less than the number of rows in large_table
 ```
 
+### Bypass data conversion to Python objects
+
+The `Cursor.disable_sqltype_converter` attribute can bypass the result data conversion to Python objects.
+
+```python
+with vertica_python.connect(**conn_info) as conn:
+    cur = conn.cursor()
+    sql = "select 'foo'::VARCHAR, 100::INT, '2001-12-01 02:50:00'::TIMESTAMP"
+    
+    #### Convert SQL types to Python objects ####
+    print(cur.disable_sqltype_converter)   # Default is False
+    # False
+    cur.execute(sql)
+    print(cur.fetchall())
+    # [['foo', 100, datetime.datetime(2001, 12, 1, 2, 50)]]
+    
+    #### No Conversion: return raw bytes data ####
+    cur.disable_sqltype_converter = True   # Set attribute to True
+    cur.execute(sql)
+    print(cur.fetchall())
+    # [[b'foo', b'100', b'2001-12-01 02:50:00']]
+```
+
+As a result, this can improve query performance when you call `fetchall()` but ignore/skip result data. This can also be used when defining customized data converters.
+
 ### Shortcuts
 The `Cursor.execute()` method returns `self`. This means that you can chain a fetch operation, such as `fetchone()`, to the `execute()` call:
 ```python

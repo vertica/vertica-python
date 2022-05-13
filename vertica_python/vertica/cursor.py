@@ -158,6 +158,7 @@ class Cursor(object):
         self.prepared_name = "s0"
         self.error = None
         self._sql_literal_adapters = {}
+        self._disable_sqltype_converter = False
 
         #
         # dbapi attributes
@@ -485,6 +486,18 @@ class Cursor(object):
             raise TypeError("Cannot register this sql literal adapter. The adapter is not callable.")
         self._sql_literal_adapters[obj_type] = adapter_func
 
+    @property
+    def disable_sqltype_converter(self):
+        return self._disable_sqltype_converter
+
+    @disable_sqltype_converter.setter
+    def disable_sqltype_converter(self, value):
+        """By default, the client does data conversions for query results:
+        reading a bytes sequence from server and creating a Python object out of it.
+        If set to True, bypass conversions from SQL type raw data to the native Python object
+        """
+        self._disable_sqltype_converter = bool(value)
+
     #############################################
     # internal
     #############################################
@@ -528,12 +541,17 @@ class Cursor(object):
             raise TypeError('Unrecognized cursor_type: {0}'.format(self.cursor_type))
 
     def format_row_as_dict(self, row_data):
+        if self._disable_sqltype_converter:
+            return OrderedDict((descr.name, value)
+                    for descr, value in zip(self.description, row_data.values))
         return OrderedDict(
             (descr.name, descr.convert(value))
             for descr, value in zip(self.description, row_data.values)
         )
 
     def format_row_as_array(self, row_data):
+        if self._disable_sqltype_converter:
+            return row_data.values
         return [descr.convert(value)
                 for descr, value in zip(self.description, row_data.values)]
 

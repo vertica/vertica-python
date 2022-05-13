@@ -724,9 +724,9 @@ with vertica_python.connect(**conn_info) as conn:
         # nCount is less than the number of rows in large_table
 ```
 
-### Bypass Data Conversion to Python object
+### Bypass data conversion to Python objects
 
-The `Cursor.disable_sqltype_converter` attribute can bypass the result data conversion to Python object.
+The `Cursor.disable_sqltype_converter` attribute can bypass the result data conversion to Python objects.
 
 ```python
 with vertica_python.connect(**conn_info) as conn:

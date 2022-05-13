@@ -139,6 +139,11 @@ def date_parse(s):
 
 
 def time_parse(s):
+    """
+    Parses text representation of a TIME type.
+    :param val: bytes
+    :return: datetime.time
+    """
     s = as_str(s)
     if len(s) == 8:
         return datetime.strptime(s, '%H:%M:%S').time()

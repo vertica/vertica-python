@@ -54,10 +54,11 @@ class ParseDSNTestCase(VerticaPythonUnitTestCase):
     def test_boolean_arguments(self):
         dsn = ('vertica://mike@127.0.0.1/db1?connection_load_balance=True&'
                'use_prepared_statements=0&ssl=false&disable_copy_local=on&'
-               'autocommit=true')
+               'autocommit=true&binary_transfer=1')
         expected = {'database': 'db1', 'connection_load_balance': True,
                     'use_prepared_statements': False,  'ssl': False,
                     'disable_copy_local': True, 'autocommit': True,
+                    'binary_transfer': True,
                     'host': '127.0.0.1', 'user': 'mike'}
         parsed = parse_dsn(dsn)
         self.assertDictEqual(expected, parsed)

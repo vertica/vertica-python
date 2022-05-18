@@ -806,7 +806,7 @@ class Connection(object):
         password = self.options['password']
         binary_transfer = self.options['binary_transfer']
 
-        self.write(messages.Startup(user, database, session_label, os_user_name))
+        self.write(messages.Startup(user, database, session_label, os_user_name, binary_transfer))
 
         while True:
             message = self.read_message()

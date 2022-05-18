@@ -876,7 +876,8 @@ class Cursor(object):
                            .format(parameter_values, len(parameter_values), parameter_count))
                     raise ValueError(msg)
                 self.connection.write(messages.Bind(portal_name, self.prepared_name,
-                                             parameter_values, parameter_type_oids))
+                                             parameter_values, parameter_type_oids,
+                                             self.connection.options['binary_transfer']))
                 self.connection.write(messages.Execute(portal_name, 0))
             self.connection.write(messages.Sync())
         except Exception as e:

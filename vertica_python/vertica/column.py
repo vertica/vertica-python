@@ -180,29 +180,6 @@ def load_timetz_text(val):
 
     return time(int(hr), int(mi), int(sec), us, tz.tzoffset(None, tz_offset))
 
-def load_varbinary_text(s):
-    """
-    Parses text representation of a BINARY / VARBINARY / LONG VARBINARY type.
-    :param s: bytes
-    :return: bytes
-    """
-    buf = []
-    i = 0
-    while i < len(s):
-        c = s[i: i+1]
-        if c == b'\\':
-            c2 = s[i+1: i+2]
-            if c2 == b'\\':  # escaped \
-                if PY2: c = str(c)
-                i += 2
-            else:   # A \xxx octal string
-                c = chr(int(str(s[i+1: i+4]), 8)) if PY2 else bytes([int(s[i+1: i+4], 8)])
-                i += 4
-        else:
-            if PY2: c = str(c)
-            i += 1
-        buf.append(c)
-    return b''.join(buf)
 
 def load_intervalYM_text(val, type_name):
     """
@@ -304,13 +281,16 @@ def vertica_type_cast(column):
     }
     return typecaster.get(column.type_code, bytes)
 
+class FormatCode(object):
+    TEXT = 0
+    BINARY = 1
 
 ColumnTuple = namedtuple('Column', ['name', 'type_code', 'display_size', 'internal_size',
                                     'precision', 'scale', 'null_ok'])
 
 
 class Column(object):
-    def __init__(self, col, unicode_error='strict'):
+    def __init__(self, col):
         # Describe one query result column
         self.name = col['name']
         self.type_code = col['data_type_oid']
@@ -322,15 +302,8 @@ class Column(object):
         self.null_ok = col['null_ok']
         self.is_identity = col['is_identity']
         self.format_code = col['format_code']
-        self.unicode_error = unicode_error
-        self.converter = vertica_type_cast(self)
         self.props = ColumnTuple(self.name, self.type_code, self.display_size, self.internal_size,
                                  self.precision, self.scale, self.null_ok)
-
-    def convert(self, s):
-        if s is None:
-            return
-        return self.converter(s)
 
     def __str__(self):
         return as_str(str(self.props))
@@ -347,3 +320,6 @@ class Column(object):
 
     def __getitem__(self, key):
         return self.props[key]
+
+    def __len__(self):
+        return len(self.props)

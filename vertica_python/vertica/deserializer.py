@@ -15,36 +15,51 @@
 from __future__ import print_function, division, absolute_import
 
 import re
+from datetime import date, datetime, time
+from dateutil import tz
 from dateutil.relativedelta import relativedelta
+from decimal import Context, Decimal
 from six import PY2
 from struct import unpack
 from uuid import UUID
+if PY2:
+    from binascii import hexlify
 
+from .. import errors
 from ..compat import as_str
 from ..datatypes import VerticaType
 from ..vertica.column import FormatCode
 
 
 class Deserializer(object):
-    def get_row_deserializers(self, columns):
+    def get_row_deserializers(self, columns, context):
         result = [None] * len(columns)
         for idx, col in enumerate(columns):
-            result[idx] = self.get_column_deserializer(col)
+            result[idx] = self.get_column_deserializer(col, context)
         return result
 
-    def get_column_deserializer(self, col):
+    def get_column_deserializer(self, col, context):
         """Return a function that inputs a column's raw data and returns a Python object"""
+        f = DEFAULTS.get(col.format_code, {}).get(col.type_code)
         def deserializer(data):
             if data is None: # null
                 return None
-            f = DEFAULTS.get(col.format_code, {}).get(col.type_code)
             if f:
-                return f(data, ctx={'column': col})
+                return f(data, ctx={'column': col, 'unicode_error': context['unicode_error']})
             return data  # skip
         return deserializer
 
 
 YEAR_TO_MONTH_RE = re.compile(r"(-)?(\d+)-(\d+)")
+TIMETZ_RE = re.compile(
+    r"""(?ix)
+    ^
+    (\d+) : (\d+) : (\d+) (?: \. (\d+) )?       # Time and micros
+    ([-+]) (\d+) (?: : (\d+) )? (?: : (\d+) )?  # Timezone
+    $
+    """
+)
+SECONDS_PER_DAY = 86400
 
 def load_bool_binary(val, ctx):
     """
@@ -65,6 +80,224 @@ def load_float8_binary(val, ctx):
     :return: float
     """
     return unpack("!d", val)[0]
+
+def _int_from_bytes(val):
+    """
+    (Python 2) Convert big-endian signed integer bytes to int.
+    """
+    b = bytearray(val)
+    if len(b) == 0:
+      return 0
+    sign_set = b[0] & 0x80
+    b[0] &= 0x7f  # skip sign bit for negative number
+    n = int(hexlify(b), 16)
+    if sign_set: # if sign bit is set, 2's complement
+        offset = 2**(8 * len(b) - 1)
+        return n - offset
+    return n
+
+def load_numeric_binary(val, ctx):
+    """
+    Parses binary representation of a NUMERIC type.
+    :param val: bytes
+    :param ctx: dict
+    :return: decimal.Decimal
+    """
+    # N-byte signed integer represents the unscaled value of the numeric
+    # N is roughly (precision//19+1)*8
+    if PY2:
+        unscaledVal = _int_from_bytes(val)
+    else:
+        unscaledVal = int.from_bytes(val, byteorder='big', signed=True)
+    precision = ctx['column'].precision
+    scale = ctx['column'].scale
+    # The numeric value is (unscaledVal * 10^(-scale))
+    return Decimal(unscaledVal).scaleb(-scale, context=Context(prec=precision))
+
+def load_varchar_text(val, ctx):
+    """
+    Parses text/binary representation of a CHAR / VARCHAR / LONG VARCHAR type.
+    :param val: bytes
+    :param ctx: dict
+    :return: (PY2) unicode / (PY3) str
+    """
+    return val.decode('utf-8', ctx['unicode_error'])
+
+def load_date_text(val, ctx):
+    """
+    Parses text representation of a DATE type.
+    :param val: bytes
+    :param ctx: dict
+    :return: datetime.date
+    :raises NotSupportedError when a date Before Christ is encountered
+    """
+    s = as_str(val)
+    if s.endswith(' BC'):
+        raise errors.NotSupportedError('Dates Before Christ are not supported by datetime.date. Got: {0}'.format(s))
+    # Value error, year might be over 9999
+    return date(*map(lambda x: min(int(x), 9999), s.split('-')))
+
+def load_date_binary(val, ctx):
+    """
+    Parses binary representation of a  DATE type.
+    :param val: bytes
+    :param ctx: dict
+    :return: datetime.date
+    :raises NotSupportedError when a date Before Christ is encountered
+    """
+    # 8-byte integer represents the Julian day number
+    # https://en.wikipedia.org/wiki/Julian_day
+    jdn = load_int8_binary(val, ctx)
+    days = jdn - 1721426 + 1  # shift epoch to 0001-1-1 (J1721426)
+    if days < date.min.toordinal():
+        raise errors.NotSupportedError('Dates Before Christ are not supported by datetime.date. Got: Julian day number {0}'.format(jdn))
+    return date.fromordinal(min(days, date.max.toordinal()))
+
+def load_time_text(val, ctx):
+    """
+    Parses text representation of a TIME type.
+    :param val: bytes
+    :param ctx: dict
+    :return: datetime.time
+    """
+    val = as_str(val)
+    if len(val) == 8:
+        return datetime.strptime(val, '%H:%M:%S').time()
+    return datetime.strptime(val, '%H:%M:%S.%f').time()
+
+def load_time_binary(val, ctx):
+    """
+    Parses binary representation of a TIME type.
+    :param val: bytes
+    :param ctx: dict
+    :return: datetime.time
+    """
+    # 8-byte integer represents the number of microseconds
+    # since midnight in the UTC time zone.
+    msecs = load_int8_binary(val, ctx)
+
+    msecs, fraction = divmod(msecs, 1000000)
+    msecs, second = divmod(msecs, 60)
+    hour, minute = divmod(msecs, 60)
+    try:
+        return time(hour, minute, second, fraction)
+    except ValueError:
+        raise errors.NotSupportedError("Time not supported by datetime.time. Got: hour={}".format(hour))
+
+def load_timetz_text(val, ctx):
+    """
+    Parses text representation of a TIMETZ type.
+    :param val: bytes
+    :param ctx: dict
+    :return: datetime.time
+    """
+    s = as_str(val)
+    m = TIMETZ_RE.match(s)
+    if not m:
+        raise errors.DataError("Cannot parse time with time zone '{}'".format(s))
+    hr, mi, sec, fr, sign, oh, om, os = m.groups()
+
+    # Pad the fraction of second until it represents 6 digits
+    us = 0
+    if fr:
+        pad = 6 - len(fr)
+        us = int(fr) * (10**pad)
+
+    # Calculate timezone
+    # Note: before python version 3.7 timezone offset is restricted to a whole number of minutes
+    #       tz.tzoffset() will round seconds in the offset to whole minutes
+    tz_offset = 60 * 60 * int(oh)
+    if om:
+        tz_offset += 60 * int(om)
+    if os:
+        tz_offset += int(os)
+    if sign == "-":
+        tz_offset = -tz_offset
+
+    return time(int(hr), int(mi), int(sec), us, tz.tzoffset(None, tz_offset))
+
+def load_timetz_binary(val, ctx):
+    """
+    Parses binary representation of a TIMETZ type.
+    :param val: bytes
+    :param ctx: dict
+    :return: datetime.time
+    """
+    # 8-byte value where
+    #   - Upper 40 bits contain the number of microseconds since midnight in the UTC time zone.
+    #   - Lower 24 bits contain time zone as the UTC offset in seconds.
+    val = load_int8_binary(val, ctx)
+    tz_offset = SECONDS_PER_DAY - (val & 0xffffff) # in seconds
+    msecs = val >> 24
+    # shift to given time zone
+    msecs += tz_offset * 1000000
+    msecs %= SECONDS_PER_DAY * 1000000
+    msecs, fraction = divmod(msecs, 1000000)
+    msecs, second = divmod(msecs, 60)
+    hour, minute = divmod(msecs, 60)
+    return time(hour, minute, second, fraction, tz.tzoffset(None, tz_offset))
+
+
+
+def load_interval_text(val, ctx):
+    """
+    Parses text representation of a INTERVAL day-time type.
+    :param val: bytes
+    :param ctx: dict
+    :return: dateutil.relativedelta.relativedelta
+    """
+    # [-]dd hh:mm:ss.ffffff
+    interval = as_str(val)
+    sign = -1 if interval[0] == '-' else 1
+    parts = [0] * 5  # value of [day, hour, minute, second, fraction]
+
+    sp = interval.split('.')
+    if len(sp) > 1: # Extract the fractional second part
+        fraction = sp[1]
+        pad = 6 - len(fraction) # pad the fraction until it represents 6 digits
+        parts[4] = sign * int(fraction) * (10**pad)
+        interval = sp[0]
+
+    # Extract the first number
+    idx = 0
+    while idx < len(interval) and interval[idx] not in (' ', ':'):
+        idx += 1
+    num = int(interval[:idx])
+    saw_days = idx < len(interval) and interval[idx] == ' '
+    idx += 1
+
+    # Determine the unit for the first number
+    type_name = ctx['column'].type_name
+    parts_idx = 0  # Interval Day
+    if type_name in ('Interval Day to Hour', 'Interval Day to Minute', 'Interval Day to Second'):
+        parts_idx = 0 if (saw_days or idx > len(interval)) else 1
+    elif type_name in ('Interval Hour', 'Interval Hour to Minute', 'Interval Hour to Second'):
+        parts_idx = 1
+    elif type_name in ('Interval Minute', 'Interval Minute to Second'):
+        parts_idx = 2
+    elif type_name == 'Interval Second':
+        parts_idx = 3
+
+    parts[parts_idx] = num  # Save the first number
+    if idx < len(interval): # Parse the rest of interval
+        parts_idx += 1
+        ts = interval[idx:].split(':')
+        for val in ts:
+            parts[parts_idx] = sign * int(val)
+            parts_idx += 1
+
+    return relativedelta(days=parts[0], hours=parts[1], minutes=parts[2], seconds=parts[3], microseconds=parts[4])
+
+def load_interval_binary(val, ctx):
+    """
+    Parses binary representation of a INTERVAL day-time type.
+    :param val: bytes
+    :param ctx: dict
+    :return: dateutil.relativedelta.relativedelta
+    """
+    # 8-byte integer containing the number of microseconds in the interval
+    msecs = load_int8_binary(val, ctx)
+    return relativedelta(microseconds=msecs)
 
 def load_intervalYM_text(val, ctx):
     """
@@ -141,22 +374,38 @@ def load_varbinary_text(s, ctx):
 DEFAULTS = {
     FormatCode.TEXT: {
         VerticaType.UNKNOWN: None,
-        VerticaType.BOOL: lambda s, ctx: s == b't',
-        VerticaType.INT8: lambda s, ctx: int(s),
-        VerticaType.FLOAT8: lambda s, ctx: float(s),
+        VerticaType.BOOL: lambda val, ctx: val == b't',
+        VerticaType.INT8: lambda val, ctx: int(val),
+        VerticaType.FLOAT8: lambda val, ctx: float(val),
+        VerticaType.NUMERIC: lambda val, ctx: Decimal(val.decode('utf-8')),
+        VerticaType.CHAR: load_varchar_text,
+        VerticaType.VARCHAR: load_varchar_text,
+        VerticaType.LONGVARCHAR: load_varchar_text,
+        VerticaType.DATE: load_date_text,
+        VerticaType.TIME: load_time_text,
+        VerticaType.TIMETZ: load_timetz_text,
 
+        VerticaType.INTERVAL: load_interval_text,
         VerticaType.INTERVALYM: load_intervalYM_text,
         VerticaType.UUID: lambda val, ctx: UUID(val.decode('utf-8')),
         VerticaType.BINARY: load_varbinary_text,
         VerticaType.VARBINARY: load_varbinary_text,
         VerticaType.LONGVARBINARY: load_varbinary_text,
     },
-    FormatCode.BINARY:{
+    FormatCode.BINARY: {
         VerticaType.UNKNOWN: None,
         VerticaType.BOOL: load_bool_binary,
         VerticaType.INT8: load_int8_binary,
         VerticaType.FLOAT8: load_float8_binary,
+        VerticaType.NUMERIC: load_numeric_binary,
+        VerticaType.CHAR: load_varchar_text,
+        VerticaType.VARCHAR: load_varchar_text,
+        VerticaType.LONGVARCHAR: load_varchar_text,
+        VerticaType.DATE: load_date_binary,
+        VerticaType.TIME: load_time_binary,
+        VerticaType.TIMETZ: load_timetz_binary,
 
+        VerticaType.INTERVAL: load_interval_binary,
         VerticaType.INTERVALYM: load_intervalYM_binary,
         VerticaType.UUID: load_uuid_binary,
         VerticaType.BINARY: None,

@@ -15,7 +15,7 @@
 from __future__ import print_function, division, absolute_import
 
 import re
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from dateutil import tz
 from dateutil.relativedelta import relativedelta
 from decimal import Context, Decimal
@@ -65,17 +65,24 @@ def load_bool_binary(val, ctx):
     """
     Parses binary representation of a BOOLEAN type.
     :param val: a byte - b'\x01' for True, b'\x00' for False
+    :param ctx: dict
     :return: an instance of bool
     """
     return val == b'\x01'
 
 def load_int8_binary(val, ctx):
+    """
+    Parses binary representation of a INTEGER type.
+    :param val: bytes - a 64-bit integer.
+    :param ctx: dict
+    :return: int
+    """
     return unpack("!q", val)[0]
 
 def load_float8_binary(val, ctx):
     """
     Parses binary representation of a FLOAT type.
-    :param val: bytes
+    :param val: bytes - a float encoded in IEEE-754 format.
     :param ctx: dict
     :return: float
     """
@@ -134,12 +141,14 @@ def load_date_text(val, ctx):
     s = as_str(val)
     if s.endswith(' BC'):
         raise errors.NotSupportedError('Dates Before Christ are not supported by datetime.date. Got: {0}'.format(s))
-    # Value error, year might be over 9999
-    return date(*map(lambda x: min(int(x), 9999), s.split('-')))
+    try:
+        return date.fromisoformat(s)
+    except ValueError:
+        return date.max  # year might be over 9999
 
 def load_date_binary(val, ctx):
     """
-    Parses binary representation of a  DATE type.
+    Parses binary representation of a DATE type.
     :param val: bytes
     :param ctx: dict
     :return: datetime.date
@@ -151,7 +160,9 @@ def load_date_binary(val, ctx):
     days = jdn - 1721426 + 1  # shift epoch to 0001-1-1 (J1721426)
     if days < date.min.toordinal():
         raise errors.NotSupportedError('Dates Before Christ are not supported by datetime.date. Got: Julian day number {0}'.format(jdn))
-    return date.fromordinal(min(days, date.max.toordinal()))
+    elif days > date.max.toordinal():
+        return date.max
+    return date.fromordinal(days)
 
 def load_time_text(val, ctx):
     """
@@ -237,6 +248,39 @@ def load_timetz_binary(val, ctx):
     hour, minute = divmod(msecs, 60)
     return time(hour, minute, second, fraction, tz.tzoffset(None, tz_offset))
 
+def load_timestamp_text(val, ctx):
+    """
+    Parses text representation of a TIMESTAMP type.
+    :param val: bytes
+    :param ctx: dict
+    :return: datetime.datetime
+    """
+    s = as_str(val)
+    if s.endswith("BC"):
+        raise errors.NotSupportedError('Timestamps Before Christ are not supported by datetime.datetime. Got: {0}'.format(s))
+    fmt = '%Y-%m-%d %H:%M:%S.%f' if '.' in s else '%Y-%m-%d %H:%M:%S'
+    try:
+        return datetime.strptime(s, fmt)
+    except ValueError:  # year might be over 9999
+        return datetime.max
+
+def load_timestamp_binary(val, ctx):
+    """
+    Parses binary representation of a TIMESTAMP type.
+    :param val: bytes
+    :param ctx: dict
+    :return: datetime.datetime
+    """
+    # 8-byte integer represents the number of microseconds since 2000-01-01 00:00:00.
+    msecs = load_int8_binary(val, ctx)
+    _datetime_epoch = datetime(2000, 1, 1)
+    try:
+        return _datetime_epoch + timedelta(microseconds=msecs)
+    except OverflowError:
+        if msecs < 0:
+            raise errors.NotSupportedError('Timestamps Before Christ are not supported by datetime.datetime.')
+        else:  # year might be over 9999
+            return datetime.max
 
 
 def load_interval_text(val, ctx):
@@ -384,7 +428,8 @@ DEFAULTS = {
         VerticaType.DATE: load_date_text,
         VerticaType.TIME: load_time_text,
         VerticaType.TIMETZ: load_timetz_text,
-
+        VerticaType.TIMESTAMP: load_timestamp_text,
+        VerticaType.TIMESTAMPTZ: None,
         VerticaType.INTERVAL: load_interval_text,
         VerticaType.INTERVALYM: load_intervalYM_text,
         VerticaType.UUID: lambda val, ctx: UUID(val.decode('utf-8')),
@@ -404,7 +449,8 @@ DEFAULTS = {
         VerticaType.DATE: load_date_binary,
         VerticaType.TIME: load_time_binary,
         VerticaType.TIMETZ: load_timetz_binary,
-
+        VerticaType.TIMESTAMP: load_timestamp_binary,
+        VerticaType.TIMESTAMPTZ: None,
         VerticaType.INTERVAL: load_interval_binary,
         VerticaType.INTERVALYM: load_intervalYM_binary,
         VerticaType.UUID: load_uuid_binary,

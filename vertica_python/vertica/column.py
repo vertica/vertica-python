@@ -39,8 +39,6 @@ from __future__ import print_function, division, absolute_import
 import re
 from collections import namedtuple
 from datetime import date, datetime, time
-
-# noinspection PyCompatibility,PyUnresolvedReferences
 from dateutil import parser, tz
 
 from .. import errors
@@ -110,22 +108,13 @@ def timestamp_tz_parse(s):
     return parser.parse(s)
 
 
-
-
-
-
-
-
-# Type casting of SQL types bytes representation into Python objects
 def vertica_type_cast(column):
     typecaster = {
-        VerticaType.TIMESTAMP: timestamp_parse,
         VerticaType.TIMESTAMPTZ: timestamp_tz_parse,
     }
-    return typecaster.get(column.type_code, bytes)
 
 # Data of a particular SQL data type might be transmitted in either "text" format or "binary" format.
-# The desired format for any column value is specified by a format code.
+# The desired format for any column is specified by a format code.
 class FormatCode(object):
     TEXT = 0
     BINARY = 1

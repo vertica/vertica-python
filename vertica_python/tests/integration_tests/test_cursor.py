@@ -482,7 +482,11 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             conn.commit()
             cur.execute("SELECT a, b FROM {0} ORDER BY a ASC".format(self._table))
             res = cur.fetchall()
-            self.assertListOfListsEqual(res, [[b'1', b'aa'], [b'2', b'bb']])
+            if conn.options['binary_transfer']:
+                self.assertListOfListsEqual(res,
+                    [[b'\x00\x00\x00\x00\x00\x00\x00\x01', b'aa'], [b'\x00\x00\x00\x00\x00\x00\x00\x02', b'bb']])
+            else:
+                self.assertListOfListsEqual(res, [[b'1', b'aa'], [b'2', b'bb']])
 
 exec(CursorTestCase.createPrepStmtClass())
 

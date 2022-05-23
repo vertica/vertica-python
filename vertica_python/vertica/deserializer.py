@@ -146,7 +146,7 @@ def load_date_text(val, ctx):
     if s.endswith(' BC'):
         raise errors.NotSupportedError('Dates Before Christ are not supported by datetime.date. Got: {0}'.format(s))
     try:
-        return date.fromisoformat(s)
+        return date(*map(lambda x: int(x), s.split('-')))
     except ValueError:
         raise errors.NotSupportedError('Dates after year 9999 are not supported by datetime.date. Got: {0}'.format(s))
 

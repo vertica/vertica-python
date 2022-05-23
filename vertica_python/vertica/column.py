@@ -36,82 +36,11 @@
 
 from __future__ import print_function, division, absolute_import
 
-import re
 from collections import namedtuple
-from datetime import date, datetime, time
-from dateutil import parser, tz
 
-from .. import errors
-from ..datatypes import VerticaType, getDisplaySize, getPrecision, getScale
+from ..datatypes import getDisplaySize, getPrecision, getScale
 from ..compat import as_str, as_text
 
-
-YEARS_RE = re.compile(r"^([0-9]+)-")
-
-
-# these methods are bad...
-#
-# a few timestamp with tz examples:
-# 2013-01-01 00:00:00
-# 2013-01-01 00:00:00+00
-# 2013-01-01 00:00:00.01+00
-# 2013-01-01 00:00:00.00001+00
-#
-# Vertica stores all data in UTC:
-#   "TIMESTAMP WITH TIMEZONE (TIMESTAMPTZ) data is stored in GMT (UTC) by
-#    converting data from the current local time zone to GMT."
-# Vertica fetches data in local timezone:
-#   "When TIMESTAMPTZ data is used, data is converted back to use the current
-#    local time zone"
-# If vertica boxes are on UTC, you should never have a non +00 offset (as
-# far as I can tell) ie. inserting '2013-01-01 00:00:00.01 EST' to a
-# timestamptz type stores: 2013-01-01 05:00:00.01+00
-#       select t AT TIMEZONE 'America/New_York' returns: 2012-12-31 19:00:00.01
-def timestamp_parse(s):
-    s = as_str(s)
-    try:
-        dt = _timestamp_parse(s)
-    except ValueError:
-        # Value error, year might be over 9999
-        year_match = YEARS_RE.match(s)
-        if year_match:
-            year = year_match.groups()[0]
-            dt = _timestamp_parse_without_year(s[len(year) + 1:])
-            dt = dt.replace(year=min(int(year), 9999))
-        else:
-            raise errors.DataError('Timestamp value not supported: %s' % s)
-
-    return dt
-
-
-def _timestamp_parse(s):
-    if len(s) == 19:
-        return datetime.strptime(s, '%Y-%m-%d %H:%M:%S')
-    return datetime.strptime(s, '%Y-%m-%d %H:%M:%S.%f')
-
-
-def _timestamp_parse_without_year(s):
-    if len(s) == 14:
-        return datetime.strptime(s, '%m-%d %H:%M:%S')
-    return datetime.strptime(s, '%m-%d %H:%M:%S.%f')
-
-
-def timestamp_tz_parse(s):
-    s = as_str(s)
-    # if timezone is simply UTC...
-    if s.endswith('+00'):
-        # remove time zone
-        ts = timestamp_parse(s[:-3].encode(encoding='utf-8', errors='strict'))
-        ts = ts.replace(tzinfo=tz.tzutc())
-        return ts
-    # other wise do a real parse (slower)
-    return parser.parse(s)
-
-
-def vertica_type_cast(column):
-    typecaster = {
-        VerticaType.TIMESTAMPTZ: timestamp_tz_parse,
-    }
 
 # Data of a particular SQL data type might be transmitted in either "text" format or "binary" format.
 # The desired format for any column is specified by a format code.
@@ -130,6 +59,10 @@ class Column(object):
         self.name = col['name']
         self.type_code = col['data_type_oid']
         self.type_name = col['data_type_name']
+        self.table_oid = col['table_oid']
+        self.schema_name = col['schema_name']
+        self.table_name = col['table_name']
+        self.attribute_number = col['attribute_number']
         self.display_size = getDisplaySize(col['data_type_oid'], col['type_modifier'])
         self.internal_size = col['data_type_size']
         self.precision = getPrecision(col['data_type_oid'], col['type_modifier'])

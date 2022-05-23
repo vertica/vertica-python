@@ -41,12 +41,15 @@ class Deserializer(object):
     def get_column_deserializer(self, col, context):
         """Return a function that inputs a column's raw data and returns a Python object"""
         f = DEFAULTS.get(col.format_code, {}).get(col.type_code)
+        if f is None:  # skip conversion
+            return lambda data: data
+
         def deserializer(data):
             if data is None: # null
                 return None
-            if f:
-                return f(data, ctx={'column': col, 'unicode_error': context['unicode_error']})
-            return data  # skip
+            return f(data, ctx={'column': col,
+                                'unicode_error': context['unicode_error'],
+                                'session_tz': context['session_tz']})
         return deserializer
 
 
@@ -59,6 +62,7 @@ TIMETZ_RE = re.compile(
     $
     """
 )
+TZ_RE = re.compile(r"(?ix) ^([-+]) (\d+) (?: : (\d+) )? (?: : (\d+) )? $")
 SECONDS_PER_DAY = 86400
 
 def load_bool_binary(val, ctx):
@@ -144,7 +148,7 @@ def load_date_text(val, ctx):
     try:
         return date.fromisoformat(s)
     except ValueError:
-        return date.max  # year might be over 9999
+        raise errors.NotSupportedError('Dates after year 9999 are not supported by datetime.date. Got: {0}'.format(s))
 
 def load_date_binary(val, ctx):
     """
@@ -161,7 +165,7 @@ def load_date_binary(val, ctx):
     if days < date.min.toordinal():
         raise errors.NotSupportedError('Dates Before Christ are not supported by datetime.date. Got: Julian day number {0}'.format(jdn))
     elif days > date.max.toordinal():
-        return date.max
+        raise errors.NotSupportedError('Dates after year 9999 are not supported by datetime.date. Got: Julian day number {0}'.format(jdn))
     return date.fromordinal(days)
 
 def load_time_text(val, ctx):
@@ -256,13 +260,13 @@ def load_timestamp_text(val, ctx):
     :return: datetime.datetime
     """
     s = as_str(val)
-    if s.endswith("BC"):
+    if s.endswith(" BC"):
         raise errors.NotSupportedError('Timestamps Before Christ are not supported by datetime.datetime. Got: {0}'.format(s))
     fmt = '%Y-%m-%d %H:%M:%S.%f' if '.' in s else '%Y-%m-%d %H:%M:%S'
     try:
         return datetime.strptime(s, fmt)
-    except ValueError:  # year might be over 9999
-        return datetime.max
+    except ValueError:
+        raise errors.NotSupportedError('Timestamps after year 9999 are not supported by datetime.datetime. Got: {0}'.format(s))
 
 def load_timestamp_binary(val, ctx):
     """
@@ -279,9 +283,53 @@ def load_timestamp_binary(val, ctx):
     except OverflowError:
         if msecs < 0:
             raise errors.NotSupportedError('Timestamps Before Christ are not supported by datetime.datetime.')
-        else:  # year might be over 9999
-            return datetime.max
+        else:
+            raise errors.NotSupportedError('Timestamps after year 9999 are not supported by datetime.datetime.')
 
+def load_timestamptz_text(val, ctx):
+    """
+    Parses text representation of a TIMESTAMPTZ type.
+    :param val: bytes
+    :param ctx: dict
+    :return: datetime.datetime
+    """
+    s = as_str(val)
+    if s.endswith(" BC"):
+        raise errors.NotSupportedError('TimestampTzs Before Christ are not supported by datetime.datetime. Got: {0}'.format(s))
+    dt = s.split(' ')
+    if len(dt) != 2:
+        raise errors.DataError("Cannot parse TIMESTAMPTZ '{}'".format(s))
+    try:
+        d = date.fromisoformat(dt[0])
+    except ValueError:  # year might be over 9999
+        raise errors.NotSupportedError('TimestampTzs after year 9999 are not supported by datetime.datetime. Got: {0}'.format(s))
+    t = load_timetz_text(dt[1], ctx)
+    return datetime.combine(d, t)
+
+def load_timestamptz_binary(val, ctx):
+    """
+    Parses binary representation of a TIMESTAMPTZ type.
+    :param val: bytes
+    :param ctx: dict
+    :return: datetime.datetime
+    """
+    # 8-byte integer represents the number of microseconds since 2000-01-01 00:00:00 in the UTC timezone.
+    msecs = load_int8_binary(val, ctx)
+    _datetimetz_epoch = datetime(2000, 1, 1, tzinfo=tz.tzutc())
+    # Process session time zone setting
+    if TZ_RE.match(ctx['session_tz']):  # -HH:MM / +HH:MM
+        ctx['session_tz'] = 'UTC' + ctx['session_tz']
+    session_tz = tz.gettz(ctx['session_tz'])
+    # Use local time zone if session time zone is unknown
+    timezone = session_tz if session_tz else tz.gettz()
+    try:
+        ts = _datetimetz_epoch + timedelta(microseconds=msecs)
+        return ts.astimezone(timezone)
+    except OverflowError:
+        if msecs < 0:
+            raise errors.NotSupportedError('TimestampTzs Before Christ are not supported by datetime.datetime.')
+        else:  # year might be over 9999
+            raise errors.NotSupportedError('TimestampTzs after year 9999 are not supported by datetime.datetime.')
 
 def load_interval_text(val, ctx):
     """
@@ -394,6 +442,7 @@ def load_varbinary_text(s, ctx):
     """
     Parses text representation of a BINARY / VARBINARY / LONG VARBINARY type.
     :param s: bytes
+    :param ctx: dict
     :return: bytes
     """
     buf = []
@@ -429,7 +478,7 @@ DEFAULTS = {
         VerticaType.TIME: load_time_text,
         VerticaType.TIMETZ: load_timetz_text,
         VerticaType.TIMESTAMP: load_timestamp_text,
-        VerticaType.TIMESTAMPTZ: None,
+        VerticaType.TIMESTAMPTZ: load_timestamptz_text,
         VerticaType.INTERVAL: load_interval_text,
         VerticaType.INTERVALYM: load_intervalYM_text,
         VerticaType.UUID: lambda val, ctx: UUID(val.decode('utf-8')),
@@ -450,7 +499,7 @@ DEFAULTS = {
         VerticaType.TIME: load_time_binary,
         VerticaType.TIMETZ: load_timetz_binary,
         VerticaType.TIMESTAMP: load_timestamp_binary,
-        VerticaType.TIMESTAMPTZ: None,
+        VerticaType.TIMESTAMPTZ: load_timestamptz_binary,
         VerticaType.INTERVAL: load_interval_binary,
         VerticaType.INTERVALYM: load_intervalYM_binary,
         VerticaType.UUID: load_uuid_binary,

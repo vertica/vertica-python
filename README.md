@@ -251,8 +251,9 @@ with vertica_python.connect(**conn_info) as conn:
 ```
 
 Ideally, the output data should be the same for these two formats. However, there are edge cases:
-- FLOAT data: binary format offers slightly greater precision than text format. E.g. `select ATAN(12.345)` returns 1.48996835348642 (text) or 1.489968353486419 (binary)
+- FLOAT data: binary format might offer slightly greater precision than text format. E.g. `select ATAN(12.345)` returns 1.48996835348642 (text) or 1.489968353486419 (binary)
 - TIMESTAMPTZ data: text format always use the session timezone, but binary format might fail to get session timezone and use local timezone.
+- NUMERIC data: In old server versions, the precision and scale is incorrect when querying a NUMERIC column that is not from a specific table with prepared statement in binary format. E.g. `select ?::NUMERIC` or `select node_id, ?/50 from nodes`. In newer server versions, binary transfer is forcibly disabled for NUMERIC data by the server, regardless of client-side values of ```binary_transfer``` and ```use_prepared_statements```.
 
 #### Set Properties with Connection String
 Another way to set connection properties is passing a connection string to the keyword parameter `dsn` of `vertica_python.connect(dsn='...', **kwargs)`. The connection string is of the form:
@@ -753,7 +754,7 @@ with vertica_python.connect(**conn_info) as conn:
 ```
 
 ### SQL Data conversion to Python objects
-When a query is executed and `Cursor.fetch*()` is called, SQL results are returned as Python objects. The following table shows the default mapping from SQL data types to Python objects:
+When a query is executed and `Cursor.fetch*()` is called, SQL data (bytes) are deserialized as Python objects. The following table shows the default mapping from SQL data types to Python objects:
 
 | SQL data type  | Python object type |
 | -------------- | ------------------ |
@@ -777,7 +778,7 @@ When a query is executed and `Cursor.fetch*()` is called, SQL results are return
 | INTERVAL	     | [dateutil.relativedelta.relativedelta](https://dateutil.readthedocs.io/en/stable/relativedelta.html#dateutil.relativedelta.relativedelta) |
 
 
-### Bypass data conversion to Python objects
+#### Bypass data conversion to Python objects
 
 The `Cursor.disable_sqltype_converter` attribute can bypass the result data conversion to Python objects.
 

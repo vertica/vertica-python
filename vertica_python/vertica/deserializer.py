@@ -296,11 +296,11 @@ def load_timestamptz_text(val, ctx):
     s = as_str(val)
     if s.endswith(" BC"):
         raise errors.NotSupportedError('TimestampTzs Before Christ are not supported by datetime.datetime. Got: {0}'.format(s))
-    dt = s.split(' ')
+    dt = s.split(' ')  # split into date part and time part
     if len(dt) != 2:
         raise errors.DataError("Cannot parse TIMESTAMPTZ '{}'".format(s))
     try:
-        d = date.fromisoformat(dt[0])
+        d = date(*map(lambda x: int(x), dt[0].split('-')))
     except ValueError:  # year might be over 9999
         raise errors.NotSupportedError('TimestampTzs after year 9999 are not supported by datetime.datetime. Got: {0}'.format(s))
     t = load_timetz_text(dt[1], ctx)

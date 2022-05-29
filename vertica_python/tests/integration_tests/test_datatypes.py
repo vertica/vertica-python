@@ -148,8 +148,8 @@ class DataTransferFormatTestCase(VerticaPythonIntegrationTestCase):
         self._test_equal_value("UUID", ["'00010203-0405-0607-0809-0a0b0c0d0e0f'", "'123e4567-e89b-12d3-a456-426655440a00'"])
 
     def test_binary_type(self):
-        self._test_equal_value("BINARY(2)", ["'\303\261'"])
-        self._test_equal_value("VARBINARY", ["'\303\261'"])
-        self._test_equal_value("LONG VARBINARY", ["'\303\261\303\260'"])
+        self._test_equal_value("BINARY(2)", [u"'\303\261'"])
+        self._test_equal_value("VARBINARY", [u"'\303\261'"])
+        self._test_equal_value("LONG VARBINARY", [u"'\303\261\303\260'"])
 
 exec(DataTransferFormatTestCase.createPrepStmtClass())

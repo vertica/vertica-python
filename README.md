@@ -752,6 +752,31 @@ with vertica_python.connect(**conn_info) as conn:
         # nCount is less than the number of rows in large_table
 ```
 
+### SQL Data conversion to Python objects
+When a query is executed and `Cursor.fetch*()` is called, SQL results are returned as Python objects. The following table shows the default mapping from SQL data types to Python objects:
+
+| SQL data type  | Python object type |
+| -------------- | ------------------ |
+| NULL           | None               |
+| BOOLEAN        | bool               |
+| INTEGER        | int                |
+| FLOAT          | float              |
+| NUMERIC        | [decimal.Decimal](https://docs.python.org/3/library/decimal.html#decimal.Decimal) |
+| CHAR           | str                |
+| VARCHAR        | str                |
+| LONG VARCHAR   | str                |
+| BINARY         | bytes              |
+| VARBINARY      | bytes              |
+| LONG VARBINARY | bytes              |
+| UUID           | [uuid.UUID](https://docs.python.org/3/library/uuid.html#uuid.UUID) |
+| DATE           | datetime.date      |
+| TIME           | datetime.time      |
+| TIMETZ         | datetime.time      |
+| TIMESTAMP      | datetime.datetime  |
+| TIMESTAMPTZ    | datetime.datetime  |
+| INTERVAL	     | [dateutil.relativedelta.relativedelta](https://dateutil.readthedocs.io/en/stable/relativedelta.html#dateutil.relativedelta.relativedelta) |
+
+
 ### Bypass data conversion to Python objects
 
 The `Cursor.disable_sqltype_converter` attribute can bypass the result data conversion to Python objects.

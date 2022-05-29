@@ -226,6 +226,27 @@ with vertica_python.connect(**conn_info) as conn:
 #  Client redirects to node: v_vdb_node0005
 ```
 
+### Data Transfer Format
+There are two formats for transfering data from a server to a vertica-python client: text and binary. For example, a FLOAT type data is represented as a 8-byte IEEE-754 floating point number (fixed-width) in binary format, and a human-readable string (variable-width) in text format. The text format of values is whatever strings are produced and accepted by the input/output conversion functions for the particular data type.
+
+Depending on the data type, binary transfer is generally more efficient and requires less bandwidth than text transfer. However, when transferring a large number of small values, binary transfer may use more bandwidth.
+
+```python
+import vertica_python
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'vdb',
+             'binary_transfer': True  # False by default
+             }
+
+# Server enables binary transfer
+with vertica_python.connect(**conn_info) as conn:
+    ...
+```
+
 #### Set Properties with Connection String
 Another way to set connection properties is passing a connection string to the keyword parameter `dsn` of `vertica_python.connect(dsn='...', **kwargs)`. The connection string is of the form:
 ```

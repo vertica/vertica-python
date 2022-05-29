@@ -226,10 +226,12 @@ with vertica_python.connect(**conn_info) as conn:
 #  Client redirects to node: v_vdb_node0005
 ```
 
-### Data Transfer Format
-There are two formats for transfering data from a server to a vertica-python client: text and binary. For example, a FLOAT type data is represented as a 8-byte IEEE-754 floating point number (fixed-width) in binary format, and a human-readable string (variable-width) in text format. The text format of values is whatever strings are produced and accepted by the input/output conversion functions for the particular data type.
+#### Data Transfer Format
+There are two formats for transferring data from a server to a vertica-python client: text and binary. For example, a FLOAT type data is represented as a 8-byte IEEE-754 floating point number (fixed-width) in binary format, and a human-readable string (variable-width) in text format. The text format of values is whatever strings are produced and accepted by the input/output conversion functions for the particular data type.
 
 Depending on the data type, binary transfer is generally more efficient and requires less bandwidth than text transfer. However, when transferring a large number of small values, binary transfer may use more bandwidth.
+
+A connection is set to use text format by default. Set ```binary_transfer``` to True to use binary format.
 
 ```python
 import vertica_python
@@ -244,8 +246,13 @@ conn_info = {'host': '127.0.0.1',
 
 # Server enables binary transfer
 with vertica_python.connect(**conn_info) as conn:
+    cur = conn.cursor()
     ...
 ```
+
+Ideally, the output data should be the same for these two formats. However, there are edge cases:
+- FLOAT data: binary format offers slightly greater precision than text format. E.g. `select ATAN(12.345)` returns 1.48996835348642 (text) or 1.489968353486419 (binary)
+- TIMESTAMPTZ data: text format always use the session timezone, but binary format might fail to get session timezone and use local timezone.
 
 #### Set Properties with Connection String
 Another way to set connection properties is passing a connection string to the keyword parameter `dsn` of `vertica_python.connect(dsn='...', **kwargs)`. The connection string is of the form:

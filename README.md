@@ -250,7 +250,7 @@ with vertica_python.connect(**conn_info) as conn:
     ...
 ```
 
-Ideally, the output data should be the same for these two formats. However, there are edge cases:
+Ideally, the [output data](#sql-data-conversion-to-python-objects) should be the same for these two formats. However, there are edge cases:
 - FLOAT data: binary format might offer slightly greater precision than text format. E.g. `select ATAN(12.345)` returns 1.48996835348642 (text) or 1.489968353486419 (binary)
 - TIMESTAMPTZ data: text format always use the session timezone, but binary format might fail to get session timezone and use local timezone.
 - NUMERIC data: In old server versions, the precision and scale is incorrect when querying a NUMERIC column that is not from a specific table with prepared statement in binary format. E.g. `select ?::NUMERIC` or `select node_id, ?/50 from nodes`. In newer server versions, binary transfer is forcibly disabled for NUMERIC data by the server, regardless of client-side values of ```binary_transfer``` and ```use_prepared_statements```.
@@ -770,12 +770,16 @@ When a query is executed and `Cursor.fetch*()` is called, SQL data (bytes) are d
 | VARBINARY      | bytes              |
 | LONG VARBINARY | bytes              |
 | UUID           | [uuid.UUID](https://docs.python.org/3/library/uuid.html#uuid.UUID) |
-| DATE           | datetime.date      |
-| TIME           | datetime.time      |
-| TIMETZ         | datetime.time      |
-| TIMESTAMP      | datetime.datetime  |
-| TIMESTAMPTZ    | datetime.datetime  |
+| DATE           | datetime.date<sup>[1]</sup> |
+| TIME           | datetime.time<sup>[2]</sup> |
+| TIMETZ         | datetime.time<sup>[2]</sup> |
+| TIMESTAMP      | datetime.datetime<sup>[1]</sup> |
+| TIMESTAMPTZ    | datetime.datetime<sup>[1]</sup> |
 | INTERVAL	     | [dateutil.relativedelta.relativedelta](https://dateutil.readthedocs.io/en/stable/relativedelta.html#dateutil.relativedelta.relativedelta) |
+
+<sup>[1]</sup>Python’s datetime.date and datetime.datetime only supports date ranges 0001-01-01 to 9999-12-31. Retrieving a value of BC date or future date (year>9999) results in an error.
+
+<sup>[2]</sup>Python’s datetime.time only supports times until 23:59:59. Retrieving a value of 24:00:00 results in an error.
 
 
 #### Bypass data conversion to Python objects

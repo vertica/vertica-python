@@ -159,7 +159,7 @@ class Cursor(object):
         self.prepared_name = "s0"
         self.error = None
         self._sql_literal_adapters = {}
-        self._disable_sqltype_converter = False
+        self._disable_sqldata_converter = False
         self._des = Deserializer()
 
         #
@@ -495,16 +495,16 @@ class Cursor(object):
         self._sql_literal_adapters[obj_type] = adapter_func
 
     @property
-    def disable_sqltype_converter(self):
-        return self._disable_sqltype_converter
+    def disable_sqldata_converter(self):
+        return self._disable_sqldata_converter
 
-    @disable_sqltype_converter.setter
-    def disable_sqltype_converter(self, value):
+    @disable_sqldata_converter.setter
+    def disable_sqldata_converter(self, value):
         """By default, the client does data conversions for query results:
         reading a bytes sequence from server and creating a Python object out of it.
         If set to True, bypass conversions from SQL type raw data to the native Python object
         """
-        self._disable_sqltype_converter = bool(value)
+        self._disable_sqldata_converter = bool(value)
 
     #############################################
     # internal
@@ -549,7 +549,7 @@ class Cursor(object):
             raise TypeError('Unrecognized cursor_type: {0}'.format(self.cursor_type))
 
     def format_row_as_dict(self, row_data):
-        if self._disable_sqltype_converter:
+        if self._disable_sqldata_converter:
             return OrderedDict((descr.name, value)
                     for descr, value in zip(self.description, row_data.values))
         return OrderedDict(
@@ -558,7 +558,7 @@ class Cursor(object):
         )
 
     def format_row_as_array(self, row_data):
-        if self._disable_sqltype_converter:
+        if self._disable_sqldata_converter:
             return row_data.values
         return [convert(value)
                 for convert, value in zip(self._deserializers, row_data.values)]

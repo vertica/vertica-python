@@ -784,7 +784,7 @@ When a query is executed and `Cursor.fetch*()` is called, SQL data (bytes) are d
 
 #### Bypass data conversion to Python objects
 
-The `Cursor.disable_sqltype_converter` attribute can bypass the result data conversion to Python objects.
+The `Cursor.disable_sqldata_converter` attribute can bypass the result data conversion to Python objects.
 
 ```python
 with vertica_python.connect(**conn_info) as conn:
@@ -792,14 +792,14 @@ with vertica_python.connect(**conn_info) as conn:
     sql = "select 'foo'::VARCHAR, 100::INT, '2001-12-01 02:50:00'::TIMESTAMP"
     
     #### Convert SQL types to Python objects ####
-    print(cur.disable_sqltype_converter)   # Default is False
+    print(cur.disable_sqldata_converter)   # Default is False
     # False
     cur.execute(sql)
     print(cur.fetchall())
     # [['foo', 100, datetime.datetime(2001, 12, 1, 2, 50)]]
     
     #### No Conversion: return raw bytes data ####
-    cur.disable_sqltype_converter = True   # Set attribute to True
+    cur.disable_sqldata_converter = True   # Set attribute to True
     cur.execute(sql)
     print(cur.fetchall())
     # [[b'foo', b'100', b'2001-12-01 02:50:00']]

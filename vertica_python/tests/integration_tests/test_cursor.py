@@ -467,16 +467,16 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             self.assertEqual(cur.description[0].display_size, 10000)
             self.assertEqual(cur.description[1].display_size, 1000)
 
-    def test_disable_sqltype_converter(self):
+    def test_disable_sqldata_converter(self):
         with self._connect() as conn:
             cur = conn.cursor()
 
             # Default is False
-            self.assertFalse(cur.disable_sqltype_converter)
+            self.assertFalse(cur.disable_sqldata_converter)
 
             # Set with attribute setter
-            cur.disable_sqltype_converter = True
-            self.assertTrue(cur.disable_sqltype_converter)
+            cur.disable_sqldata_converter = True
+            self.assertTrue(cur.disable_sqldata_converter)
             cur.execute("INSERT INTO {0} (a, b) VALUES (1, 'aa')".format(self._table))
             cur.execute("INSERT INTO {0} (a, b) VALUES (2, 'bb')".format(self._table))
             conn.commit()

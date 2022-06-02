@@ -75,6 +75,7 @@ DEFAULT_BACKUP_SERVER_NODE = []
 DEFAULT_KRB_SERVICE_NAME = 'vertica'
 DEFAULT_LOG_LEVEL = logging.WARNING
 DEFAULT_LOG_PATH = 'vertica_python.log'
+DEFAULT_BINARY_TRANSFER = False
 try:
     DEFAULT_USER = getpass.getuser()
 except Exception as e:
@@ -118,7 +119,7 @@ def parse_dsn(dsn):
         elif key == 'backup_server_node':
             continue
         elif key in ('connection_load_balance', 'use_prepared_statements',
-                     'disable_copy_local', 'ssl', 'autocommit'):
+                     'disable_copy_local', 'ssl', 'autocommit', 'binary_transfer'):
             lower = value.lower()
             if lower in ('true', 'on', '1'):
                 result[key] = True
@@ -314,6 +315,11 @@ class Connection(object):
         self.options.setdefault('disable_copy_local', False)
         self._logger.debug('COPY LOCAL operation is {}'.format(
                      'disabled' if self.options['disable_copy_local'] else 'enabled'))
+
+        # knob for using binary transfer format or text transfer format
+        self.options.setdefault('binary_transfer', DEFAULT_BINARY_TRANSFER)
+        self._logger.debug('Data binary transfer is {}'.format(
+                     'enabled' if self.options['binary_transfer'] else 'disabled'))
 
         self._logger.info('Connecting as user "{}" to database "{}" on host "{}" with port {}'.format(
                      self.options['user'], self.options['database'],
@@ -798,8 +804,9 @@ class Connection(object):
         session_label = self.options['session_label']
         os_user_name = DEFAULT_USER if DEFAULT_USER else ''
         password = self.options['password']
+        binary_transfer = self.options['binary_transfer']
 
-        self.write(messages.Startup(user, database, session_label, os_user_name))
+        self.write(messages.Startup(user, database, session_label, os_user_name, binary_transfer))
 
         while True:
             message = self.read_message()

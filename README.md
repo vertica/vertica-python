@@ -226,6 +226,35 @@ with vertica_python.connect(**conn_info) as conn:
 #  Client redirects to node: v_vdb_node0005
 ```
 
+#### Data Transfer Format
+There are two formats for transferring data from a server to a vertica-python client: text and binary. For example, a FLOAT type data is represented as a 8-byte IEEE-754 floating point number (fixed-width) in binary format, and a human-readable string (variable-width) in text format. The text format of values is whatever strings are produced and accepted by the input/output conversion functions for the particular data type.
+
+Depending on the data type, binary transfer is generally more efficient and requires less bandwidth than text transfer. However, when transferring a large number of small values, binary transfer may use more bandwidth.
+
+A connection is set to use text format by default. Set ```binary_transfer``` to True to use binary format.
+
+```python
+import vertica_python
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'vdb',
+             'binary_transfer': True  # False by default
+             }
+
+# Server enables binary transfer
+with vertica_python.connect(**conn_info) as conn:
+    cur = conn.cursor()
+    ...
+```
+
+Ideally, the [output data](#sql-data-conversion-to-python-objects) should be the same for these two formats. However, there are edge cases:
+- FLOAT data: binary format might offer slightly greater precision than text format. E.g. `select ATAN(12.345)` returns 1.48996835348642 (text) or 1.489968353486419 (binary)
+- TIMESTAMPTZ data: text format always use the session timezone, but binary format might fail to get session timezone and use local timezone.
+- NUMERIC data: In old server versions, the precision and scale is incorrect when querying a NUMERIC column that is not from a specific table with prepared statement in binary format. E.g. `select ?::NUMERIC` or `select node_id, ?/50 from nodes`. In newer server versions, binary transfer is forcibly disabled for NUMERIC data by the server, regardless of client-side values of ```binary_transfer``` and ```use_prepared_statements```.
+
 #### Set Properties with Connection String
 Another way to set connection properties is passing a connection string to the keyword parameter `dsn` of `vertica_python.connect(dsn='...', **kwargs)`. The connection string is of the form:
 ```
@@ -724,9 +753,38 @@ with vertica_python.connect(**conn_info) as conn:
         # nCount is less than the number of rows in large_table
 ```
 
-### Bypass data conversion to Python objects
+### SQL Data conversion to Python objects
+When a query is executed and `Cursor.fetch*()` is called, SQL data (bytes) are deserialized as Python objects. The following table shows the default mapping from SQL data types to Python objects:
 
-The `Cursor.disable_sqltype_converter` attribute can bypass the result data conversion to Python objects.
+| SQL data type  | Python object type |
+| -------------- | ------------------ |
+| NULL           | None               |
+| BOOLEAN        | bool               |
+| INTEGER        | int                |
+| FLOAT          | float              |
+| NUMERIC        | [decimal.Decimal](https://docs.python.org/3/library/decimal.html#decimal.Decimal) |
+| CHAR           | str                |
+| VARCHAR        | str                |
+| LONG VARCHAR   | str                |
+| BINARY         | bytes              |
+| VARBINARY      | bytes              |
+| LONG VARBINARY | bytes              |
+| UUID           | [uuid.UUID](https://docs.python.org/3/library/uuid.html#uuid.UUID) |
+| DATE           | datetime.date<sup>[1]</sup> |
+| TIME           | datetime.time<sup>[2]</sup> |
+| TIMETZ         | datetime.time<sup>[2]</sup> |
+| TIMESTAMP      | datetime.datetime<sup>[1]</sup> |
+| TIMESTAMPTZ    | datetime.datetime<sup>[1]</sup> |
+| INTERVAL	     | [dateutil.relativedelta.relativedelta](https://dateutil.readthedocs.io/en/stable/relativedelta.html#dateutil.relativedelta.relativedelta) |
+
+<sup>[1]</sup>Python’s datetime.date and datetime.datetime only supports date ranges 0001-01-01 to 9999-12-31. Retrieving a value of BC date or future date (year>9999) results in an error.
+
+<sup>[2]</sup>Python’s datetime.time only supports times until 23:59:59. Retrieving a value of 24:00:00 results in an error.
+
+
+#### Bypass data conversion to Python objects
+
+The `Cursor.disable_sqldata_converter` attribute can bypass the result data conversion to Python objects.
 
 ```python
 with vertica_python.connect(**conn_info) as conn:
@@ -734,14 +792,14 @@ with vertica_python.connect(**conn_info) as conn:
     sql = "select 'foo'::VARCHAR, 100::INT, '2001-12-01 02:50:00'::TIMESTAMP"
     
     #### Convert SQL types to Python objects ####
-    print(cur.disable_sqltype_converter)   # Default is False
+    print(cur.disable_sqldata_converter)   # Default is False
     # False
     cur.execute(sql)
     print(cur.fetchall())
     # [['foo', 100, datetime.datetime(2001, 12, 1, 2, 50)]]
     
     #### No Conversion: return raw bytes data ####
-    cur.disable_sqltype_converter = True   # Set attribute to True
+    cur.disable_sqldata_converter = True   # Set attribute to True
     cur.execute(sql)
     print(cur.fetchall())
     # [[b'foo', b'100', b'2001-12-01 02:50:00']]

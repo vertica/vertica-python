@@ -55,7 +55,7 @@ from ..message import BulkFrontendMessage
 class Startup(BulkFrontendMessage):
     message_id = None
 
-    def __init__(self, user, database, session_label, os_user_name):
+    def __init__(self, user, database, session_label, os_user_name, binary_transfer):
         BulkFrontendMessage.__init__(self)
 
         try:
@@ -79,6 +79,7 @@ class Startup(BulkFrontendMessage):
             b'client_os': os_platform,
             b'client_os_user_name': os_user_name,
             b'client_pid': pid,
+            b'binary_data_protocol': '1' if binary_transfer else '0', # Defaults to text format '0'
         }
 
     def read_bytes(self):

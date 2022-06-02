@@ -58,12 +58,14 @@ BACKSLASH_ESCAPE = b'\\134'
 class Bind(BulkFrontendMessage):
     message_id = b'B'
 
-    def __init__(self, portal_name, prepared_statement_name, parameter_values, parameter_type_oids):
+    def __init__(self, portal_name, prepared_statement_name, parameter_values,
+                 parameter_type_oids, binary_transfer):
         BulkFrontendMessage.__init__(self)
         self._portal_name = portal_name
         self._prepared_statement_name = prepared_statement_name
         self._parameter_values = parameter_values
         self._parameter_type_oids = parameter_type_oids
+        self._binary_transfer = binary_transfer
 
     def read_bytes(self):
         utf_portal_name = self._portal_name.encode('utf-8')
@@ -103,7 +105,12 @@ class Bind(BulkFrontendMessage):
 
         bytes_ += param_bytes_
 
-        # Result column format codes -- use the default format (text)
-        bytes_ += pack('!H', 0)
+        # Result column transfer format
+        if self._binary_transfer:
+            bytes_ += pack('!H', 1) # Specify the number of format codes followed
+            bytes_ += pack('!H', 1) # Use binary format for all result columns
+        else:
+            # Use the default format (text) for all result columns
+            bytes_ += pack('!H', 0)
 
         return bytes_

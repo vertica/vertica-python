@@ -85,6 +85,12 @@ with vertica_python.connect(**conn_info) as connection:
     # do things
 ```
 
+| Connection Option  |  Description |
+| ------------- | ------------- |
+| host  | The server host of the connection.  |
+| port  | The port of the connection.  |
+| user  | The user name of the connection. |
+
 Below are a few important connection topics you may deal with, or you can skip and jump to the next section: [Send Queries and Retrieve Results](#send-queries-and-retrieve-results)
 
 #### TLS/SSL

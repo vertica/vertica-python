@@ -87,9 +87,13 @@ with vertica_python.connect(**conn_info) as connection:
 
 | Connection Option  |  Description |
 | ------------- | ------------- |
-| host  | The server host of the connection.  |
-| port  | The port of the connection.  |
-| user  | The user name of the connection. |
+| host     | The server host of the connection.  |
+| port     | The port of the connection.  |
+| user     | The database user name to use to connect to the database. |
+| password | The password to use to log into the database. |
+| database | The database name. |
+| session_label | Sets a label for the connection on the server. This value appears in the client_label column of the v_monitor.sessions system table. |
+
 
 Below are a few important connection topics you may deal with, or you can skip and jump to the next section: [Send Queries and Retrieve Results](#send-queries-and-retrieve-results)
 

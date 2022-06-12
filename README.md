@@ -87,10 +87,10 @@ with vertica_python.connect(**conn_info) as connection:
 
 | Connection Option  |  Description |
 | ------------- | ------------- |
-| host     | The server host of the connection.  |
-| port     | The port of the connection. <br> Default: 5433 |
-| user     | The database user name to use to connect to the database. |
-| password | The password to use to log into the database. |
+| host     | The server host of the connection. Default: "localhost" |
+| port     | The port of the connection. Default: 5433 |
+| user     | The database user name to use to connect to the database. <br>Default: OS login user name |
+| password | The password to use to log into the database. Default: "" |
 | database | The database name. |
 | autocommit | See [Autocommit](#autocommit). Default: False |
 | backup_server_node | See [Connection Failover](#connection-failover). |

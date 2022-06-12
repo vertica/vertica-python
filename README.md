@@ -100,6 +100,8 @@ with vertica_python.connect(**conn_info) as connection:
 | disable_copy_local | See [COPY FROM LOCAL](#method-2-copy-from-local-sql-with-cursorexecute). Default: False |
 | kerberos_host_name | See [Kerberos Authentication](#kerberos-authentication). |
 | kerberos_service_name | See [Kerberos Authentication](#kerberos-authentication). Default: "vertica" |
+| log_level | See [Logging](#logging). |
+| log_path | See [Logging](#logging). |
 | session_label | Sets a label for the connection on the server. This value appears in the client_label column of the _v_monitor.sessions_ system table. |
 | ssl | See [TLS/SSL](#tlsssl). |
 | use_prepared_statements | See [Passing parameters to SQL queries](#passing-parameters-to-sql-queries). Default: False |

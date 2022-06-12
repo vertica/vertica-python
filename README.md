@@ -88,13 +88,17 @@ with vertica_python.connect(**conn_info) as connection:
 | Connection Option  |  Description |
 | ------------- | ------------- |
 | host     | The server host of the connection.  |
-| port     | The port of the connection.  |
+| port     | The port of the connection. <br> Default: 5433 |
 | user     | The database user name to use to connect to the database. |
 | password | The password to use to log into the database. |
 | database | The database name. |
+| autocommit | See [Autocommit](#autocommit). Default: False |
+| binary_transfer | See [Data Transfer Format](#data-transfer-format). Default: False (Use Text Format) |
+| connection_timeout | The number of seconds (can be a nonnegative floating point number) the client wait for a socket operation (Establishing a TCP connection or read/write operation). Default: None (no timeout) |
 | session_label | Sets a label for the connection on the server. This value appears in the client_label column of the v_monitor.sessions system table. |
-| ssl | See [TLS/SSL](#tlsssl) |
-| binary_transfer | See [Data Transfer Format](#data-transfer-format)
+| ssl | See [TLS/SSL](#tlsssl). |
+
+
 
 
 Below are a few important connection topics you may deal with, or you can skip and jump to the next section: [Send Queries and Retrieve Results](#send-queries-and-retrieve-results)

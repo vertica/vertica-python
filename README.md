@@ -93,10 +93,14 @@ with vertica_python.connect(**conn_info) as connection:
 | password | The password to use to log into the database. |
 | database | The database name. |
 | autocommit | See [Autocommit](#autocommit). Default: False |
-| binary_transfer | See [Data Transfer Format](#data-transfer-format). Default: False (Use Text Format) |
+| backup_server_node | See [Connection Failover](#connection-failover). |
+| binary_transfer | See [Data Transfer Format](#data-transfer-format). Default: False (use text format transfer) |
+| connection_load_balance | See [Connection Load Balancing](#connection-load-balancing). |
 | connection_timeout | The number of seconds (can be a nonnegative floating point number) the client wait for a socket operation (Establishing a TCP connection or read/write operation). Default: None (no timeout) |
+| disable_copy_local | See [COPY FROM LOCAL](#method-2-copy-from-local-sql-with-cursorexecute). Default: False |
 | session_label | Sets a label for the connection on the server. This value appears in the client_label column of the v_monitor.sessions system table. |
 | ssl | See [TLS/SSL](#tlsssl). |
+| use_prepared_statements | See [Passing parameters to SQL queries](#passing-parameters-to-sql-queries). Default: False |
 
 
 

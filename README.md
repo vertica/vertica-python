@@ -87,24 +87,25 @@ with vertica_python.connect(**conn_info) as connection:
 
 | Connection Option  |  Description |
 | ------------- | ------------- |
-| host     | The server host of the connection. Default: "localhost" |
-| port     | The port of the connection. Default: 5433 |
-| user     | The database user name to use to connect to the database. <br>Default: OS login user name |
-| password | The password to use to log into the database. Default: "" |
+| host     | The server host of the connection. <br>_Default_: "localhost" |
+| port     | The port of the connection. <br>_Default_: 5433 |
+| user     | The database user name to use to connect to the database. <br>_Default_: OS login user name |
+| password | The password to use to log into the database. <br>_Default_: "" |
 | database | The database name. |
-| autocommit | See [Autocommit](#autocommit). Default: False |
-| backup_server_node | See [Connection Failover](#connection-failover). |
-| binary_transfer | See [Data Transfer Format](#data-transfer-format). Default: False (use text format transfer) |
-| connection_load_balance | See [Connection Load Balancing](#connection-load-balancing). |
-| connection_timeout | The number of seconds (can be a nonnegative floating point number) the client waits for a socket operation (Establishing a TCP connection or read/write operation). Default: None (no timeout) |
-| disable_copy_local | See [COPY FROM LOCAL](#method-2-copy-from-local-sql-with-cursorexecute). Default: False |
+| autocommit | See [Autocommit](#autocommit). <br>_Default_: False |
+| backup_server_node | See [Connection Failover](#connection-failover). <br>_Default_: [] |
+| binary_transfer | See [Data Transfer Format](#data-transfer-format). <br>_Default_: False (use text format transfer) |
+| connection_load_balance | See [Connection Load Balancing](#connection-load-balancing). <br>_Default_: False |
+| connection_timeout | The number of seconds (can be a nonnegative floating point number) the client waits for a socket operation (Establishing a TCP connection or read/write operation). <br>_Default_: None (no timeout) |
+| disable_copy_local | See [COPY FROM LOCAL](#method-2-copy-from-local-sql-with-cursorexecute). <br>_Default_: False |
 | kerberos_host_name | See [Kerberos Authentication](#kerberos-authentication). |
-| kerberos_service_name | See [Kerberos Authentication](#kerberos-authentication). Default: "vertica" |
+| kerberos_service_name | See [Kerberos Authentication](#kerberos-authentication). <br>_Default_: "vertica" |
 | log_level | See [Logging](#logging). |
 | log_path | See [Logging](#logging). |
 | session_label | Sets a label for the connection on the server. This value appears in the client_label column of the _v_monitor.sessions_ system table. |
-| ssl | See [TLS/SSL](#tlsssl). |
-| use_prepared_statements | See [Passing parameters to SQL queries](#passing-parameters-to-sql-queries). Default: False |
+| ssl | See [TLS/SSL](#tlsssl). <br>_Default_: False (disabled) |
+| unicode_error | See [UTF-8 encoding issues](#utf-8-encoding-issues). <br>_Default_: 'strict' (throw error on invalid UTF-8 results) |
+| use_prepared_statements | See [Passing parameters to SQL queries](#passing-parameters-to-sql-queries). <br>_Default_: False |
 
 
 

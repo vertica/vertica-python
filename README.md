@@ -87,7 +87,7 @@ with vertica_python.connect(**conn_info) as connection:
 
 | Connection Option  |  Description |
 | ------------- | ------------- |
-| host     | The server host of the connection. <br>**_Default_**: "localhost" |
+| host     | The server host of the connection. This can be a host name or an IP address. <br>**_Default_**: "localhost" |
 | port     | The port of the connection. <br>**_Default_**: 5433 |
 | user     | The database user name to use to connect to the database. <br>**_Default_**: OS login user name |
 | password | The password to use to log into the database. <br>**_Default_**: "" |
@@ -182,7 +182,9 @@ with vertica_python.connect(**conn_info) as conn:
 ```
 
 #### Logging
-Logging is disabled by default if you do not pass values to both ```log_level``` and ```log_path```.  The default value of ```log_level``` is logging.WARNING. You can find all levels [here](https://docs.python.org/3/library/logging.html#logging-levels). The default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. If ```log_path``` is set to ```''``` (empty string) or ```None```, no file handler is set, logs will be processed by root handlers. For example,
+Logging is disabled by default if neither ```log_level``` or ```log_path``` are set. Passing value to at least one of those options to enable logging.
+
+When logging is enabled, the default value of ```log_level``` is _logging.WARNING_. You can find all levels [here](https://docs.python.org/3/library/logging.html#logging-levels). And the default value of ```log_path``` is 'vertica_python.log', the log file will be in the current execution directory. If ```log_path``` is set to ```''``` (empty string) or ```None```, no file handler is set, logs will be processed by root handlers. For example,
 
 ```python
 import vertica_python

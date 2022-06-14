@@ -87,30 +87,55 @@ with vertica_python.connect(**conn_info) as connection:
 
 | Connection Option  |  Description |
 | ------------- | ------------- |
-| host     | The server host of the connection. <br>_Default_: "localhost" |
-| port     | The port of the connection. <br>_Default_: 5433 |
-| user     | The database user name to use to connect to the database. <br>_Default_: OS login user name |
-| password | The password to use to log into the database. <br>_Default_: "" |
-| database | The database name. |
-| autocommit | See [Autocommit](#autocommit). <br>_Default_: False |
-| backup_server_node | See [Connection Failover](#connection-failover). <br>_Default_: [] |
-| binary_transfer | See [Data Transfer Format](#data-transfer-format). <br>_Default_: False (use text format transfer) |
-| connection_load_balance | See [Connection Load Balancing](#connection-load-balancing). <br>_Default_: False |
-| connection_timeout | The number of seconds (can be a nonnegative floating point number) the client waits for a socket operation (Establishing a TCP connection or read/write operation). <br>_Default_: None (no timeout) |
-| disable_copy_local | See [COPY FROM LOCAL](#method-2-copy-from-local-sql-with-cursorexecute). <br>_Default_: False |
-| kerberos_host_name | See [Kerberos Authentication](#kerberos-authentication). |
-| kerberos_service_name | See [Kerberos Authentication](#kerberos-authentication). <br>_Default_: "vertica" |
+| host     | The server host of the connection. <br>**_Default_**: "localhost" |
+| port     | The port of the connection. <br>**_Default_**: 5433 |
+| user     | The database user name to use to connect to the database. <br>**_Default_**: OS login user name |
+| password | The password to use to log into the database. <br>**_Default_**: "" |
+| database | The database name. <br>**_Default_**: the value of connection option `user` |
+| autocommit | See [Autocommit](#autocommit). <br>**_Default_**: False |
+| backup_server_node | See [Connection Failover](#connection-failover). <br>**_Default_**: [] |
+| binary_transfer | See [Data Transfer Format](#data-transfer-format). <br>**_Default_**: False (use text format transfer) |
+| connection_load_balance | See [Connection Load Balancing](#connection-load-balancing). <br>**_Default_**: False |
+| connection_timeout | The number of seconds (can be a nonnegative floating point number) the client waits for a socket operation (Establishing a TCP connection or read/write operation). <br>**_Default_**: None (no timeout) |
+| disable_copy_local | See [COPY FROM LOCAL](#method-2-copy-from-local-sql-with-cursorexecute). <br>**_Default_**: False |
+| kerberos_host_name | See [Kerberos Authentication](#kerberos-authentication). <br>**_Default_**: the value of connection option `host` |
+| kerberos_service_name | See [Kerberos Authentication](#kerberos-authentication). <br>**_Default_**: "vertica" |
 | log_level | See [Logging](#logging). |
 | log_path | See [Logging](#logging). |
 | session_label | Sets a label for the connection on the server. This value appears in the client_label column of the _v_monitor.sessions_ system table. |
-| ssl | See [TLS/SSL](#tlsssl). <br>_Default_: False (disabled) |
-| unicode_error | See [UTF-8 encoding issues](#utf-8-encoding-issues). <br>_Default_: 'strict' (throw error on invalid UTF-8 results) |
-| use_prepared_statements | See [Passing parameters to SQL queries](#passing-parameters-to-sql-queries). <br>_Default_: False |
+| ssl | See [TLS/SSL](#tlsssl). <br>**_Default_**: False (disabled) |
+| unicode_error | See [UTF-8 encoding issues](#utf-8-encoding-issues). <br>**_Default_**: 'strict' (throw error on invalid UTF-8 results) |
+| use_prepared_statements | See [Passing parameters to SQL queries](#passing-parameters-to-sql-queries). <br>**_Default_**: False |
 
 
 
 
 Below are a few important connection topics you may deal with, or you can skip and jump to the next section: [Send Queries and Retrieve Results](#send-queries-and-retrieve-results)
+
+#### Set Properties with Connection String
+Another way to set connection properties is passing a connection string to the keyword parameter `dsn` of `vertica_python.connect(dsn='...', **kwargs)`. The connection string is of the form:
+```
+vertica://(user):(password)@(host):(port)/(database)?(arg1=val1&arg2=val2&...)
+```
+The connection string would be parsed by `vertica_python.parse_dsn(connection_str)`, and the parsing result (a dictionary of keywords and values) would be merged with _kwargs_. If the same keyword is specified in both the sources, the _kwargs_ value overrides the parsed _dsn_ value. The `(arg1=val1&arg2=val2&...)` section can handle string/numeric/boolean values, blank and invalid value would be ignored.
+
+```python
+import vertica_python
+
+connection_str = ('vertica://admin@localhost:5433/db1?connection_load_balance=True&connection_timeout=1.5&'
+                  'session_label=vpclient+123%7E456')
+print(vertica_python.parse_dsn(connection_str))
+# {'user': 'admin', 'host': 'localhost', 'port': 5433, 'database': 'db1',
+#  'connection_load_balance': True, 'connection_timeout': 1.5, 'session_label': 'vpclient 123~456'}
+
+additional_info = {
+    'password': 'some_password', 
+    'backup_server_node': ['10.6.7.123', ('10.20.82.77', 6000)]  # invalid value to be set in a connection string
+    }
+
+with vertica_python.connect(dsn=connection_str, **additional_info) as conn:
+   # do things
+```
 
 #### TLS/SSL
 You can pass an `ssl.SSLContext` to `ssl` to customize the SSL connection options. For example,
@@ -280,30 +305,6 @@ Ideally, the [output data](#sql-data-conversion-to-python-objects) should be the
 - TIMESTAMPTZ data: text format always use the session timezone, but binary format might fail to get session timezone and use local timezone.
 - NUMERIC data: In old server versions, the precision and scale is incorrect when querying a NUMERIC column that is not from a specific table with prepared statement in binary format. E.g. `select ?::NUMERIC` or `select node_id, ?/50 from nodes`. In newer server versions, binary transfer is forcibly disabled for NUMERIC data by the server, regardless of client-side values of ```binary_transfer``` and ```use_prepared_statements```.
 
-#### Set Properties with Connection String
-Another way to set connection properties is passing a connection string to the keyword parameter `dsn` of `vertica_python.connect(dsn='...', **kwargs)`. The connection string is of the form:
-```
-vertica://(user):(password)@(host):(port)/(database)?(arg1=val1&arg2=val2&...)
-```
-The connection string would be parsed by `vertica_python.parse_dsn(connection_str)`, and the parsing result (a dictionary of keywords and values) would be merged with _kwargs_. If the same keyword is specified in both the sources, the _kwargs_ value overrides the parsed _dsn_ value. The `(arg1=val1&arg2=val2&...)` section can handle string/numeric/boolean values, blank and invalid value would be ignored.
-
-```python
-import vertica_python
-
-connection_str = ('vertica://admin@localhost:5433/db1?connection_load_balance=True&connection_timeout=1.5&'
-                  'session_label=vpclient+123%7E456')
-print(vertica_python.parse_dsn(connection_str))
-# {'user': 'admin', 'host': 'localhost', 'port': 5433, 'database': 'db1',
-#  'connection_load_balance': True, 'connection_timeout': 1.5, 'session_label': 'vpclient 123~456'}
-
-additional_info = {
-    'password': 'some_password', 
-    'backup_server_node': ['10.6.7.123', ('10.20.82.77', 6000)]  # invalid value to be set in a connection string
-    }
-
-with vertica_python.connect(dsn=connection_str, **additional_info) as conn:
-   # do things
-```
 
 
 ### Send Queries and Retrieve Results
@@ -872,7 +873,7 @@ cur.fetchone()[0] == 3
 
 ## UTF-8 encoding issues
 
-While Vertica expects varchars stored to be UTF-8 encoded, sometimes invalid strings get into the database. You can specify how to handle reading these characters using the unicode_error connection option. This uses the same values as the unicode type (https://docs.python.org/2/library/functions.html#unicode)
+While Vertica expects varchars stored to be UTF-8 encoded, sometimes invalid strings get into the database. You can specify how to handle reading these characters using the unicode_error connection option. This uses the same values as the unicode type (https://docs.python.org/3/library/codecs.html#error-handlers)
 
 ```python
 cur = vertica_python.Connection({..., 'unicode_error': 'strict'}).cursor()

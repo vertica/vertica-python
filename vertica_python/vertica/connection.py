@@ -70,6 +70,7 @@ from ..vertica.log import VerticaLogging
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 5433
 DEFAULT_PASSWORD = ''
+DEFAULT_DATABASE = ''
 DEFAULT_AUTOCOMMIT = False
 DEFAULT_BACKUP_SERVER_NODE = []
 DEFAULT_KRB_SERVICE_NAME = 'vertica'
@@ -288,7 +289,7 @@ class Connection(object):
                 msg = 'Connection option "user" is required'
                 self._logger.error(msg)
                 raise KeyError(msg)
-        self.options.setdefault('database', self.options['user'])
+        self.options.setdefault('database', DEFAULT_DATABASE)
         self.options.setdefault('password', DEFAULT_PASSWORD)
         self.options.setdefault('autocommit', DEFAULT_AUTOCOMMIT)
         self.options.setdefault('session_label', _generate_session_label())

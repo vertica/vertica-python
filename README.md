@@ -91,7 +91,7 @@ with vertica_python.connect(**conn_info) as connection:
 | port     | The port of the connection. <br>**_Default_**: 5433 |
 | user     | The database user name to use to connect to the database. <br>**_Default_**: OS login user name |
 | password | The password to use to log into the database. <br>**_Default_**: "" |
-| database | The database name. <br>**_Default_**: the value of connection option `user` |
+| database | The database name. <br>**_Default_**: "" |
 | autocommit | See [Autocommit](#autocommit). <br>**_Default_**: False |
 | backup_server_node | See [Connection Failover](#connection-failover). <br>**_Default_**: [] |
 | binary_transfer | See [Data Transfer Format](#data-transfer-format). <br>**_Default_**: False (use text format transfer) |

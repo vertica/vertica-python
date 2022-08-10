@@ -21,12 +21,17 @@ jobs:
         env:
           VERTICA_CE_URL: "https://vertica-community-edition-for-testing.s3.amazonaws.com/XCz9cp7m/vertica-12.0.0-0.x86_64.RHEL6.rpm"
         run: |
-          git clone https://github.com/jbfavre/docker-vertica.git
-          curl $VERTICA_CE_URL --create-dirs -o docker-vertica/packages/vertica-ce.latest.rpm
-          docker build -f docker-vertica/Dockerfile.centos.7_9.x --build-arg VERTICA_PACKAGE=vertica-ce.latest.rpm -t jbfavre/vertica docker-vertica
-          docker images
-          docker run -d -p 5433:5433 jbfavre/vertica
-          sleep 60
+          docker pull vertica/vertica-ce:12.0.0-0
+          docker run -d -p 5433:5433 -p 5444:5444 \
+            --name vertica_docker \
+            vertica/vertica-ce
+          echo "Vertica startup ..."
+          until docker exec vertica_docker /opt/vertica/bin/vsql -c "SELECT 1" > /dev/null 2>&1; do \
+            echo "..."; \
+            sleep 3; \
+          done;
+          echo "Vertica is up"
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "\l"
       - name: Install dependencies
         run: pip install tox
       - name: Run tests

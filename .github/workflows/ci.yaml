@@ -18,15 +18,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Set up a Vertica server
-        env:
-          VERTICA_CE_URL: "https://vertica-community-edition-for-testing.s3.amazonaws.com/XCz9cp7m/vertica-12.0.0-0.x86_64.RHEL6.rpm"
+        timeout-minutes: 15
         run: |
           docker pull vertica/vertica-ce:12.0.0-0
           docker run -d -p 5433:5433 -p 5444:5444 \
             --name vertica_docker \
             vertica/vertica-ce
           echo "Vertica startup ..."
-          until docker exec vertica_docker /opt/vertica/bin/vsql -c "SELECT 1" > /dev/null 2>&1; do \
+          until docker exec vertica_docker test -f /data/vertica/VMart/agent_start.out; do \
             echo "..."; \
             sleep 3; \
           done;

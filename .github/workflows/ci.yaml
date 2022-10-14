@@ -20,10 +20,10 @@ jobs:
       - name: Set up a Vertica server
         timeout-minutes: 15
         run: |
-          docker pull vertica/vertica-ce:12.0.0-0
+          docker pull vertica/vertica-ce:12.0.1-0
           docker run -d -p 5433:5433 -p 5444:5444 \
             --name vertica_docker \
-            vertica/vertica-ce
+            vertica/vertica-ce:12.0.1-0
           echo "Vertica startup ..."
           until docker exec vertica_docker test -f /data/vertica/VMart/agent_start.out; do \
             echo "..."; \

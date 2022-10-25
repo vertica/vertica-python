@@ -327,10 +327,6 @@ class Connection(object):
                      self.options['host'], self.options['port']))
         self.startup_connection()
 
-        # Initially, for a new session, autocommit is off
-        if self.options['autocommit']:
-            self.autocommit = True
-
         self._logger.info('Connection is ready')
 
     #############################################
@@ -385,6 +381,7 @@ class Connection(object):
     @property
     def autocommit(self):
         """Read the connection's AUTOCOMMIT setting from cache"""
+        # For a new session, autocommit is off by default
         return self.parameters.get('auto_commit', 'off') == 'on'
 
     @autocommit.setter
@@ -805,9 +802,10 @@ class Connection(object):
         session_label = self.options['session_label']
         os_user_name = DEFAULT_USER if DEFAULT_USER else ''
         password = self.options['password']
+        autocommit = self.options['autocommit']
         binary_transfer = self.options['binary_transfer']
 
-        self.write(messages.Startup(user, database, session_label, os_user_name, binary_transfer))
+        self.write(messages.Startup(user, database, session_label, os_user_name, autocommit, binary_transfer))
 
         while True:
             message = self.read_message()

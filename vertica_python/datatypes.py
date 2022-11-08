@@ -102,6 +102,30 @@ class VerticaType(object):
     LONGVARBINARY = 116
     BINARY = 117
 
+    ROW = 300
+    ARRAY = 301 # multidimensional
+    MAP = 302
+
+    ARRAY1D_BOOL = 1505
+    ARRAY1D_INT8 = 1506
+    ARRAY1D_FLOAT8 = 1507
+    ARRAY1D_CHAR = 1508
+    ARRAY1D_VARCHAR = 1509
+    ARRAY1D_DATE = 1510
+    ARRAY1D_TIME = 1511
+    ARRAY1D_TIMESTAMP = 1512
+    ARRAY1D_TIMESTAMPTZ = 1513
+    ARRAY1D_INTERVAL = 1514
+    ARRAY1D_INTERVALYM = 1521
+    ARRAY1D_TIMETZ = 1515
+    ARRAY1D_NUMERIC = 1516
+    ARRAY1D_VARBINARY = 1517
+    ARRAY1D_UUID = 1520
+    ARRAY1D_BINARY = 1522
+    ARRAY1D_LONGVARCHAR = 1519
+    ARRAY1D_LONGVARBINARY = 1518
+
+
     def __init__(self, *values):
         self.values = values
 
@@ -159,44 +183,54 @@ INTERVAL_MASK_HOUR2MIN = INTERVAL_MASK_HOUR | INTERVAL_MASK_MINUTE
 INTERVAL_MASK_HOUR2SEC = INTERVAL_MASK_HOUR | INTERVAL_MASK_MINUTE | INTERVAL_MASK_SECOND
 INTERVAL_MASK_MIN2SEC = INTERVAL_MASK_MINUTE | INTERVAL_MASK_SECOND
 
+TYPENAME = {
+    VerticaType.UNKNOWN: "Unknown",
+    VerticaType.BOOL: "Boolean",
+    VerticaType.INT8: "Integer",
+    VerticaType.FLOAT8: "Float",
+    VerticaType.CHAR: "Char",
+    VerticaType.VARCHAR: "Varchar",
+    VerticaType.LONGVARCHAR: "Long Varchar",
+    VerticaType.DATE: "Date",
+    VerticaType.TIME: "Time",
+    VerticaType.TIMETZ: "TimeTz",
+    VerticaType.TIMESTAMP: "Timestamp",
+    VerticaType.TIMESTAMPTZ: "TimestampTz",
+    VerticaType.BINARY: "Binary",
+    VerticaType.VARBINARY: "Varbinary",
+    VerticaType.LONGVARBINARY: "Long Varbinary",
+    VerticaType.NUMERIC: "Numeric",
+    VerticaType.UUID: "Uuid",
+    VerticaType.ROW: "Row",
+    VerticaType.ARRAY: "Array",
+    VerticaType.MAP: "Map",
+    VerticaType.ARRAY1D_BOOL: "Array[Boolean]",
+    VerticaType.ARRAY1D_INT8: "Array[Int8]",
+    VerticaType.ARRAY1D_FLOAT8: "Array[Float8]",
+    VerticaType.ARRAY1D_CHAR: "Array[Char]",
+    VerticaType.ARRAY1D_VARCHAR: "Array[Varchar]",
+    VerticaType.ARRAY1D_DATE: "Array[Date]",
+    VerticaType.ARRAY1D_TIME: "Array[Time]",
+    VerticaType.ARRAY1D_TIMESTAMP: "Array[Timestamp]",
+    VerticaType.ARRAY1D_TIMESTAMPTZ: "Array[TimestampTz]",
+    VerticaType.ARRAY1D_TIMETZ: "Array[TimeTz]",
+    VerticaType.ARRAY1D_NUMERIC: "Array[Numeric]",
+    VerticaType.ARRAY1D_VARBINARY: "Array[Varbinary]",
+    VerticaType.ARRAY1D_UUID: "Array[Uuid]",
+    VerticaType.ARRAY1D_BINARY: "Array[Binary]",
+    VerticaType.ARRAY1D_LONGVARCHAR: "Array[Long Varchar]",
+    VerticaType.ARRAY1D_LONGVARBINARY: "Array[Long Varbinary]",
+}
 
 def getTypeName(data_type_oid, type_modifier):
     """Returns the base type name according to data_type_oid and type_modifier"""
-
-    if data_type_oid == VerticaType.BOOL:
-        return "Boolean"
-    elif data_type_oid == VerticaType.INT8:
-        return "Integer"
-    elif data_type_oid == VerticaType.FLOAT8:
-        return "Float"
-    elif data_type_oid == VerticaType.CHAR:
-        return "Char"
-    elif data_type_oid in (VerticaType.VARCHAR, VerticaType.UNKNOWN):
-        return "Varchar"
-    elif data_type_oid == VerticaType.LONGVARCHAR:
-        return "Long Varchar"
-    elif data_type_oid == VerticaType.DATE:
-        return "Date"
-    elif data_type_oid == VerticaType.TIME:
-        return "Time"
-    elif data_type_oid == VerticaType.TIMETZ:
-        return "TimeTz"
-    elif data_type_oid == VerticaType.TIMESTAMP:
-        return "Timestamp"
-    elif data_type_oid == VerticaType.TIMESTAMPTZ:
-        return "TimestampTz"
+    if data_type_oid in TYPENAME:
+        return TYPENAME[data_type_oid]
     elif data_type_oid in (VerticaType.INTERVAL, VerticaType.INTERVALYM):
         return "Interval " + getIntervalRange(data_type_oid, type_modifier)
-    elif data_type_oid == VerticaType.BINARY:
-        return "Binary"
-    elif data_type_oid == VerticaType.VARBINARY:
-        return "Varbinary"
-    elif data_type_oid == VerticaType.LONGVARBINARY:
-        return "Long Varbinary"
-    elif data_type_oid == VerticaType.NUMERIC:
-        return "Numeric"
-    elif data_type_oid == VerticaType.UUID:
-        return "Uuid"
+    elif data_type_oid in (VerticaType.ARRAY1D_INTERVAL, VerticaType.ARRAY1D_INTERVALYM):
+        # TODO
+        return "Array[Interval]"
     else:
         return "Unknown"
 

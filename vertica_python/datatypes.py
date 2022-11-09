@@ -125,6 +125,24 @@ class VerticaType(object):
     ARRAY1D_LONGVARCHAR = 1519
     ARRAY1D_LONGVARBINARY = 1518
 
+    SET_BOOL = 2705
+    SET_INT8 = 2706
+    SET_FLOAT8 = 2707
+    SET_CHAR = 2708
+    SET_VARCHAR = 2709
+    SET_DATE = 2710
+    SET_TIME = 2711
+    SET_TIMESTAMP = 2712
+    SET_TIMESTAMPTZ = 2713
+    SET_INTERVAL = 2714
+    SET_INTERVALYM = 2721
+    SET_TIMETZ = 2715
+    SET_NUMERIC = 2716
+    SET_VARBINARY = 2717
+    SET_UUID = 2720
+    SET_BINARY = 2722
+    SET_LONGVARCHAR = 2719
+    SET_LONGVARBINARY = 2718
 
     def __init__(self, *values):
         self.values = values
@@ -220,6 +238,22 @@ TYPENAME = {
     VerticaType.ARRAY1D_BINARY: "Array[Binary]",
     VerticaType.ARRAY1D_LONGVARCHAR: "Array[Long Varchar]",
     VerticaType.ARRAY1D_LONGVARBINARY: "Array[Long Varbinary]",
+    VerticaType.SET_BOOL: "Set[Boolean]",
+    VerticaType.SET_INT8: "Set[Int8]",
+    VerticaType.SET_FLOAT8: "Set[Float8]",
+    VerticaType.SET_CHAR: "Set[Char]",
+    VerticaType.SET_VARCHAR: "Set[Varchar]",
+    VerticaType.SET_DATE: "Set[Date]",
+    VerticaType.SET_TIME: "Set[Time]",
+    VerticaType.SET_TIMESTAMP: "Set[Timestamp]",
+    VerticaType.SET_TIMESTAMPTZ: "Set[TimestampTz]",
+    VerticaType.SET_TIMETZ: "Set[TimeTz]",
+    VerticaType.SET_NUMERIC: "Set[Numeric]",
+    VerticaType.SET_VARBINARY: "Set[Varbinary]",
+    VerticaType.SET_UUID: "Set[Uuid]",
+    VerticaType.SET_BINARY: "Set[Binary]",
+    VerticaType.SET_LONGVARCHAR: "Set[Long Varchar]",
+    VerticaType.SET_LONGVARBINARY: "Set[Long Varbinary]",
 }
 
 def getTypeName(data_type_oid, type_modifier):
@@ -229,8 +263,11 @@ def getTypeName(data_type_oid, type_modifier):
     elif data_type_oid in (VerticaType.INTERVAL, VerticaType.INTERVALYM):
         return "Interval " + getIntervalRange(data_type_oid, type_modifier)
     elif data_type_oid in (VerticaType.ARRAY1D_INTERVAL, VerticaType.ARRAY1D_INTERVALYM):
-        # TODO
+        # TODO IntervalRange
         return "Array[Interval]"
+    elif data_type_oid in (VerticaType.SET_INTERVAL, VerticaType.SET_INTERVALYM):
+        # TODO IntervalRange
+        return "Set[Interval]"
     else:
         return "Unknown"
 

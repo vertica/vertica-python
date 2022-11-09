@@ -81,6 +81,7 @@ class Startup(BulkFrontendMessage):
             b'client_pid': pid,
             b'autocommit': 'on' if autocommit else 'off',
             b'binary_data_protocol': '1' if binary_transfer else '0', # Defaults to text format '0'
+            b'protocol_features': '{"request_complex_types":true}',
         }
 
     def read_bytes(self):

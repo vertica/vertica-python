@@ -96,10 +96,10 @@ class BackendMessage(Message):
     _message_id_map = {}
 
     @classmethod
-    def from_type(cls, type_, data):
+    def from_type(cls, type_, data, **kwargs):
         klass = cls._message_id_map.get(type_)
         if klass is not None:
-            return klass(data)
+            return klass(data, **kwargs)
         else:
             from .backend_messages import Unknown
             return Unknown(type_, data)

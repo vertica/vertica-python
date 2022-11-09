@@ -53,7 +53,7 @@ from ....datatypes import getTypeName
 class RowDescription(BackendMessage):
     message_id = b'T'
 
-    def __init__(self, data):
+    def __init__(self, data, complex_types_enabled):
         BackendMessage.__init__(self)
         self.fields = []
         field_count = unpack('!H', data[0:2])[0]
@@ -74,7 +74,7 @@ class RowDescription(BackendMessage):
             user_types.append((base_type_oid, type_name.decode('utf-8')))
 
         # read info of each field
-        offset = calcsize("!HBIHHHiH")
+        offset = calcsize("!BIHHHiH")
         for _ in range(field_count):
             field_name = unpack_from("!{0}sx".format(data.find(b'\x00', pos) - pos), data, pos)[0]
             pos += len(field_name) + 1
@@ -92,28 +92,37 @@ class RowDescription(BackendMessage):
                 pos += len(table_name) + 1
                 table_name = table_name.decode('utf-8')
 
-            field_info = unpack_from("!HBIhHHiH", data, pos)
+            attribute_number = unpack_from("!H", data, pos)[0]
+            pos += 2
+            if complex_types_enabled:
+                parent_attribute_number = unpack_from("!H", data, pos)[0]
+                pos += 2
+            else:
+                parent_attribute_number = None
+
+            field_info = unpack_from("!BIhHHiH", data, pos)
             pos += offset
 
-            if field_info[1] == 1:
-                data_type_oid, data_type_name = user_types[field_info[2]]
+            if field_info[0] == 1:
+                data_type_oid, data_type_name = user_types[field_info[1]]
             else:
-                data_type_oid = field_info[2]
-                data_type_name = getTypeName(data_type_oid, field_info[6])
+                data_type_oid = field_info[1]
+                data_type_name = getTypeName(data_type_oid, field_info[5])
 
             self.fields.append({
                 'name': field_name,
                 'table_oid': table_oid,
                 'schema_name': schema_name,
                 'table_name': table_name,
-                'attribute_number': field_info[0],
+                'attribute_number': attribute_number,
+                'parent_attribute_number': parent_attribute_number,
                 'data_type_oid': data_type_oid,
-                'data_type_size': field_info[3],
+                'data_type_size': field_info[2],
                 'data_type_name': data_type_name,
-                'null_ok': field_info[4] == 1,
-                'is_identity': field_info[5] == 1,
-                'type_modifier': field_info[6],
-                'format_code': field_info[7],
+                'null_ok': field_info[3] == 1,
+                'is_identity': field_info[4] == 1,
+                'type_modifier': field_info[5],
+                'format_code': field_info[6],
             })
 
     def __str__(self):

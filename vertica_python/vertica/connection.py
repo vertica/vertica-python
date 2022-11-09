@@ -327,6 +327,9 @@ class Connection(object):
                      self.options['host'], self.options['port']))
         self.startup_connection()
 
+        # Complex types metadata is returned since protocol version 3.12
+        self.complex_types_enabled = self.parameters.get('request_complex_types', 'off') == 'on' and \
+                                     self.parameters['protocol_version'] >= (3 << 16 | 12)
         self._logger.info('Connection is ready')
 
     #############################################
@@ -672,6 +675,8 @@ class Connection(object):
                     else:
                         # The rest of the message is read later with write_to_disk()
                         message = messages.WriteFile(filename, file_length)
+                elif type_ == messages.RowDescription.message_id:
+                    message = BackendMessage.from_type(type_, self.read_bytes(size - 4), complex_types_enabled=self.complex_types_enabled)
                 else:
                     message = BackendMessage.from_type(type_, self.read_bytes(size - 4))
                 self._logger.debug('<= %s', message)

@@ -306,7 +306,7 @@ class Cursor(object):
                 self._message = self.connection.read_message()
                 return row
             elif isinstance(self._message, messages.RowDescription):
-                self.description = [Column(fd) for fd in self._message.fields]
+                self.description = self._message.get_description()
                 self._deserializers = self._des.get_row_deserializers(self.description,
                                         {'unicode_error': self.unicode_error,
                                          'session_tz': self.connection.parameters.get('timezone', 'unknown')})
@@ -366,7 +366,7 @@ class Cursor(object):
             # there might be another set, read next message to find out
             self._message = self.connection.read_message()
             if isinstance(self._message, messages.RowDescription):
-                self.description = [Column(fd) for fd in self._message.fields]
+                self.description = self._message.get_description()
                 self._deserializers = self._des.get_row_deserializers(self.description,
                                         {'unicode_error': self.unicode_error,
                                          'session_tz': self.connection.parameters.get('timezone', 'unknown')})
@@ -657,7 +657,7 @@ class Cursor(object):
         if isinstance(self._message, messages.ErrorResponse):
             raise errors.QueryError.from_error_response(self._message, query)
         elif isinstance(self._message, messages.RowDescription):
-            self.description = [Column(fd) for fd in self._message.fields]
+            self.description = self._message.get_description()
             self._deserializers = self._des.get_row_deserializers(self.description,
                                     {'unicode_error': self.unicode_error,
                                      'session_tz': self.connection.parameters.get('timezone', 'unknown')})
@@ -850,7 +850,7 @@ class Cursor(object):
         if isinstance(self._message, messages.NoData):
             self.description = None  # response was NoData for a DDL/transaction PreparedStatement
         else:
-            self.description = [Column(fd) for fd in self._message.fields]
+            self.description = self._message.get_description()
             self._deserializers = self._des.get_row_deserializers(self.description,
                                     {'unicode_error': self.unicode_error,
                                      'session_tz': self.connection.parameters.get('timezone', 'unknown')})

@@ -14,6 +14,7 @@
 
 from __future__ import print_function, division, absolute_import
 
+import json
 import re
 from datetime import date, datetime, time, timedelta
 from dateutil import tz
@@ -463,6 +464,14 @@ def load_varbinary_text(s, ctx):
         buf.append(c)
     return b''.join(buf)
 
+def load_json_text(val, ctx):
+    """
+    Parses text/binary representation of a complex type with default JSONDecoder.
+    :param val: bytes
+    :param ctx: dict
+    :return: list or dict
+    """
+    return json.loads(val.decode('utf-8', ctx['unicode_error']))
 
 DEFAULTS = {
     FormatCode.TEXT: {
@@ -485,6 +494,12 @@ DEFAULTS = {
         VerticaType.BINARY: load_varbinary_text,
         VerticaType.VARBINARY: load_varbinary_text,
         VerticaType.LONGVARBINARY: load_varbinary_text,
+        VerticaType.ARRAY1D_BOOL: load_json_text,
+        VerticaType.ARRAY1D_INT8: load_json_text,
+        VerticaType.ARRAY1D_FLOAT8: load_json_text,
+        VerticaType.ARRAY1D_CHAR: load_json_text,
+        VerticaType.ARRAY1D_VARCHAR: load_json_text,
+        VerticaType.ARRAY1D_LONGVARCHAR: load_json_text,
     },
     FormatCode.BINARY: {
         VerticaType.UNKNOWN: None,
@@ -506,6 +521,12 @@ DEFAULTS = {
         VerticaType.BINARY: None,
         VerticaType.VARBINARY: None,
         VerticaType.LONGVARBINARY: None,
+        VerticaType.ARRAY1D_BOOL: load_json_text,
+        VerticaType.ARRAY1D_INT8: load_json_text,
+        VerticaType.ARRAY1D_FLOAT8: load_json_text,
+        VerticaType.ARRAY1D_CHAR: load_json_text,
+        VerticaType.ARRAY1D_VARCHAR: load_json_text,
+        VerticaType.ARRAY1D_LONGVARCHAR: load_json_text,
     },
 }
 

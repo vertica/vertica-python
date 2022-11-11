@@ -106,6 +106,7 @@ class VerticaType(object):
     ARRAY = 301 # multidimensional
     MAP = 302
 
+    # one-dimensional array of a primitive type
     ARRAY1D_BOOL = 1505
     ARRAY1D_INT8 = 1506
     ARRAY1D_FLOAT8 = 1507

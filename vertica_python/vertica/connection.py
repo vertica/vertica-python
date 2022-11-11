@@ -328,8 +328,8 @@ class Connection(object):
         self.startup_connection()
 
         # Complex types metadata is returned since protocol version 3.12
-        self.complex_types_enabled = self.parameters.get('request_complex_types', 'off') == 'on' and \
-                                     self.parameters['protocol_version'] >= (3 << 16 | 12)
+        self.complex_types_enabled = self.parameters['protocol_version'] >= (3 << 16 | 12) and \
+                                     self.parameters.get('request_complex_types', 'off') == 'on'
         self._logger.info('Connection is ready')
 
     #############################################

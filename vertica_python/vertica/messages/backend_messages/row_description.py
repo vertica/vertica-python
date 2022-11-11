@@ -47,6 +47,7 @@ from struct import unpack, unpack_from, calcsize
 from six.moves import range
 
 from ..message import BackendMessage
+from ...column import Column
 from ....datatypes import getTypeName
 
 
@@ -56,6 +57,7 @@ class RowDescription(BackendMessage):
     def __init__(self, data, complex_types_enabled):
         BackendMessage.__init__(self)
         self.fields = []
+        field_dict = {}
         field_count = unpack('!H', data[0:2])[0]
 
         if field_count == 0:
@@ -98,7 +100,7 @@ class RowDescription(BackendMessage):
                 parent_attribute_number = unpack_from("!H", data, pos)[0]
                 pos += 2
             else:
-                parent_attribute_number = None
+                parent_attribute_number = 0
 
             field_info = unpack_from("!BIhHHiH", data, pos)
             pos += offset
@@ -109,13 +111,13 @@ class RowDescription(BackendMessage):
                 data_type_oid = field_info[1]
                 data_type_name = getTypeName(data_type_oid, field_info[5])
 
-            self.fields.append({
+            # Create a Column object
+            column = Column({
                 'name': field_name,
                 'table_oid': table_oid,
                 'schema_name': schema_name,
                 'table_name': table_name,
                 'attribute_number': attribute_number,
-                'parent_attribute_number': parent_attribute_number,
                 'data_type_oid': data_type_oid,
                 'data_type_size': field_info[2],
                 'data_type_name': data_type_name,
@@ -124,6 +126,20 @@ class RowDescription(BackendMessage):
                 'type_modifier': field_info[5],
                 'format_code': field_info[6],
             })
+
+            # Add every column description to the dict so we can set the parents later
+            field_dict[(table_oid, attribute_number)] = column
+            if parent_attribute_number == 0:
+                self.fields.append(column)
+            else:
+                parent_col = field_dict.get((table_oid, parent_attribute_number))
+                if not parent_col:
+                    raise KeyError("Complex type parent column not found: table_oid={}, attribute_number={}".format(table_oid, parent_attribute_number))
+                parent_col.add_child_column(column)
+
+    def get_description(self):
+        # return a list of Column objects for Cursor.description
+        return self.fields
 
     def __str__(self):
         return "RowDescription: {}".format(self.fields)

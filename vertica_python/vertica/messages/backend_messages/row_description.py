@@ -48,7 +48,7 @@ from six.moves import range
 
 from ..message import BackendMessage
 from ...column import Column
-from ....datatypes import getTypeName
+from ....datatypes import getTypeName, getComplexElementType
 
 
 class RowDescription(BackendMessage):
@@ -63,8 +63,8 @@ class RowDescription(BackendMessage):
         if field_count == 0:
             return
 
-        # read type pool
-        # used for special types e.g. GEOMETRY, GEOGRAPHY
+        # read type mapping pool
+        # used for user-defined types e.g. GEOMETRY, GEOGRAPHY
         user_types = []
         type_pool_count = unpack('!I', data[2:6])[0]
         pos = 6
@@ -105,14 +105,14 @@ class RowDescription(BackendMessage):
             field_info = unpack_from("!BIhHHiH", data, pos)
             pos += offset
 
-            if field_info[0] == 1:
+            if field_info[0] == 1:  # An user-defined type
                 data_type_oid, data_type_name = user_types[field_info[1]]
-            else:
+            else:                   # A primitive type
                 data_type_oid = field_info[1]
                 data_type_name = getTypeName(data_type_oid, field_info[5])
 
             # Create a Column object
-            column = Column({
+            metadata = {
                 'name': field_name,
                 'table_oid': table_oid,
                 'schema_name': schema_name,
@@ -125,7 +125,8 @@ class RowDescription(BackendMessage):
                 'is_identity': field_info[4] == 1,
                 'type_modifier': field_info[5],
                 'format_code': field_info[6],
-            })
+            }
+            column = Column(metadata)
 
             # Add every column description to the dict so we can set the parents later
             field_dict[(table_oid, attribute_number)] = column
@@ -136,6 +137,14 @@ class RowDescription(BackendMessage):
                 if not parent_col:
                     raise KeyError("Complex type parent column not found: table_oid={}, attribute_number={}".format(table_oid, parent_attribute_number))
                 parent_col.add_child_column(column)
+
+            element_type_oid = getComplexElementType(data_type_oid)
+            if element_type_oid is not None:
+                metadata['data_type_oid'] = element_type_oid
+                metadata['name'] = 'elements'
+                metadata['data_type_name'] = getTypeName(element_type_oid, field_info[5]) # elements may only be primitive types
+                child_column = Column(metadata)
+                column.add_child_column(child_column)
 
     def get_description(self):
         # return a list of Column objects for Cursor.description

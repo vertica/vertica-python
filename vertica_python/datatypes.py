@@ -257,6 +257,27 @@ TYPENAME = {
     VerticaType.SET_LONGVARBINARY: "Set[Long Varbinary]",
 }
 
+COMPLEX_ELEMENT_TYPE = {
+    VerticaType.ARRAY1D_BOOL: VerticaType.BOOL,
+    VerticaType.ARRAY1D_INT8: VerticaType.INT8,
+    VerticaType.ARRAY1D_FLOAT8: VerticaType.FLOAT8,
+    VerticaType.ARRAY1D_CHAR: VerticaType.CHAR,
+    VerticaType.ARRAY1D_VARCHAR: VerticaType.VARCHAR,
+    VerticaType.ARRAY1D_DATE: VerticaType.DATE,
+    VerticaType.ARRAY1D_TIME: VerticaType.TIME,
+    VerticaType.ARRAY1D_TIMESTAMP: VerticaType.TIMESTAMP,
+    VerticaType.ARRAY1D_TIMESTAMPTZ: VerticaType.TIMESTAMPTZ,
+    VerticaType.ARRAY1D_TIMETZ: VerticaType.TIMETZ,
+    VerticaType.ARRAY1D_INTERVAL: VerticaType.INTERVAL,
+    VerticaType.ARRAY1D_INTERVALYM: VerticaType.INTERVALYM,
+    VerticaType.ARRAY1D_NUMERIC: VerticaType.NUMERIC,
+    VerticaType.ARRAY1D_VARBINARY: VerticaType.VARBINARY,
+    VerticaType.ARRAY1D_UUID: VerticaType.UUID,
+    VerticaType.ARRAY1D_BINARY: VerticaType.BINARY,
+    VerticaType.ARRAY1D_LONGVARCHAR: VerticaType.LONGVARCHAR,
+    VerticaType.ARRAY1D_LONGVARBINARY: VerticaType.LONGVARBINARY,
+}
+
 def getTypeName(data_type_oid, type_modifier):
     """Returns the base type name according to data_type_oid and type_modifier"""
     if data_type_oid in TYPENAME:
@@ -272,6 +293,8 @@ def getTypeName(data_type_oid, type_modifier):
     else:
         return "Unknown"
 
+def getComplexElementType(data_type_oid):
+    return COMPLEX_ELEMENT_TYPE.get(data_type_oid)
 
 def getIntervalRange(data_type_oid, type_modifier):
     """Extracts an interval's range from the bits set in its type_modifier"""

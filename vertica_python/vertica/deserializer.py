@@ -14,6 +14,7 @@
 
 from __future__ import print_function, division, absolute_import
 
+import json
 import re
 from datetime import date, datetime, time, timedelta
 from dateutil import tz
@@ -26,7 +27,7 @@ if PY2:
     from binascii import hexlify
 
 from .. import errors
-from ..compat import as_str
+from ..compat import as_str, as_bytes
 from ..datatypes import VerticaType
 from ..vertica.column import FormatCode
 
@@ -445,6 +446,7 @@ def load_varbinary_text(s, ctx):
     :param ctx: dict
     :return: bytes
     """
+    s = as_bytes(s)
     buf = []
     i = 0
     while i < len(s):
@@ -463,6 +465,57 @@ def load_varbinary_text(s, ctx):
         buf.append(c)
     return b''.join(buf)
 
+def load_json_text(val, ctx):
+    """
+    Parses text/binary representation of a complex type with default JSONDecoder.
+    :param val: bytes
+    :param ctx: dict
+    :return: list or dict
+    """
+    return json.loads(val.decode('utf-8', ctx['unicode_error']))
+
+def load_array_text(val, ctx):
+    val = val.decode('utf-8', ctx['unicode_error'])
+    # Some old servers have a bug of sending ARRAY oid without child metadata
+    if len(ctx['column'].child_columns) == 0:
+        return val
+
+    json_data = json.loads(val)
+    if not isinstance(json_data, list):
+        raise TypeError('Expected a list, got {}'.format(json_data))
+    return parse_array(json_data, ctx)
+
+def parse_array(json_data, ctx):
+    # An array has only one child, all elements in the array are the same type.
+    child_ctx = ctx.copy()
+    child_ctx['column'] = ctx['column'].child_columns[0]
+    parsed_array = [None] * len(json_data)
+    for idx, element in enumerate(json_data):
+        if element is None:
+            continue
+        parsed_array[idx] = parse_json_element(element, child_ctx)
+    return parsed_array
+
+def parse_json_element(element, ctx):
+    type_code = ctx['column'].type_code
+    if type_code in (VerticaType.BOOL, VerticaType.INT8, VerticaType.FLOAT8,
+                     VerticaType.CHAR, VerticaType.VARCHAR, VerticaType.LONGVARCHAR):
+        return element
+    # element type: (PY2) unicode / (PY3) str
+    if type_code in (VerticaType.DATE, VerticaType.TIME, VerticaType.TIMETZ,
+                     VerticaType.TIMESTAMP, VerticaType.TIMESTAMPTZ,
+                     VerticaType.INTERVAL, VerticaType.INTERVALYM,
+                     VerticaType.BINARY, VerticaType.VARBINARY,
+                     VerticaType.LONGVARBINARY):
+        return DEFAULTS[FormatCode.TEXT][type_code](element, ctx)
+    elif type_code == VerticaType.NUMERIC:
+        return Decimal(element)
+    elif type_code == VerticaType.UUID:
+        return UUID(element)
+    # element type: list
+    elif type_code == VerticaType.ARRAY:
+        return parse_array(element, ctx)
+    return element
 
 DEFAULTS = {
     FormatCode.TEXT: {
@@ -485,6 +538,25 @@ DEFAULTS = {
         VerticaType.BINARY: load_varbinary_text,
         VerticaType.VARBINARY: load_varbinary_text,
         VerticaType.LONGVARBINARY: load_varbinary_text,
+        VerticaType.ARRAY: load_array_text,
+        VerticaType.ARRAY1D_BOOL: load_json_text,
+        VerticaType.ARRAY1D_INT8: load_json_text,
+        VerticaType.ARRAY1D_FLOAT8: load_json_text,
+        VerticaType.ARRAY1D_NUMERIC: load_array_text,
+        VerticaType.ARRAY1D_CHAR: load_json_text,
+        VerticaType.ARRAY1D_VARCHAR: load_json_text,
+        VerticaType.ARRAY1D_LONGVARCHAR: load_json_text,
+        VerticaType.ARRAY1D_DATE: load_array_text,
+        VerticaType.ARRAY1D_TIME: load_array_text,
+        VerticaType.ARRAY1D_TIMETZ: load_array_text,
+        VerticaType.ARRAY1D_TIMESTAMP: load_array_text,
+        VerticaType.ARRAY1D_TIMESTAMPTZ: load_array_text,
+        VerticaType.ARRAY1D_INTERVAL: load_array_text,
+        VerticaType.ARRAY1D_INTERVALYM: load_array_text,
+        VerticaType.ARRAY1D_UUID: load_array_text,
+        VerticaType.ARRAY1D_BINARY: load_array_text,
+        VerticaType.ARRAY1D_VARBINARY: load_array_text,
+        VerticaType.ARRAY1D_LONGVARBINARY: load_array_text,
     },
     FormatCode.BINARY: {
         VerticaType.UNKNOWN: None,
@@ -506,6 +578,25 @@ DEFAULTS = {
         VerticaType.BINARY: None,
         VerticaType.VARBINARY: None,
         VerticaType.LONGVARBINARY: None,
+        VerticaType.ARRAY: load_array_text,
+        VerticaType.ARRAY1D_BOOL: load_json_text,
+        VerticaType.ARRAY1D_INT8: load_json_text,
+        VerticaType.ARRAY1D_FLOAT8: load_json_text,
+        VerticaType.ARRAY1D_NUMERIC: load_array_text,
+        VerticaType.ARRAY1D_CHAR: load_json_text,
+        VerticaType.ARRAY1D_VARCHAR: load_json_text,
+        VerticaType.ARRAY1D_LONGVARCHAR: load_json_text,
+        VerticaType.ARRAY1D_DATE: load_array_text,
+        VerticaType.ARRAY1D_TIME: load_array_text,
+        VerticaType.ARRAY1D_TIMETZ: load_array_text,
+        VerticaType.ARRAY1D_TIMESTAMP: load_array_text,
+        VerticaType.ARRAY1D_TIMESTAMPTZ: load_array_text,
+        VerticaType.ARRAY1D_INTERVAL: load_array_text,
+        VerticaType.ARRAY1D_INTERVALYM: load_array_text,
+        VerticaType.ARRAY1D_UUID: load_array_text,
+        VerticaType.ARRAY1D_BINARY: load_array_text,
+        VerticaType.ARRAY1D_VARBINARY: load_array_text,
+        VerticaType.ARRAY1D_LONGVARBINARY: load_array_text,
     },
 }
 

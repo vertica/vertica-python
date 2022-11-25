@@ -103,7 +103,7 @@ class VerticaType(object):
     BINARY = 117
 
     ROW = 300
-    ARRAY = 301 # multidimensional
+    ARRAY = 301 # multidimensional array or contain ROWs
     MAP = 302
 
     # one-dimensional array of a primitive type
@@ -126,6 +126,7 @@ class VerticaType(object):
     ARRAY1D_LONGVARCHAR = 1519
     ARRAY1D_LONGVARBINARY = 1518
 
+    # one-dimensional set of a primitive type
     SET_BOOL = 2705
     SET_INT8 = 2706
     SET_FLOAT8 = 2707
@@ -276,6 +277,24 @@ COMPLEX_ELEMENT_TYPE = {
     VerticaType.ARRAY1D_BINARY: VerticaType.BINARY,
     VerticaType.ARRAY1D_LONGVARCHAR: VerticaType.LONGVARCHAR,
     VerticaType.ARRAY1D_LONGVARBINARY: VerticaType.LONGVARBINARY,
+    VerticaType.SET_BOOL: VerticaType.BOOL,
+    VerticaType.SET_INT8: VerticaType.INT8,
+    VerticaType.SET_FLOAT8: VerticaType.FLOAT8,
+    VerticaType.SET_CHAR: VerticaType.CHAR,
+    VerticaType.SET_VARCHAR: VerticaType.VARCHAR,
+    VerticaType.SET_DATE: VerticaType.DATE,
+    VerticaType.SET_TIME: VerticaType.TIME,
+    VerticaType.SET_TIMESTAMP: VerticaType.TIMESTAMP,
+    VerticaType.SET_TIMESTAMPTZ: VerticaType.TIMESTAMPTZ,
+    VerticaType.SET_TIMETZ: VerticaType.TIMETZ,
+    VerticaType.SET_INTERVAL: VerticaType.INTERVAL,
+    VerticaType.SET_INTERVALYM: VerticaType.INTERVALYM,
+    VerticaType.SET_NUMERIC: VerticaType.NUMERIC,
+    VerticaType.SET_VARBINARY: VerticaType.VARBINARY,
+    VerticaType.SET_UUID: VerticaType.UUID,
+    VerticaType.SET_BINARY: VerticaType.BINARY,
+    VerticaType.SET_LONGVARCHAR: VerticaType.LONGVARCHAR,
+    VerticaType.SET_LONGVARBINARY: VerticaType.LONGVARBINARY,
 }
 
 def getTypeName(data_type_oid, type_modifier):
@@ -294,6 +313,7 @@ def getTypeName(data_type_oid, type_modifier):
         return "Unknown"
 
 def getComplexElementType(data_type_oid):
+    """For 1D ARRAY or SET, returns the type of its elements"""
     return COMPLEX_ELEMENT_TYPE.get(data_type_oid)
 
 def getIntervalRange(data_type_oid, type_modifier):

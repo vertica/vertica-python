@@ -804,6 +804,8 @@ When a query is executed and `Cursor.fetch*()` is called, SQL data (bytes) are d
 | TIMESTAMP      | datetime.datetime<sup>[1]</sup> |
 | TIMESTAMPTZ    | datetime.datetime<sup>[1]</sup> |
 | INTERVAL	     | [dateutil.relativedelta.relativedelta](https://dateutil.readthedocs.io/en/stable/relativedelta.html#dateutil.relativedelta.relativedelta) |
+| ARRAY          | list               |
+| SET            | set                |
 
 <sup>[1]</sup>Python’s datetime.date and datetime.datetime only supports date ranges 0001-01-01 to 9999-12-31. Retrieving a value of BC date or future date (year>9999) results in an error.
 

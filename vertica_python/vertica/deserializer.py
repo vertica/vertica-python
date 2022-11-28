@@ -485,6 +485,9 @@ def load_array_text(val, ctx):
         raise TypeError('Expected a list, got {}'.format(json_data))
     return parse_array(json_data, ctx)
 
+def load_set_text(val, ctx):
+    return set(load_array_text(val, ctx))
+
 def parse_array(json_data, ctx):
     # An array has only one child, all elements in the array are the same type.
     child_ctx = ctx.copy()
@@ -498,9 +501,12 @@ def parse_array(json_data, ctx):
 
 def parse_json_element(element, ctx):
     type_code = ctx['column'].type_code
-    if type_code in (VerticaType.BOOL, VerticaType.INT8, VerticaType.FLOAT8,
+    if type_code in (VerticaType.BOOL, VerticaType.INT8,
                      VerticaType.CHAR, VerticaType.VARCHAR, VerticaType.LONGVARCHAR):
         return element
+    # "-Infinity", "Infinity", "NaN"
+    if type_code == VerticaType.FLOAT8:
+        return float(element)
     # element type: (PY2) unicode / (PY3) str
     if type_code in (VerticaType.DATE, VerticaType.TIME, VerticaType.TIMETZ,
                      VerticaType.TIMESTAMP, VerticaType.TIMESTAMPTZ,
@@ -541,7 +547,7 @@ DEFAULTS = {
         VerticaType.ARRAY: load_array_text,
         VerticaType.ARRAY1D_BOOL: load_json_text,
         VerticaType.ARRAY1D_INT8: load_json_text,
-        VerticaType.ARRAY1D_FLOAT8: load_json_text,
+        VerticaType.ARRAY1D_FLOAT8: load_array_text,
         VerticaType.ARRAY1D_NUMERIC: load_array_text,
         VerticaType.ARRAY1D_CHAR: load_json_text,
         VerticaType.ARRAY1D_VARCHAR: load_json_text,
@@ -557,6 +563,24 @@ DEFAULTS = {
         VerticaType.ARRAY1D_BINARY: load_array_text,
         VerticaType.ARRAY1D_VARBINARY: load_array_text,
         VerticaType.ARRAY1D_LONGVARBINARY: load_array_text,
+        VerticaType.SET_BOOL: load_set_text,
+        VerticaType.SET_INT8: load_set_text,
+        VerticaType.SET_FLOAT8: load_set_text,
+        VerticaType.SET_CHAR: load_set_text,
+        VerticaType.SET_VARCHAR: load_set_text,
+        VerticaType.SET_DATE: load_set_text,
+        VerticaType.SET_TIME: load_set_text,
+        VerticaType.SET_TIMESTAMP: load_set_text,
+        VerticaType.SET_TIMESTAMPTZ: load_set_text,
+        VerticaType.SET_TIMETZ: load_set_text,
+        VerticaType.SET_INTERVAL: load_set_text,
+        VerticaType.SET_INTERVALYM: load_set_text,
+        VerticaType.SET_NUMERIC: load_set_text,
+        VerticaType.SET_VARBINARY: load_set_text,
+        VerticaType.SET_UUID: load_set_text,
+        VerticaType.SET_BINARY: load_set_text,
+        VerticaType.SET_LONGVARCHAR: load_set_text,
+        VerticaType.SET_LONGVARBINARY: load_set_text,
     },
     FormatCode.BINARY: {
         VerticaType.UNKNOWN: None,
@@ -581,7 +605,7 @@ DEFAULTS = {
         VerticaType.ARRAY: load_array_text,
         VerticaType.ARRAY1D_BOOL: load_json_text,
         VerticaType.ARRAY1D_INT8: load_json_text,
-        VerticaType.ARRAY1D_FLOAT8: load_json_text,
+        VerticaType.ARRAY1D_FLOAT8: load_array_text,
         VerticaType.ARRAY1D_NUMERIC: load_array_text,
         VerticaType.ARRAY1D_CHAR: load_json_text,
         VerticaType.ARRAY1D_VARCHAR: load_json_text,
@@ -597,6 +621,24 @@ DEFAULTS = {
         VerticaType.ARRAY1D_BINARY: load_array_text,
         VerticaType.ARRAY1D_VARBINARY: load_array_text,
         VerticaType.ARRAY1D_LONGVARBINARY: load_array_text,
+        VerticaType.SET_BOOL: load_set_text,
+        VerticaType.SET_INT8: load_set_text,
+        VerticaType.SET_FLOAT8: load_set_text,
+        VerticaType.SET_CHAR: load_set_text,
+        VerticaType.SET_VARCHAR: load_set_text,
+        VerticaType.SET_DATE: load_set_text,
+        VerticaType.SET_TIME: load_set_text,
+        VerticaType.SET_TIMESTAMP: load_set_text,
+        VerticaType.SET_TIMESTAMPTZ: load_set_text,
+        VerticaType.SET_TIMETZ: load_set_text,
+        VerticaType.SET_INTERVAL: load_set_text,
+        VerticaType.SET_INTERVALYM: load_set_text,
+        VerticaType.SET_NUMERIC: load_set_text,
+        VerticaType.SET_VARBINARY: load_set_text,
+        VerticaType.SET_UUID: load_set_text,
+        VerticaType.SET_BINARY: load_set_text,
+        VerticaType.SET_LONGVARCHAR: load_set_text,
+        VerticaType.SET_LONGVARBINARY: load_set_text,
     },
 }
 

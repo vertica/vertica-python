@@ -499,6 +499,17 @@ def parse_array(json_data, ctx):
         parsed_array[idx] = parse_json_element(element, child_ctx)
     return parsed_array
 
+def load_row_text(val, ctx):
+    val = val.decode('utf-8', ctx['unicode_error'])
+    # Some old servers have a bug of sending ROW oid without child metadata
+    if len(ctx['column'].child_columns) == 0:
+        return val
+    return "TBD"
+
+def parse_row(json_data, ctx):
+    parsed_row = {}
+    return parsed_row
+
 def parse_json_element(element, ctx):
     type_code = ctx['column'].type_code
     if type_code in (VerticaType.BOOL, VerticaType.INT8,
@@ -521,6 +532,9 @@ def parse_json_element(element, ctx):
     # element type: list
     elif type_code == VerticaType.ARRAY:
         return parse_array(element, ctx)
+    # element type: dict
+    elif type_code == VerticaType.ROW:
+        return parse_row(element, ctx)
     return element
 
 DEFAULTS = {
@@ -581,6 +595,7 @@ DEFAULTS = {
         VerticaType.SET_BINARY: load_set_text,
         VerticaType.SET_LONGVARCHAR: load_set_text,
         VerticaType.SET_LONGVARBINARY: load_set_text,
+        VerticaType.ROW: load_row_text,
     },
     FormatCode.BINARY: {
         VerticaType.UNKNOWN: None,
@@ -639,6 +654,7 @@ DEFAULTS = {
         VerticaType.SET_BINARY: load_set_text,
         VerticaType.SET_LONGVARCHAR: load_set_text,
         VerticaType.SET_LONGVARBINARY: load_set_text,
+        VerticaType.ROW: load_row_text,
     },
 }
 

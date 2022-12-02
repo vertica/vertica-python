@@ -475,20 +475,31 @@ def load_json_text(val, ctx):
     return json.loads(val.decode('utf-8', ctx['unicode_error']))
 
 def load_array_text(val, ctx):
+    """
+    Parses text/binary representation of an ARRAY type.
+    :param val: bytes
+    :param ctx: dict
+    :return: list
+    """
     val = val.decode('utf-8', ctx['unicode_error'])
     # Some old servers have a bug of sending ARRAY oid without child metadata
     if len(ctx['column'].child_columns) == 0:
         return val
-
     json_data = json.loads(val)
-    if not isinstance(json_data, list):
-        raise TypeError('Expected a list, got {}'.format(json_data))
     return parse_array(json_data, ctx)
 
 def load_set_text(val, ctx):
+    """
+    Parses text/binary representation of a SET type.
+    :param val: bytes
+    :param ctx: dict
+    :return: set
+    """
     return set(load_array_text(val, ctx))
 
 def parse_array(json_data, ctx):
+    if not isinstance(json_data, list):
+        raise TypeError('Expected a list, got {}'.format(json_data))
     # An array has only one child, all elements in the array are the same type.
     child_ctx = ctx.copy()
     child_ctx['column'] = ctx['column'].child_columns[0]
@@ -500,14 +511,36 @@ def parse_array(json_data, ctx):
     return parsed_array
 
 def load_row_text(val, ctx):
+    """
+    Parses text/binary representation of a ROW type.
+    :param val: bytes
+    :param ctx: dict
+    :return: dict
+    """
     val = val.decode('utf-8', ctx['unicode_error'])
     # Some old servers have a bug of sending ROW oid without child metadata
     if len(ctx['column'].child_columns) == 0:
         return val
-    return "TBD"
+    json_data = json.loads(val)
+    return parse_row(json_data, ctx)
 
 def parse_row(json_data, ctx):
+    if not isinstance(json_data, dict):
+        raise TypeError('Expected a dict, got {}'.format(json_data))
+    # A row has one or more child fields
+    child_columns = ctx['column'].child_columns
+    if len(json_data) != len(child_columns): # This situation should never occur
+        raise ValueError('The metadata does not match the fields in the ROW.')
     parsed_row = {}
+    for child_column in child_columns:
+        key = child_column.name
+        element = json_data[key]
+        if element is None:
+            parsed_row[key] = None
+            continue
+        child_ctx = ctx.copy()
+        child_ctx['column'] = child_column
+        parsed_row[key] = parse_json_element(element, child_ctx)
     return parsed_row
 
 def parse_json_element(element, ctx):

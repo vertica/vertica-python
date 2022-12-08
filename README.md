@@ -804,12 +804,16 @@ When a query is executed and `Cursor.fetch*()` is called, SQL data (bytes) are d
 | TIMESTAMP      | datetime.datetime<sup>[1]</sup> |
 | TIMESTAMPTZ    | datetime.datetime<sup>[1]</sup> |
 | INTERVAL	     | [dateutil.relativedelta.relativedelta](https://dateutil.readthedocs.io/en/stable/relativedelta.html#dateutil.relativedelta.relativedelta) |
-| ARRAY          | list               |
-| SET            | set                |
+| ARRAY          | list<sup>[3]</sup> |
+| SET            | set<sup>[3]</sup>  |
+| ROW            | dict<sup>[3]</sup> |
+| MAP            | dict<sup>[3]</sup> |
 
 <sup>[1]</sup>Python’s datetime.date and datetime.datetime only supports date ranges 0001-01-01 to 9999-12-31. Retrieving a value of BC date or future date (year>9999) results in an error.
 
 <sup>[2]</sup>Python’s datetime.time only supports times until 23:59:59. Retrieving a value of 24:00:00 results in an error.
+
+<sup>[3]</sup>Server before v12.0.2 cannot provide enough metadata for complex types, so the client will convert data to _str_ instead.
 
 
 #### Bypass data conversion to Python objects

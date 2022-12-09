@@ -152,4 +152,15 @@ class DataTransferFormatTestCase(VerticaPythonIntegrationTestCase):
         self._test_equal_value("VARBINARY", [u"'\303\261'"])
         self._test_equal_value("LONG VARBINARY", [u"'\303\261\303\260'"])
 
+    def test_array_type(self):
+        self._test_equal_value("ARRAY[INT]", ["ARRAY[1,2,3]"])
+        self._test_equal_value("ARRAY[ARRAY[INT]]", ["ARRAY[ARRAY[1,2],ARRAY[3,4]]"])
+
+    def test_set_type(self):
+        self._test_equal_value("SET[INT]", ["SET[1,2,3]"])
+
+    def test_row_type(self):
+        self._test_equal_value("ROW(name varchar, age int, c ARRAY[INT])", ["ROW('Amy',25,ARRAY[1,2,3])"])
+
+
 exec(DataTransferFormatTestCase.createPrepStmtClass())

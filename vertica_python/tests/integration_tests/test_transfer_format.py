@@ -79,8 +79,8 @@ class DataTransferFormatTestCase(VerticaPythonIntegrationTestCase):
         self._test_equal_value("TIMESTAMPTZ(4)", ["'1582-09-24 00:30:45.087-08'", "'0001-1-1 11:22:33'", "'2020-12-31 10:43:09.05'"])
 
     def test_interval_type(self):
-        self._test_equal_value("INTERVAL DAY TO SECOND", ["'1 02:03:04.0005'", "'1 02:03:04'", "'02:03:04.0005'"])
-        self._test_equal_value("INTERVAL DAY TO MINUTE", ["'1 02:03'"])
+        self._test_equal_value("INTERVAL DAY TO SECOND", ["'1 02:03:04.0005'", "'1 02:03:04'", "'02:03:04.0005'", "'02:03'"])
+        self._test_equal_value("INTERVAL DAY TO MINUTE", ["'1 02:03'", "'02:03'"])
         self._test_equal_value("INTERVAL DAY TO HOUR", ["'1 22'"])
         self._test_equal_value("INTERVAL DAY", ["'132'"])
         self._test_equal_value("INTERVAL HOUR TO SECOND", ["'02:03:04'"])
@@ -89,6 +89,9 @@ class DataTransferFormatTestCase(VerticaPythonIntegrationTestCase):
         self._test_equal_value("INTERVAL MINUTE TO SECOND", ["'00:04.0005'", "'03:04'"])
         self._test_equal_value("INTERVAL MINUTE", ["'03'"])
         self._test_equal_value("INTERVAL SECOND", ["'216901.24'", "'216901'"])
+        self._test_equal_value("INTERVAL YEAR", ["'1y 10m'"])
+        self._test_equal_value("INTERVAL YEAR TO MONTH", ["'1y 10m'"])
+        self._test_equal_value("INTERVAL MONTH", ["'1y 10m'"])
 
     def test_UUID_type(self):
         self.require_protocol_at_least(3 << 16 | 8)

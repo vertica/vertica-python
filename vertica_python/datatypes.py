@@ -304,11 +304,9 @@ def getTypeName(data_type_oid, type_modifier):
     elif data_type_oid in (VerticaType.INTERVAL, VerticaType.INTERVALYM):
         return "Interval " + getIntervalRange(data_type_oid, type_modifier)
     elif data_type_oid in (VerticaType.ARRAY1D_INTERVAL, VerticaType.ARRAY1D_INTERVALYM):
-        # TODO IntervalRange
-        return "Array[Interval]"
+        return "Array[Interval {}]".format(getIntervalRange(COMPLEX_ELEMENT_TYPE[data_type_oid], type_modifier))
     elif data_type_oid in (VerticaType.SET_INTERVAL, VerticaType.SET_INTERVALYM):
-        # TODO IntervalRange
-        return "Set[Interval]"
+        return "Set[Interval {}]".format(getIntervalRange(COMPLEX_ELEMENT_TYPE[data_type_oid], type_modifier))
     else:
         return "Unknown"
 

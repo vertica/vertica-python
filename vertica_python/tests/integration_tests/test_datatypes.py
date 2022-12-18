@@ -276,6 +276,10 @@ class ComplexTypeTestCase(VerticaPythonIntegrationTestCase):
         res = self._query_and_fetchone(query)
         self.assertEqual(res[0], [])
 
+        query = "SELECT ARRAY[ARRAY[]]"
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], [[]])
+
     def test_NDArray_type(self):
         query = "SELECT ARRAY[ARRAY[1,2],ARRAY[3,4],null,ARRAY[5,null],ARRAY[]]::ARRAY[ARRAY[INT]], ARRAY[]::ARRAY[ARRAY[INT]], null::ARRAY[ARRAY[INT]]"
         res = self._query_and_fetchone(query)
@@ -283,12 +287,44 @@ class ComplexTypeTestCase(VerticaPythonIntegrationTestCase):
         self.assertEqual(res[1], [])
         self.assertEqual(res[2], None)
 
-    def test_Set_type(self):
-        query = "SELECT SET[1,-2,3,null]::SET[INT], SET[]::SET[INT], null::SET[INT]"
+        query = "SELECT ARRAY[ARRAY[ARRAY[null,ARRAY[1,2,3],null,ARRAY[1,null,3],ARRAY[null,null,null]::ARRAY[INT],ARRAY[4,5],ARRAY[],null]]]"
         res = self._query_and_fetchone(query)
-        self.assertEqual(res[0], {1, -2, 3, None})
+        self.assertEqual(res[0], [[[None,[1,2,3],None,[1,None,3],[None,None,None],[4,5],[],None]]])
+
+        query = "SELECT ARRAY[ARRAY[0.0,0.1,0.2],ARRAY[-1.0,-1.1,-1.2],ARRAY['Infinity'::float, '-Infinity'::float, null, 1.23456e-18]]::ARRAY[ARRAY[FLOAT]]"
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], [[0.0,0.1,0.2],[-1.0,-1.1,-1.2],[float('Inf'), float('-Inf'), None, 1.23456e-18]])
+
+    def test_Set_integer_type(self):
+        query = "SELECT SET[0,1,-2,3,null]::SET[INT], SET[]::SET[INT], null::SET[INT]"
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], {0, 1, -2, 3, None})
         self.assertEqual(res[1], set())
         self.assertEqual(res[2], None)
+
+    def test_Set_intervalYM_type(self):
+        query = "SELECT SET['1y 10m', '1y', '10m ago', null]::SET[INTERVAL YEAR TO MONTH], SET[]::SET[INTERVAL YEAR TO MONTH], null::SET[INTERVAL YEAR TO MONTH]"
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], {relativedelta(years=+1, months=+10), relativedelta(years=+1), relativedelta(months=-10), None})
+        self.assertEqual(res[1], set())
+        self.assertEqual(res[2], None)
+
+        query = "SELECT SET['1y ago', '2y', null]::SET[INTERVAL YEAR], SET[]::SET[INTERVAL YEAR], null::SET[INTERVAL YEAR]"
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], {relativedelta(years=-1), relativedelta(years=+2), None})
+        self.assertEqual(res[1], set())
+        self.assertEqual(res[2], None)
+
+        query = "SELECT SET['1y 10m', '1y', '10m ago', null]::SET[INTERVAL MONTH], SET[]::SET[INTERVAL MONTH], null::SET[INTERVAL MONTH]"
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], {relativedelta(years=+1, months=+10), relativedelta(years=+1), relativedelta(months=-10), None})
+        self.assertEqual(res[1], set())
+        self.assertEqual(res[2], None)
+
+    def test_Set_dummy_type(self):
+        query = "SELECT SET[]"
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], set())
 
     def test_1DRow_type(self):
         query = "SELECT ROW(null, 'Amy', -3::int, '-Infinity'::float, 2.5::numeric, '2021-10-23'::DATE, false::bool), ROW(), null::ROW(a VARCHAR)"

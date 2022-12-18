@@ -48,7 +48,9 @@ class Deserializer(object):
         def deserializer(data):
             if data is None: # null
                 return None
-            return f(data, ctx={'column': col, **context})
+            ctx = {'column': col}
+            ctx.update(context)
+            return f(data, ctx=ctx)
         return deserializer
 
 
@@ -629,6 +631,7 @@ DEFAULTS = {
         VerticaType.SET_LONGVARCHAR: load_set_text,
         VerticaType.SET_LONGVARBINARY: load_set_text,
         VerticaType.ROW: load_row_text,
+        VerticaType.MAP: load_row_text,
     },
     FormatCode.BINARY: {
         VerticaType.UNKNOWN: None,
@@ -688,6 +691,7 @@ DEFAULTS = {
         VerticaType.SET_LONGVARCHAR: load_set_text,
         VerticaType.SET_LONGVARBINARY: load_set_text,
         VerticaType.ROW: load_row_text,
+        VerticaType.MAP: load_row_text,
     },
 }
 

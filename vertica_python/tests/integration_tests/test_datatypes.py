@@ -271,6 +271,11 @@ class ComplexTypeTestCase(VerticaPythonIntegrationTestCase):
         self.assertEqual(res[1], [])
         self.assertEqual(res[2], None)
 
+    def test_Array_dummy_type(self):
+        query = "SELECT ARRAY[]"
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], [])
+
     def test_NDArray_type(self):
         query = "SELECT ARRAY[ARRAY[1,2],ARRAY[3,4],null,ARRAY[5,null],ARRAY[]]::ARRAY[ARRAY[INT]], ARRAY[]::ARRAY[ARRAY[INT]], null::ARRAY[ARRAY[INT]]"
         res = self._query_and_fetchone(query)
@@ -289,7 +294,7 @@ class ComplexTypeTestCase(VerticaPythonIntegrationTestCase):
         query = "SELECT ROW(null, 'Amy', -3::int, '-Infinity'::float, 2.5::numeric, '2021-10-23'::DATE, false::bool), ROW(), null::ROW(a VARCHAR)"
         res = self._query_and_fetchone(query)
         self.assertEqual(res[0], {"f0":None,"f1":"Amy","f2":-3,"f3":float('-Inf'),"f4":Decimal('2.5'),"f5":date(2021, 10, 23),"f6":False})
-        self.assertEqual(res[1], '{}') # TODO
+        self.assertEqual(res[1], {})
         self.assertEqual(res[2], None)
 
     def test_NDRow_type(self):

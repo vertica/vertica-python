@@ -309,7 +309,8 @@ class Cursor(object):
                 self.description = self._message.get_description()
                 self._deserializers = self._des.get_row_deserializers(self.description,
                                         {'unicode_error': self.unicode_error,
-                                         'session_tz': self.connection.parameters.get('timezone', 'unknown')})
+                                         'session_tz': self.connection.parameters.get('timezone', 'unknown'),
+                                         'complex_types_enabled': self.connection.complex_types_enabled,})
             elif isinstance(self._message, messages.ReadyForQuery):
                 return None
             elif isinstance(self._message, END_OF_RESULT_RESPONSES):
@@ -369,7 +370,8 @@ class Cursor(object):
                 self.description = self._message.get_description()
                 self._deserializers = self._des.get_row_deserializers(self.description,
                                         {'unicode_error': self.unicode_error,
-                                         'session_tz': self.connection.parameters.get('timezone', 'unknown')})
+                                         'session_tz': self.connection.parameters.get('timezone', 'unknown'),
+                                         'complex_types_enabled': self.connection.complex_types_enabled,})
                 self._message = self.connection.read_message()
                 if isinstance(self._message, messages.VerifyFiles):
                     self._handle_copy_local_protocol()
@@ -660,7 +662,8 @@ class Cursor(object):
             self.description = self._message.get_description()
             self._deserializers = self._des.get_row_deserializers(self.description,
                                     {'unicode_error': self.unicode_error,
-                                     'session_tz': self.connection.parameters.get('timezone', 'unknown')})
+                                     'session_tz': self.connection.parameters.get('timezone', 'unknown'),
+                                     'complex_types_enabled': self.connection.complex_types_enabled,})
             self._message = self.connection.read_message()
             if isinstance(self._message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(self._message, query)
@@ -853,7 +856,8 @@ class Cursor(object):
             self.description = self._message.get_description()
             self._deserializers = self._des.get_row_deserializers(self.description,
                                     {'unicode_error': self.unicode_error,
-                                     'session_tz': self.connection.parameters.get('timezone', 'unknown')})
+                                     'session_tz': self.connection.parameters.get('timezone', 'unknown'),
+                                     'complex_types_enabled': self.connection.complex_types_enabled,})
 
         # Read expected message: CommandDescription
         self._message = self.connection.read_expected_message(messages.CommandDescription, self._error_handler)

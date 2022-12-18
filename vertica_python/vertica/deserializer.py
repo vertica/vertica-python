@@ -48,9 +48,7 @@ class Deserializer(object):
         def deserializer(data):
             if data is None: # null
                 return None
-            return f(data, ctx={'column': col,
-                                'unicode_error': context['unicode_error'],
-                                'session_tz': context['session_tz']})
+            return f(data, ctx={'column': col, **context})
         return deserializer
 
 
@@ -483,7 +481,7 @@ def load_array_text(val, ctx):
     """
     val = val.decode('utf-8', ctx['unicode_error'])
     # Some old servers have a bug of sending ARRAY oid without child metadata
-    if len(ctx['column'].child_columns) == 0:
+    if not ctx['complex_types_enabled']:
         return val
     json_data = json.loads(val)
     return parse_array(json_data, ctx)
@@ -519,7 +517,7 @@ def load_row_text(val, ctx):
     """
     val = val.decode('utf-8', ctx['unicode_error'])
     # Some old servers have a bug of sending ROW oid without child metadata
-    if len(ctx['column'].child_columns) == 0:
+    if not ctx['complex_types_enabled']:
         return val
     json_data = json.loads(val)
     return parse_row(json_data, ctx)
@@ -529,6 +527,8 @@ def parse_row(json_data, ctx):
         raise TypeError('Expected a dict, got {}'.format(json_data))
     # A row has one or more child fields
     child_columns = ctx['column'].child_columns
+    if child_columns is None:   # Special case: SELECT ROW();
+        return json_data
     if len(json_data) != len(child_columns): # This situation should never occur
         raise ValueError('The metadata does not match the fields in the ROW.')
     parsed_row = {}

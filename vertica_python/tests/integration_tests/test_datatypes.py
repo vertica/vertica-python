@@ -79,6 +79,16 @@ class ComplexTypeTestCase(VerticaPythonIntegrationTestCase):
         super(ComplexTypeTestCase, self).setUp()
         self.require_protocol_at_least(3 << 16 | 12)
 
+    ######################################################
+    # tests for connection option 'request_complex_types'
+    ######################################################
+    def test_connection_option(self):
+        self._conn_info['request_complex_types'] = False
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone("SELECT ARRAY[-500, 0, null, 500]::ARRAY[INT]")
+            self.assertEqual(res[0], '[-500,0,null,500]')
+
     #######################
     # tests for ARRAY type
     #######################

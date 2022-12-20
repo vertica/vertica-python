@@ -107,7 +107,7 @@ with vertica_python.connect(**conn_info) as connection:
 | unicode_error | See [UTF-8 encoding issues](#utf-8-encoding-issues). <br>**_Default_**: 'strict' (throw error on invalid UTF-8 results) |
 | use_prepared_statements | See [Passing parameters to SQL queries](#passing-parameters-to-sql-queries). <br>**_Default_**: False |
 | dsn | See [Set Properties with Connection String](#set-properties-with-connection-string). |
-
+| request_complex_types | See [SQL Data conversion to Python objects](#sql-data-conversion-to-python-objects). <br>**_Default_**: True |
 
 
 Below are a few important connection topics you may deal with, or you can skip and jump to the next section: [Send Queries and Retrieve Results](#send-queries-and-retrieve-results)
@@ -813,7 +813,7 @@ When a query is executed and `Cursor.fetch*()` is called, SQL data (bytes) are d
 
 <sup>[2]</sup>Python’s datetime.time only supports times until 23:59:59. Retrieving a value of 24:00:00 results in an error.
 
-<sup>[3]</sup>Server before v12.0.2 cannot provide enough metadata for complex types, so the client will convert data to _str_ instead.
+<sup>[3]</sup>If connection option 'request_complex_types' set to _False_, the server returns all complex types as VARCHAR/LONG VARCHAR Json strings, so the client will convert data to _str_ instead. Server before v12.0.2 cannot provide enough metadata for complex types, the behavior is equal to request_complex_types=False.
 
 
 #### Bypass data conversion to Python objects

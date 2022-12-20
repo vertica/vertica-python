@@ -55,7 +55,8 @@ from ..message import BulkFrontendMessage
 class Startup(BulkFrontendMessage):
     message_id = None
 
-    def __init__(self, user, database, session_label, os_user_name, autocommit, binary_transfer):
+    def __init__(self, user, database, session_label, os_user_name, autocommit,
+                 binary_transfer, request_complex_types):
         BulkFrontendMessage.__init__(self)
 
         try:
@@ -70,6 +71,8 @@ class Startup(BulkFrontendMessage):
             pid = '0'
             print("WARN: Cannot get the process ID: {}".format(str(e)))
 
+        request_complex_types = 'true' if request_complex_types else 'false'
+
         self.parameters = {
             b'user': user,
             b'database': database,
@@ -81,7 +84,7 @@ class Startup(BulkFrontendMessage):
             b'client_pid': pid,
             b'autocommit': 'on' if autocommit else 'off',
             b'binary_data_protocol': '1' if binary_transfer else '0', # Defaults to text format '0'
-            b'protocol_features': '{"request_complex_types":true}',
+            b'protocol_features': '{"request_complex_types":' + request_complex_types + '}',
         }
 
     def read_bytes(self):

@@ -70,7 +70,7 @@ class Column(object):
         self.null_ok = col['null_ok']
         self.is_identity = col['is_identity']
         self.format_code = col['format_code']
-        self.child_columns = []
+        self.child_columns = None
         self.props = ColumnTuple(self.name, self.type_code, self.display_size, self.internal_size,
                                  self.precision, self.scale, self.null_ok)
 
@@ -79,6 +79,8 @@ class Column(object):
         Complex types involve multiple columns arranged in a hierarchy of parents and children.
         Each parent column stores references to child columns in a list.
         """
+        if self.child_columns is None:
+            self.child_columns = []
         self.child_columns.append(col)
 
     def __str__(self):

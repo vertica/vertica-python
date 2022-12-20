@@ -48,9 +48,9 @@ class Deserializer(object):
         def deserializer(data):
             if data is None: # null
                 return None
-            return f(data, ctx={'column': col,
-                                'unicode_error': context['unicode_error'],
-                                'session_tz': context['session_tz']})
+            ctx = {'column': col}
+            ctx.update(context)
+            return f(data, ctx=ctx)
         return deserializer
 
 
@@ -465,39 +465,82 @@ def load_varbinary_text(s, ctx):
         buf.append(c)
     return b''.join(buf)
 
-def load_json_text(val, ctx):
+def load_array_text(val, ctx):
     """
-    Parses text/binary representation of a complex type with default JSONDecoder.
+    Parses text/binary representation of an ARRAY type.
     :param val: bytes
     :param ctx: dict
-    :return: list or dict
+    :return: list
     """
-    return json.loads(val.decode('utf-8', ctx['unicode_error']))
-
-def load_array_text(val, ctx):
     val = val.decode('utf-8', ctx['unicode_error'])
     # Some old servers have a bug of sending ARRAY oid without child metadata
-    if len(ctx['column'].child_columns) == 0:
+    if not ctx['complex_types_enabled']:
         return val
-
     json_data = json.loads(val)
-    if not isinstance(json_data, list):
-        raise TypeError('Expected a list, got {}'.format(json_data))
     return parse_array(json_data, ctx)
 
 def load_set_text(val, ctx):
+    """
+    Parses text/binary representation of a SET type.
+    :param val: bytes
+    :param ctx: dict
+    :return: set
+    """
     return set(load_array_text(val, ctx))
 
 def parse_array(json_data, ctx):
+    if not isinstance(json_data, list):
+        raise TypeError('Expected a list, got {}'.format(json_data))
     # An array has only one child, all elements in the array are the same type.
     child_ctx = ctx.copy()
     child_ctx['column'] = ctx['column'].child_columns[0]
+
+    # Shortcut: return data parsed by the default JSONDecoder
+    if child_ctx['column'].type_code in (VerticaType.BOOL, VerticaType.INT8,
+                    VerticaType.CHAR, VerticaType.VARCHAR, VerticaType.LONGVARCHAR):
+        return json_data
+
     parsed_array = [None] * len(json_data)
     for idx, element in enumerate(json_data):
         if element is None:
             continue
         parsed_array[idx] = parse_json_element(element, child_ctx)
     return parsed_array
+
+def load_row_text(val, ctx):
+    """
+    Parses text/binary representation of a ROW type.
+    :param val: bytes
+    :param ctx: dict
+    :return: dict
+    """
+    val = val.decode('utf-8', ctx['unicode_error'])
+    # Some old servers have a bug of sending ROW oid without child metadata
+    if not ctx['complex_types_enabled']:
+        return val
+    json_data = json.loads(val)
+    return parse_row(json_data, ctx)
+
+def parse_row(json_data, ctx):
+    if not isinstance(json_data, dict):
+        raise TypeError('Expected a dict, got {}'.format(json_data))
+    # A row has one or more child fields
+    child_columns = ctx['column'].child_columns
+    if child_columns is None:   # Special case: SELECT ROW();
+        return json_data
+    if len(json_data) != len(child_columns): # This situation should never occur
+        raise ValueError('The metadata does not match the fields in the ROW.')
+    parsed_row = {}
+    for child_column in child_columns:
+        key = child_column.name
+        element = json_data[key]
+        if element is None:
+            parsed_row[key] = None
+            continue
+        child_ctx = ctx.copy()
+        child_ctx['column'] = child_column
+        parsed_row[key] = parse_json_element(element, child_ctx)
+    return parsed_row
 
 def parse_json_element(element, ctx):
     type_code = ctx['column'].type_code
@@ -521,6 +564,9 @@ def parse_json_element(element, ctx):
     # element type: list
     elif type_code == VerticaType.ARRAY:
         return parse_array(element, ctx)
+    # element type: dict
+    elif type_code == VerticaType.ROW:
+        return parse_row(element, ctx)
     return element
 
 DEFAULTS = {
@@ -545,13 +591,13 @@ DEFAULTS = {
         VerticaType.VARBINARY: load_varbinary_text,
         VerticaType.LONGVARBINARY: load_varbinary_text,
         VerticaType.ARRAY: load_array_text,
-        VerticaType.ARRAY1D_BOOL: load_json_text,
-        VerticaType.ARRAY1D_INT8: load_json_text,
+        VerticaType.ARRAY1D_BOOL: load_array_text,
+        VerticaType.ARRAY1D_INT8: load_array_text,
         VerticaType.ARRAY1D_FLOAT8: load_array_text,
         VerticaType.ARRAY1D_NUMERIC: load_array_text,
-        VerticaType.ARRAY1D_CHAR: load_json_text,
-        VerticaType.ARRAY1D_VARCHAR: load_json_text,
-        VerticaType.ARRAY1D_LONGVARCHAR: load_json_text,
+        VerticaType.ARRAY1D_CHAR: load_array_text,
+        VerticaType.ARRAY1D_VARCHAR: load_array_text,
+        VerticaType.ARRAY1D_LONGVARCHAR: load_array_text,
         VerticaType.ARRAY1D_DATE: load_array_text,
         VerticaType.ARRAY1D_TIME: load_array_text,
         VerticaType.ARRAY1D_TIMETZ: load_array_text,
@@ -581,6 +627,8 @@ DEFAULTS = {
         VerticaType.SET_BINARY: load_set_text,
         VerticaType.SET_LONGVARCHAR: load_set_text,
         VerticaType.SET_LONGVARBINARY: load_set_text,
+        VerticaType.ROW: load_row_text,
+        VerticaType.MAP: load_row_text,
     },
     FormatCode.BINARY: {
         VerticaType.UNKNOWN: None,
@@ -603,13 +651,13 @@ DEFAULTS = {
         VerticaType.VARBINARY: None,
         VerticaType.LONGVARBINARY: None,
         VerticaType.ARRAY: load_array_text,
-        VerticaType.ARRAY1D_BOOL: load_json_text,
-        VerticaType.ARRAY1D_INT8: load_json_text,
+        VerticaType.ARRAY1D_BOOL: load_array_text,
+        VerticaType.ARRAY1D_INT8: load_array_text,
         VerticaType.ARRAY1D_FLOAT8: load_array_text,
         VerticaType.ARRAY1D_NUMERIC: load_array_text,
-        VerticaType.ARRAY1D_CHAR: load_json_text,
-        VerticaType.ARRAY1D_VARCHAR: load_json_text,
-        VerticaType.ARRAY1D_LONGVARCHAR: load_json_text,
+        VerticaType.ARRAY1D_CHAR: load_array_text,
+        VerticaType.ARRAY1D_VARCHAR: load_array_text,
+        VerticaType.ARRAY1D_LONGVARCHAR: load_array_text,
         VerticaType.ARRAY1D_DATE: load_array_text,
         VerticaType.ARRAY1D_TIME: load_array_text,
         VerticaType.ARRAY1D_TIMETZ: load_array_text,
@@ -639,6 +687,8 @@ DEFAULTS = {
         VerticaType.SET_BINARY: load_set_text,
         VerticaType.SET_LONGVARCHAR: load_set_text,
         VerticaType.SET_LONGVARBINARY: load_set_text,
+        VerticaType.ROW: load_row_text,
+        VerticaType.MAP: load_row_text,
     },
 }
 

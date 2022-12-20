@@ -11,7 +11,7 @@
 
 Please check out [release notes](https://github.com/vertica/vertica-python/releases) to learn about the latest improvements.
 
-vertica-python has been tested with Vertica 12.0.1 and Python 2.7/3.7/3.8/3.9/3.10. Feel free to submit issues and/or pull requests (Read up on our [contributing guidelines](#contributing-guidelines)).
+vertica-python has been tested with Vertica 12.0.2 and Python 2.7/3.7/3.8/3.9/3.10/3.11. Feel free to submit issues and/or pull requests (Read up on our [contributing guidelines](#contributing-guidelines)).
 
 
 ## Installation
@@ -107,7 +107,7 @@ with vertica_python.connect(**conn_info) as connection:
 | unicode_error | See [UTF-8 encoding issues](#utf-8-encoding-issues). <br>**_Default_**: 'strict' (throw error on invalid UTF-8 results) |
 | use_prepared_statements | See [Passing parameters to SQL queries](#passing-parameters-to-sql-queries). <br>**_Default_**: False |
 | dsn | See [Set Properties with Connection String](#set-properties-with-connection-string). |
-
+| request_complex_types | See [SQL Data conversion to Python objects](#sql-data-conversion-to-python-objects). <br>**_Default_**: True |
 
 
 Below are a few important connection topics you may deal with, or you can skip and jump to the next section: [Send Queries and Retrieve Results](#send-queries-and-retrieve-results)
@@ -804,12 +804,16 @@ When a query is executed and `Cursor.fetch*()` is called, SQL data (bytes) are d
 | TIMESTAMP      | datetime.datetime<sup>[1]</sup> |
 | TIMESTAMPTZ    | datetime.datetime<sup>[1]</sup> |
 | INTERVAL	     | [dateutil.relativedelta.relativedelta](https://dateutil.readthedocs.io/en/stable/relativedelta.html#dateutil.relativedelta.relativedelta) |
-| ARRAY          | list               |
-| SET            | set                |
+| ARRAY          | list<sup>[3]</sup> |
+| SET            | set<sup>[3]</sup>  |
+| ROW            | dict<sup>[3]</sup> |
+| MAP            | dict<sup>[3]</sup> |
 
 <sup>[1]</sup>Python’s datetime.date and datetime.datetime only supports date ranges 0001-01-01 to 9999-12-31. Retrieving a value of BC date or future date (year>9999) results in an error.
 
 <sup>[2]</sup>Python’s datetime.time only supports times until 23:59:59. Retrieving a value of 24:00:00 results in an error.
+
+<sup>[3]</sup>If connection option 'request_complex_types' set to _False_, the server returns all complex types as VARCHAR/LONG VARCHAR Json strings, so the client will convert data to _str_ instead. Server before v12.0.2 cannot provide enough metadata for complex types, the behavior is equal to request_complex_types=False.
 
 
 #### Bypass data conversion to Python objects

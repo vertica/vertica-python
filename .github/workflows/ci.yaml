@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['2.7', '3.7', '3.8', '3.9', '3.10', 'pypy3.9']
+        python-version: ['2.7', '3.7', '3.8', '3.9', '3.10', '3.11', 'pypy3.9']
 
     steps:
       - name: Check out repository
@@ -22,7 +22,7 @@ jobs:
         run: |
           docker run -d -p 5433:5433 -p 5444:5444 \
             --name vertica_docker \
-            vertica/vertica-ce:12.0.1-0
+            vertica/vertica-ce:12.0.2-0
           echo "Vertica startup ..."
           until docker exec vertica_docker test -f /data/vertica/VMart/agent_start.out; do \
             echo "..."; \

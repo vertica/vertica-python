@@ -465,15 +465,6 @@ def load_varbinary_text(s, ctx):
         buf.append(c)
     return b''.join(buf)
 
-def load_json_text(val, ctx):
-    """
-    Parses text/binary representation of a complex type with default JSONDecoder.
-    :param val: bytes
-    :param ctx: dict
-    :return: list or dict
-    """
-    return json.loads(val.decode('utf-8', ctx['unicode_error']))
-
 def load_array_text(val, ctx):
     """
     Parses text/binary representation of an ARRAY type.
@@ -503,6 +494,12 @@ def parse_array(json_data, ctx):
     # An array has only one child, all elements in the array are the same type.
     child_ctx = ctx.copy()
     child_ctx['column'] = ctx['column'].child_columns[0]
+
+    # Shortcut: return data parsed by the default JSONDecoder
+    if child_ctx['column'].type_code in (VerticaType.BOOL, VerticaType.INT8,
+                    VerticaType.CHAR, VerticaType.VARCHAR, VerticaType.LONGVARCHAR):
+        return json_data
+
     parsed_array = [None] * len(json_data)
     for idx, element in enumerate(json_data):
         if element is None:
@@ -594,13 +591,13 @@ DEFAULTS = {
         VerticaType.VARBINARY: load_varbinary_text,
         VerticaType.LONGVARBINARY: load_varbinary_text,
         VerticaType.ARRAY: load_array_text,
-        VerticaType.ARRAY1D_BOOL: load_json_text,
-        VerticaType.ARRAY1D_INT8: load_json_text,
+        VerticaType.ARRAY1D_BOOL: load_array_text,
+        VerticaType.ARRAY1D_INT8: load_array_text,
         VerticaType.ARRAY1D_FLOAT8: load_array_text,
         VerticaType.ARRAY1D_NUMERIC: load_array_text,
-        VerticaType.ARRAY1D_CHAR: load_json_text,
-        VerticaType.ARRAY1D_VARCHAR: load_json_text,
-        VerticaType.ARRAY1D_LONGVARCHAR: load_json_text,
+        VerticaType.ARRAY1D_CHAR: load_array_text,
+        VerticaType.ARRAY1D_VARCHAR: load_array_text,
+        VerticaType.ARRAY1D_LONGVARCHAR: load_array_text,
         VerticaType.ARRAY1D_DATE: load_array_text,
         VerticaType.ARRAY1D_TIME: load_array_text,
         VerticaType.ARRAY1D_TIMETZ: load_array_text,
@@ -654,13 +651,13 @@ DEFAULTS = {
         VerticaType.VARBINARY: None,
         VerticaType.LONGVARBINARY: None,
         VerticaType.ARRAY: load_array_text,
-        VerticaType.ARRAY1D_BOOL: load_json_text,
-        VerticaType.ARRAY1D_INT8: load_json_text,
+        VerticaType.ARRAY1D_BOOL: load_array_text,
+        VerticaType.ARRAY1D_INT8: load_array_text,
         VerticaType.ARRAY1D_FLOAT8: load_array_text,
         VerticaType.ARRAY1D_NUMERIC: load_array_text,
-        VerticaType.ARRAY1D_CHAR: load_json_text,
-        VerticaType.ARRAY1D_VARCHAR: load_json_text,
-        VerticaType.ARRAY1D_LONGVARCHAR: load_json_text,
+        VerticaType.ARRAY1D_CHAR: load_array_text,
+        VerticaType.ARRAY1D_VARCHAR: load_array_text,
+        VerticaType.ARRAY1D_LONGVARCHAR: load_array_text,
         VerticaType.ARRAY1D_DATE: load_array_text,
         VerticaType.ARRAY1D_TIME: load_array_text,
         VerticaType.ARRAY1D_TIMETZ: load_array_text,

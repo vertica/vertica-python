@@ -55,6 +55,8 @@ setup(
     keywords="database vertica",
     packages=find_packages(),
     license="Apache License 2.0",
+    # 'pip install' will check this and refuse to install the project if the version does not match.
+    python_requires=">=3.7",
     install_requires=[
         'python-dateutil>=1.5',
         'six>=1.10.0'
@@ -64,8 +66,6 @@ setup(
         "Intended Audience :: Developers",
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",

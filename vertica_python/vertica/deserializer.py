@@ -48,9 +48,7 @@ class Deserializer(object):
         def deserializer(data):
             if data is None: # null
                 return None
-            ctx = {'column': col}
-            ctx.update(context)
-            return f(data, ctx=ctx)
+            return f(data, ctx={'column': col, **context})
         return deserializer
 
 

@@ -47,7 +47,6 @@ from collections import deque, namedtuple
 import random
 
 # noinspection PyCompatibility,PyUnresolvedReferences
-from six import raise_from
 from urllib.parse import urlparse, parse_qs
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -536,9 +535,9 @@ class Connection(object):
                 else:
                     raw_socket = ssl.wrap_socket(raw_socket)
             except ssl.CertificateError as e:
-                raise_from(errors.ConnectionError(str(e)), e)
+                raise errors.ConnectionError(str(e))
             except ssl.SSLError as e:
-                raise_from(errors.ConnectionError(str(e)), e)
+                raise errors.ConnectionError(str(e))
         else:
             err_msg = "SSL requested but not supported by server"
             self._logger.error(err_msg)
@@ -606,7 +605,7 @@ class Connection(object):
             self.close_socket()
             self._logger.error(str(e))
             if isinstance(e, IOError):
-                raise_from(errors.ConnectionError(str(e)), e)
+                raise errors.ConnectionError(str(e))
             else:
                 raise
 
@@ -690,7 +689,7 @@ class Connection(object):
                 self.close_socket()
                 # noinspection PyTypeChecker
                 self._logger.error(e)
-                raise_from(errors.ConnectionError(str(e)), e)
+                raise errors.ConnectionError(str(e))
             if not self.is_asynchronous_message(message):
                 break
         return message

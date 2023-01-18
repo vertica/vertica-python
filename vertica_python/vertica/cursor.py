@@ -60,15 +60,13 @@ import six
 from six import binary_type, text_type, string_types, integer_types, BytesIO, StringIO
 from six.moves import zip
 
-if six.PY3:
-    from typing import TYPE_CHECKING
-
-    if TYPE_CHECKING:
-        from typing import IO, Any, AnyStr, Callable, Dict, Generator, List, Literal, Optional, Sequence, Tuple, Type, TypeVar, Union
-        from typing_extensions import Self
-        from .connection import Connection
-        from logging import Logger
-        T = TypeVar('T')
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import IO, Any, AnyStr, Callable, Dict, Generator, List, Literal, Optional, Sequence, Tuple, Type, TypeVar, Union
+    from typing_extensions import Self
+    from .connection import Connection
+    from logging import Logger
+    T = TypeVar('T')
 
 from .. import errors, os_utils
 from ..compat import as_text
@@ -126,9 +124,6 @@ file_type = tuple(
     ]
     if inspect.isclass(type_)
 )
-if six.PY2:
-    # noinspection PyUnresolvedReferences
-    file_type = file_type + (file,)
 
 
 RE_NAME_BASE = u"[0-9a-zA-Z_][\\w\\d\\$_]*"

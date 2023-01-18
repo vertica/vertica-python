@@ -35,8 +35,6 @@
 
 from __future__ import print_function, division, absolute_import
 
-from six.moves import range
-
 # Initial permutation
 IP = (
     58, 50, 42, 34, 26, 18, 10, 2,

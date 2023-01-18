@@ -37,8 +37,6 @@ from __future__ import print_function, division, absolute_import
 
 from struct import unpack_from
 
-from six.moves import range
-
 from ..message import BackendMessage
 
 

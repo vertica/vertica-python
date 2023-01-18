@@ -35,8 +35,6 @@
 
 from __future__ import print_function, division, absolute_import
 
-from six import text_type, binary_type
-
 from ..message import BulkFrontendMessage
 
 
@@ -45,9 +43,9 @@ class CopyData(BulkFrontendMessage):
 
     def __init__(self, data, unicode_error='strict'):
         BulkFrontendMessage.__init__(self)
-        if isinstance(data, text_type):
+        if isinstance(data, str):
             self.bytes_ = data.encode(encoding='utf-8', errors=unicode_error)
-        elif isinstance(data, binary_type):
+        elif isinstance(data, bytes):
             self.bytes_ = data
         else:
             raise TypeError("Data should be string or bytes")

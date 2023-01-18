@@ -44,8 +44,6 @@ from __future__ import print_function, division, absolute_import
 
 from struct import unpack, unpack_from, calcsize
 
-from six.moves import range
-
 from ..message import BackendMessage
 from ...column import Column
 from ....datatypes import getTypeName, getComplexElementType

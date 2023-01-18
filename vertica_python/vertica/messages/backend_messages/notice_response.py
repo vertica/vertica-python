@@ -35,7 +35,6 @@
 
 from __future__ import print_function, division, absolute_import
 
-import six
 from struct import unpack_from
 
 from ...mixins.notice_response_attr import _NoticeResponseAttrMixin
@@ -54,7 +53,7 @@ class NoticeResponse(_NoticeResponseAttrMixin, BackendMessage):
     def error_message(self):
         return ', '.join([
             "{0}: {1}".format(name, value)
-            for (name, value) in six.iteritems(self.values)
+            for (name, value) in self.values.items()
         ])
 
     def __str__(self):

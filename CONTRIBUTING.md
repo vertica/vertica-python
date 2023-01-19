@@ -73,8 +73,7 @@ If you do Kerberos development, you need to install additional [dependencies](RE
 We appreciate any and all [contributions to the test suite](#tests)! These tests use a Python module: [pytest](https://docs.pytest.org/en/latest/). You might want to check out the pytest documentation for more details.
 
 There are two types of tests: unit tests and integration tests. Unit tests do simple unit testing of individual classes and functions, which do not require database connection. Integration tests need to connect to a Vertica database to run stuffs, so you must have access to a Vertica database. We recommend using a non-production database, because some tests need the superuser permission to manipulate global settings and potentially break that database. Heres one way to go about it:
-- Download docker kitematic: https://kitematic.com/
-- Spin up a vertica container (e.g. sumitchawla/vertica)
+- Spin up a vertica docker container (e.g. [vertica/vertica-ce](https://hub.docker.com/r/vertica/vertica-ce))
 
 Spin up your Vertica database for integration tests and then config test settings:
 * Here are default settings:
@@ -126,20 +125,20 @@ Examples of running tests:
 tox
 
 # Run tests on specified python versions with `tox -e ENV,ENV`
-tox -e py27,py35
+tox -e py37,py38
 
 # Run specific tests by filename (e.g.) `test_notice.py`
 tox -- vertica_python/tests/unit_tests/test_notice.py
 
-# Run all unit tests on the python version 3.6:
-tox -e py36 -- -m unit_tests
+# Run all unit tests on the python version 3.9:
+tox -e py39 -- -m unit_tests
 
-# Run all integration tests on the python version 3.4 with verbose result outputs:
-tox -e py34 -- -v -m integration_tests
+# Run all integration tests on the python version 3.10 with verbose result outputs:
+tox -e py310 -- -v -m integration_tests
 
 # Run an individual test on specified python versions.
-# e.g.: Run the test `test_error_message` under `test_notice.py` on the python versions 2.7 and 3.5
-tox -e py27,py35 -- vertica_python/tests/unit_tests/test_notice.py::NoticeTestCase::test_error_message
+# e.g.: Run the test `test_error_message` under `test_notice.py` on the python versions 3.8 and 3.9
+tox -e py38,py39 -- vertica_python/tests/unit_tests/test_notice.py::NoticeTestCase::test_error_message
 ```
 
 The arguments after the `--` will be substituted everywhere where you specify `{posargs}` in your test *commands* of

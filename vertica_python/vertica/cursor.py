@@ -43,7 +43,7 @@ import re
 import sys
 import traceback
 from decimal import Decimal
-from io import IOBase
+from io import IOBase, BytesIO, StringIO
 from tempfile import NamedTemporaryFile, SpooledTemporaryFile, TemporaryFile
 from uuid import UUID
 from collections import OrderedDict
@@ -55,20 +55,13 @@ try:
 except ImportError:
     _TemporaryFileWrapper = None
 
-import six
-# noinspection PyUnresolvedReferences,PyCompatibility
-from six import binary_type, text_type, string_types, integer_types, BytesIO, StringIO
-from six.moves import zip
-
-if six.PY3:
-    from typing import TYPE_CHECKING
-
-    if TYPE_CHECKING:
-        from typing import IO, Any, AnyStr, Callable, Dict, Generator, List, Literal, Optional, Sequence, Tuple, Type, TypeVar, Union
-        from typing_extensions import Self
-        from .connection import Connection
-        from logging import Logger
-        T = TypeVar('T')
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import IO, Any, AnyStr, Callable, Dict, Generator, List, Literal, Optional, Sequence, Tuple, Type, TypeVar, Union
+    from typing_extensions import Self
+    from .connection import Connection
+    from logging import Logger
+    T = TypeVar('T')
 
 from .. import errors, os_utils
 from ..compat import as_text
@@ -126,9 +119,6 @@ file_type = tuple(
     ]
     if inspect.isclass(type_)
 )
-if six.PY2:
-    # noinspection PyUnresolvedReferences
-    file_type = file_type + (file,)
 
 
 RE_NAME_BASE = u"[0-9a-zA-Z_][\\w\\d\\$_]*"
@@ -442,9 +432,9 @@ class Cursor(object):
 
         self.flush_to_query_ready()
 
-        if isinstance(data, binary_type):
+        if isinstance(data, bytes):
             stream = BytesIO(data)
-        elif isinstance(data, text_type):
+        elif isinstance(data, str):
             stream = StringIO(data)
         elif isinstance(data, file_type) or callable(getattr(data, 'read', None)):
             stream = data
@@ -570,7 +560,7 @@ class Cursor(object):
         if type(py_obj) in self._sql_literal_adapters and not is_copy_data:
             adapter = self._sql_literal_adapters[type(py_obj)]
             result = adapter(py_obj)
-            if not isinstance(result, (string_types, bytes)):
+            if not isinstance(result, (str, bytes)):
                 raise TypeError("Unexpected return type of {} adapter: {}, expected a string type."
                     .format(type(py_obj), type(result)))
             return as_text(result)
@@ -579,9 +569,9 @@ class Cursor(object):
             return '' if is_copy_data else 'NULL'
         elif isinstance(py_obj, bool):
             return str(py_obj)
-        elif isinstance(py_obj, (string_types, bytes)):
+        elif isinstance(py_obj, (str, bytes)):
             return self.format_quote(as_text(py_obj), is_copy_data)
-        elif isinstance(py_obj, (integer_types, float, Decimal)):
+        elif isinstance(py_obj, (int, float, Decimal)):
             return str(py_obj)
         elif isinstance(py_obj, tuple):  # tuple and namedtuple
             elements = [None] * len(py_obj)
@@ -605,8 +595,8 @@ class Cursor(object):
         operation = as_text(operation)
 
         if isinstance(parameters, dict):
-            for key, param in six.iteritems(parameters):
-                if not isinstance(key, string_types):
+            for key, param in parameters.items():
+                if not isinstance(key, str):
                     key = str(key)
                 key = as_text(key)
 

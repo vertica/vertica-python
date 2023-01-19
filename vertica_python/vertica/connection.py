@@ -47,17 +47,11 @@ from collections import deque, namedtuple
 import random
 
 # noinspection PyCompatibility,PyUnresolvedReferences
-from six import raise_from, string_types, integer_types, PY2
-
-if PY2:
-    from urlparse import urlparse, parse_qs
-else:
-    from urllib.parse import urlparse, parse_qs
-
-    from typing import TYPE_CHECKING
-    if TYPE_CHECKING:
-        from typing import Any, Dict, Literal, Optional, Type, Union
-        from typing_extensions import Self
+from urllib.parse import urlparse, parse_qs
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Any, Dict, Literal, Optional, Type, Union
+    from typing_extensions import Self
 
 import vertica_python
 from .. import errors
@@ -165,7 +159,7 @@ class _AddressList(object):
         # a host name or IP address string (using default port) or
         # a (host, port) tuple
         for node in backup_nodes:
-            if isinstance(node, string_types):
+            if isinstance(node, str):
                 self._append(node, DEFAULT_PORT)
             elif isinstance(node, tuple) and len(node) == 2:
                 self._append(node[0], node[1])
@@ -177,16 +171,16 @@ class _AddressList(object):
         self._logger.debug('Address list: {0}'.format(list(self.address_deque)))
 
     def _append(self, host, port):
-        if not isinstance(host, string_types):
+        if not isinstance(host, str):
             err_msg = 'Host must be a string: invalid value: {0}'.format(host)
             self._logger.error(err_msg)
             raise TypeError(err_msg)
 
-        if not isinstance(port, (string_types, integer_types)):
+        if not isinstance(port, (str, int)):
             err_msg = 'Port must be an integer or a string: invalid value: {0}'.format(port)
             self._logger.error(err_msg)
             raise TypeError(err_msg)
-        elif isinstance(port, string_types):
+        elif isinstance(port, str):
             try:
                 port = int(port)
             except ValueError as e:
@@ -541,9 +535,9 @@ class Connection(object):
                 else:
                     raw_socket = ssl.wrap_socket(raw_socket)
             except ssl.CertificateError as e:
-                raise_from(errors.ConnectionError(str(e)), e)
+                raise errors.ConnectionError(str(e))
             except ssl.SSLError as e:
-                raise_from(errors.ConnectionError(str(e)), e)
+                raise errors.ConnectionError(str(e))
         else:
             err_msg = "SSL requested but not supported by server"
             self._logger.error(err_msg)
@@ -611,7 +605,7 @@ class Connection(object):
             self.close_socket()
             self._logger.error(str(e))
             if isinstance(e, IOError):
-                raise_from(errors.ConnectionError(str(e)), e)
+                raise errors.ConnectionError(str(e))
             else:
                 raise
 
@@ -695,7 +689,7 @@ class Connection(object):
                 self.close_socket()
                 # noinspection PyTypeChecker
                 self._logger.error(e)
-                raise_from(errors.ConnectionError(str(e)), e)
+                raise errors.ConnectionError(str(e))
             if not self.is_asynchronous_message(message):
                 break
         return message

@@ -20,11 +20,8 @@ from datetime import date, datetime, time, timedelta
 from dateutil import tz
 from dateutil.relativedelta import relativedelta
 from decimal import Context, Decimal
-from six import PY2
 from struct import unpack
 from uuid import UUID
-if PY2:
-    from binascii import hexlify
 
 from .. import errors
 from ..compat import as_str, as_bytes
@@ -91,21 +88,6 @@ def load_float8_binary(val, ctx):
     """
     return unpack("!d", val)[0]
 
-def _int_from_bytes(val):
-    """
-    (Python 2) Convert big-endian signed integer bytes to int.
-    """
-    b = bytearray(val)
-    if len(b) == 0:
-      return 0
-    sign_set = b[0] & 0x80
-    b[0] &= 0x7f  # skip sign bit for negative number
-    n = int(hexlify(b), 16)
-    if sign_set: # if sign bit is set, 2's complement
-        offset = 2**(8 * len(b) - 1)
-        return n - offset
-    return n
-
 def load_numeric_binary(val, ctx):
     """
     Parses binary representation of a NUMERIC type.
@@ -115,10 +97,7 @@ def load_numeric_binary(val, ctx):
     """
     # N-byte signed integer represents the unscaled value of the numeric
     # N is roughly (precision//19+1)*8
-    if PY2:
-        unscaledVal = _int_from_bytes(val)
-    else:
-        unscaledVal = int.from_bytes(val, byteorder='big', signed=True)
+    unscaledVal = int.from_bytes(val, byteorder='big', signed=True)
     precision = ctx['column'].precision
     scale = ctx['column'].scale
     # The numeric value is (unscaledVal * 10^(-scale))
@@ -129,7 +108,7 @@ def load_varchar_text(val, ctx):
     Parses text/binary representation of a CHAR / VARCHAR / LONG VARCHAR type.
     :param val: bytes
     :param ctx: dict
-    :return: (PY2) unicode / (PY3) str
+    :return: str
     """
     return val.decode('utf-8', ctx['unicode_error'])
 
@@ -452,13 +431,11 @@ def load_varbinary_text(s, ctx):
         if c == b'\\':
             c2 = s[i+1: i+2]
             if c2 == b'\\':  # escaped \
-                if PY2: c = str(c)
                 i += 2
             else:   # A \xxx octal string
-                c = chr(int(str(s[i+1: i+4]), 8)) if PY2 else bytes([int(s[i+1: i+4], 8)])
+                c = bytes([int(s[i+1: i+4], 8)])
                 i += 4
         else:
-            if PY2: c = str(c)
             i += 1
         buf.append(c)
     return b''.join(buf)
@@ -548,7 +525,7 @@ def parse_json_element(element, ctx):
     # "-Infinity", "Infinity", "NaN"
     if type_code == VerticaType.FLOAT8:
         return float(element)
-    # element type: (PY2) unicode / (PY3) str
+    # element type: str
     if type_code in (VerticaType.DATE, VerticaType.TIME, VerticaType.TIMETZ,
                      VerticaType.TIMESTAMP, VerticaType.TIMESTAMPTZ,
                      VerticaType.INTERVAL, VerticaType.INTERVALYM,

@@ -11,7 +11,7 @@
 
 Please check out [release notes](https://github.com/vertica/vertica-python/releases) to learn about the latest improvements.
 
-vertica-python has been tested with Vertica 12.0.2 and Python 3.7/3.8/3.9/3.10/3.11. Feel free to submit issues and/or pull requests (Read up on our [contributing guidelines](#contributing-guidelines)).
+vertica-python has been tested with Vertica 12.0.3 and Python 3.7/3.8/3.9/3.10/3.11. Feel free to submit issues and/or pull requests (Read up on our [contributing guidelines](#contributing-guidelines)).
 
 
 ## Installation

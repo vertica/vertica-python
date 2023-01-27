@@ -43,10 +43,7 @@ from ..message import BulkFrontendMessage
 from ..backend_messages.authentication import Authentication
 from ....compat import as_bytes
 
-if os.name == 'nt':
-    from . import crypt_windows as crypt
-else:
-    import crypt
+from . import crypt_windows as crypt
 
 
 class Password(BulkFrontendMessage):

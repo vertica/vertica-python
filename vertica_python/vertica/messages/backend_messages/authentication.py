@@ -48,7 +48,7 @@ class Authentication(BackendMessage):
     KERBEROS_V4 = 1
     KERBEROS_V5 = 2
     CLEARTEXT_PASSWORD = 3
-    CRYPT_PASSWORD = 4
+    CRYPT_PASSWORD = 4  # obsolete
     MD5_PASSWORD = 5
     SCM_CREDENTIAL = 6
     GSS = 7

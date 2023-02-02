@@ -541,7 +541,7 @@ class Connection(object):
         else:
             err_msg = "SSL requested but not supported by server"
             self._logger.error(err_msg)
-            raw_socket.close()
+            self.close_socket()
             raise errors.SSLNotSupported(err_msg)
         return raw_socket
 

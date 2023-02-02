@@ -447,21 +447,27 @@ class Connection(object):
         if self.socket:
             return self.socket
 
-        # the initial establishment of the client connection
+        # the initial establishment of the socket connection
         raw_socket = self.establish_socket_connection(self.address_list)
 
-        # enable load balancing
-        load_balance_options = self.options.get('connection_load_balance')
-        self._logger.debug('Connection load balance option is {0}'.format(
-                     'enabled' if load_balance_options else 'disabled'))
-        if load_balance_options:
-            raw_socket = self.balance_load(raw_socket)
+        # modify the socket connection based on client connection options
+        try:
+            # enable load balancing
+            load_balance_options = self.options.get('connection_load_balance')
+            self._logger.debug('Connection load balance option is {0}'.format(
+                         'enabled' if load_balance_options else 'disabled'))
+            if load_balance_options:
+                raw_socket = self.balance_load(raw_socket)
 
-        # enable SSL
-        ssl_options = self.options.get('ssl')
-        self._logger.debug('SSL option is {0}'.format('enabled' if ssl_options else 'disabled'))
-        if ssl_options:
-            raw_socket = self.enable_ssl(raw_socket, ssl_options)
+            # enable SSL
+            ssl_options = self.options.get('ssl')
+            self._logger.debug('SSL option is {0}'.format('enabled' if ssl_options else 'disabled'))
+            if ssl_options:
+                raw_socket = self.enable_ssl(raw_socket, ssl_options)
+        except:
+            self._logger.debug('Close the socket')
+            raw_socket.close()
+            raise
 
         self.socket = raw_socket
         return self.socket
@@ -610,6 +616,7 @@ class Connection(object):
                 raise
 
     def close_socket(self):
+        self._logger.debug("Close connection's socket")
         try:
             if self.socket is not None:
                 self._socket().close()

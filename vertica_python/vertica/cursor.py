@@ -170,6 +170,17 @@ class Cursor(object):
         self.close()
 
     #############################################
+    # decorators
+    #############################################
+    def handle_ctrl_c(func):
+        def wrap(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except KeyboardInterrupt:
+                self.connection.cancel()
+        return wrap
+
+    #############################################
     # dbapi methods
     #############################################
     # noinspection PyMethodMayBeStatic
@@ -182,6 +193,7 @@ class Cursor(object):
             self._close_prepared_statement()
         self._closed = True
 
+    #@handle_ctrl_c
     def execute(self, operation, parameters=None, use_prepared_statements=None,
                 copy_stdin=None, buffer_size=DEFAULT_BUFFER_SIZE):
         # type: (str, Optional[Union[List[Any], Tuple[Any], Dict[str, Any]]], Optional[bool], Optional[Union[IO[AnyStr], List[IO[AnyStr]]]], int) -> Self
@@ -914,3 +926,4 @@ class Cursor(object):
         self.connection.write(messages.Flush())
         self._message = self.connection.read_expected_message(messages.CloseComplete)
         self.connection.write(messages.Sync())
+

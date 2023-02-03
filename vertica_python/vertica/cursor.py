@@ -181,6 +181,7 @@ class Cursor(object):
                 return func(self, *args, **kwargs)
             except KeyboardInterrupt:
                 self.connection.cancel()
+                self.flush_to_query_ready() # ignore errors.QueryCanceled
         return wrap
 
     #############################################
@@ -244,6 +245,7 @@ class Cursor(object):
 
         return self
 
+    @handle_ctrl_c
     def executemany(self, operation, seq_of_parameters, use_prepared_statements=None):
         # type: (str, Sequence[Union[List[Any], Tuple[Any], Dict[str, Any]]], Optional[bool]) -> None
 

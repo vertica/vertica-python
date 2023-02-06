@@ -182,6 +182,7 @@ class Cursor(object):
             except KeyboardInterrupt:
                 self.connection.cancel()
                 self.flush_to_query_ready() # ignore errors.QueryCanceled
+                raise
         return wrap
 
     #############################################

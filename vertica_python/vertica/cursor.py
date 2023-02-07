@@ -170,6 +170,22 @@ class Cursor(object):
         self.close()
 
     #############################################
+    # decorators
+    #############################################
+    def handle_ctrl_c(func):
+        """
+        On Ctrl-C, try to cancel the query in the server
+        """
+        def wrap(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except KeyboardInterrupt:
+                self.connection.cancel()
+                self.flush_to_query_ready() # ignore errors.QueryCanceled
+                raise
+        return wrap
+
+    #############################################
     # dbapi methods
     #############################################
     # noinspection PyMethodMayBeStatic
@@ -182,6 +198,7 @@ class Cursor(object):
             self._close_prepared_statement()
         self._closed = True
 
+    @handle_ctrl_c
     def execute(self, operation, parameters=None, use_prepared_statements=None,
                 copy_stdin=None, buffer_size=DEFAULT_BUFFER_SIZE):
         # type: (str, Optional[Union[List[Any], Tuple[Any], Dict[str, Any]]], Optional[bool], Optional[Union[IO[AnyStr], List[IO[AnyStr]]]], int) -> Self
@@ -229,6 +246,7 @@ class Cursor(object):
 
         return self
 
+    @handle_ctrl_c
     def executemany(self, operation, seq_of_parameters, use_prepared_statements=None):
         # type: (str, Sequence[Union[List[Any], Tuple[Any], Dict[str, Any]]], Optional[bool]) -> None
 
@@ -914,3 +932,4 @@ class Cursor(object):
         self.connection.write(messages.Flush())
         self._message = self.connection.read_expected_message(messages.CloseComplete)
         self.connection.write(messages.Sync())
+

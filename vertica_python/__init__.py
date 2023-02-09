@@ -47,7 +47,7 @@ from .errors import (
 
 # Main module for this library.
 __author__ = 'Vertica'
-__copyright__ = 'Copyright (c) 2018-2022 Micro Focus or one of its affiliates.'
+__copyright__ = 'Copyright (c) 2018-2023 Micro Focus or one of its affiliates.'
 __license__ = 'Apache 2.0'
 
 __all__ = ['Connection', 'PROTOCOL_VERSION', 'version_info', 'apilevel', 'threadsafety',
@@ -56,7 +56,7 @@ __all__ = ['Connection', 'PROTOCOL_VERSION', 'version_info', 'apilevel', 'thread
            'OperationalError', 'ProgrammingError']
 
 # The version number of this library.
-version_info = (1, 2, 0)
+version_info = (1, 3, 0)
 __version__ = '.'.join(map(str, version_info))
 
 # The protocol version (3.12) implemented in this library.

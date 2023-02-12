@@ -42,6 +42,7 @@ import socket
 import ssl
 import getpass
 import uuid
+import warnings
 from struct import unpack
 from collections import deque, namedtuple
 import random
@@ -518,7 +519,9 @@ class Connection(object):
             raw_socket = self.establish_socket_connection(self.address_list)
         else:
             self._logger.debug('<= LoadBalanceResponse: %s', response)
-            self._logger.warning("Load balancing requested but not supported by server")
+            no_load_balancing = "Load balancing requested but not supported by server"
+            warnings.warn(no_load_balancing)
+            self._logger.warning(no_load_balancing)
 
         return raw_socket
 
@@ -646,6 +649,8 @@ class Connection(object):
             if getattr(self, 'notice_handler', None) is not None:
                 self.notice_handler(message)
             else:
+                notice = f'[{message.severity}] {message.message}'
+                warnings.warn(notice)
                 self._logger.warning(message.error_message())
 
     def read_string(self):
@@ -833,8 +838,9 @@ class Connection(object):
                     self._logger.error(msg)
                     raise errors.ConnectionError(msg)
                 elif message.code == messages.Authentication.PASSWORD_GRACE:
-                    self._logger.warning('The password for user {} will expire soon.'
-                        ' Please consider changing it.'.format(self.options['user']))
+                    password_grace = f'The password for user {self.options["user"]} will expire soon. Please consider changing it.'
+                    warnings.warn(password_grace)
+                    self._logger.warning(password_grace)
                 elif message.code == messages.Authentication.GSS:
                     self.make_GSS_authentication()
                 else:

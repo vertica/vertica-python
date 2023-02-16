@@ -227,9 +227,17 @@ class Cursor(object):
         use_prepared = bool(self.connection.options['use_prepared_statements']
                 if use_prepared_statements is None else use_prepared_statements)
         if use_prepared:
+            #################################################################
             # Execute the SQL as prepared statement (server-side bindings)
-            if parameters and not isinstance(parameters, (list, tuple)):
-                raise TypeError("Execute parameters should be a list/tuple")
+            #################################################################
+            if parameters is not None:
+                if not isinstance(parameters, (list, tuple)):
+                    raise TypeError("Execute parameters should be a list/tuple")
+                elif parameters and '?' not in operation:
+                    raise ValueError(f'Invalid SQL: {operation}'
+                        '\nHINT: When use_prepared_statements=True, variables in SQL should be specified with '
+                        'question mark (?) placeholders. Positional format (%s) placeholders have to be used '
+                        'with use_prepared_statements=False setting.')
 
             # If the SQL has not been prepared, prepare the SQL
             if operation != self.prepared_sql:
@@ -239,7 +247,9 @@ class Cursor(object):
             # Bind the parameters and execute
             self._execute_prepared_statement([parameters])
         else:
+            #################################################################
             # Execute the SQL directly (client-side bindings)
+            #################################################################
             if parameters:
                 operation = self.format_operation_with_parameters(operation, parameters)
             self._execute_simple_query(operation)
@@ -265,7 +275,9 @@ class Cursor(object):
                 if use_prepared_statements is None else use_prepared_statements)
 
         if use_prepared:
+            #################################################################
             # Execute the SQL as prepared statement (server-side bindings)
+            #################################################################
             if len(seq_of_parameters) == 0:
                 raise ValueError("seq_of_parameters should not be empty")
             if not all(isinstance(elem, (list, tuple)) for elem in seq_of_parameters):
@@ -278,6 +290,9 @@ class Cursor(object):
             # Bind the parameters and execute
             self._execute_prepared_statement(seq_of_parameters)
         else:
+            #################################################################
+            # Rewrite the INSERT SQL into a COPY statement
+            #################################################################
             m = self._insert_statement.match(operation)
             if m:
                 target = as_text(m.group('target'))
@@ -610,9 +625,10 @@ class Cursor(object):
 
     # noinspection PyArgumentList
     def format_operation_with_parameters(self, operation, parameters, is_copy_data=False):
-        operation = as_text(operation)
-
         if isinstance(parameters, dict):
+            if parameters and ':' not in operation:
+                raise ValueError(f'Invalid SQL: {operation}'
+                    "\nHINT: When argument 'parameters' is a dict, variables in SQL should be specified with named (:name) placeholders.")
             for key, param in parameters.items():
                 if not isinstance(key, str):
                     key = str(key)
@@ -626,6 +642,11 @@ class Cursor(object):
                 operation = re.sub(match_str, lambda _: value, operation, flags=re.U)
 
         elif isinstance(parameters, (tuple, list)):
+            if parameters and '%s' not in operation:
+                raise ValueError(f'Invalid SQL: {operation}'
+                    "\nHINT: When argument 'parameters' is a tuple/list, "
+                    'variables in SQL should be specified with positional format (%s) placeholders. '
+                    'Question mark (?) placeholders have to be used with use_prepared_statements=True setting.')
             tlist = []
             for param in parameters:
                 value = self.object_to_string(param, is_copy_data)

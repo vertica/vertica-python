@@ -697,9 +697,9 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("CREATE TABLE {0} (a INT, b VARCHAR)".format(self._table))
-            err_msg = 'not all arguments converted during string formatting'
+            err_msg = 'Invalid SQL'
             values = [1, 'aa']
-            with pytest.raises(TypeError, match=err_msg):
+            with pytest.raises(ValueError, match=err_msg):
                 cur.execute("INSERT INTO {} VALUES (?, ?)".format(self._table), values)
 
             cur.execute("INSERT INTO {} VALUES (?, ?)".format(self._table),
@@ -1189,9 +1189,9 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("CREATE TABLE {} (a int, b varchar)".format(self._table))
-            err_msg = 'Syntax error at or near "%"'
+            err_msg = 'Invalid SQL'
             values = [1, 'varchar']
-            with pytest.raises(errors.VerticaSyntaxError, match=err_msg):
+            with pytest.raises(ValueError, match=err_msg):
                 cur.execute("INSERT INTO {} VALUES (%s, %s)".format(self._table), values)
 
             cur.execute("INSERT INTO {} VALUES (%s, %s)".format(self._table),

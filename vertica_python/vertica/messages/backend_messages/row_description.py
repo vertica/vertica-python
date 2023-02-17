@@ -149,7 +149,8 @@ class RowDescription(BackendMessage):
         return self.fields
 
     def __str__(self):
-        return "RowDescription: {}".format(self.fields)
+        s = ",\n".join([c.debug_info() for c in self.fields])
+        return f"RowDescription: [\n{s}]"
 
 
 BackendMessage.register(RowDescription)

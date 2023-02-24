@@ -44,6 +44,7 @@ import sys
 import traceback
 from decimal import Decimal
 from io import IOBase, BytesIO, StringIO
+from math import isnan
 from tempfile import NamedTemporaryFile, SpooledTemporaryFile, TemporaryFile
 from uuid import UUID
 from collections import OrderedDict
@@ -604,13 +605,39 @@ class Cursor(object):
             return str(py_obj)
         elif isinstance(py_obj, (str, bytes)):
             return self.format_quote(as_text(py_obj), is_copy_data)
-        elif isinstance(py_obj, (int, float, Decimal)):
+        elif isinstance(py_obj, (int, Decimal)):
+            return str(py_obj)
+        elif isinstance(py_obj, float):
+            if py_obj in (float('Inf'), float('-Inf')) or isnan(py_obj):
+                return f"'{str(py_obj)}'::FLOAT"
             return str(py_obj)
         elif isinstance(py_obj, tuple):  # tuple and namedtuple
             elements = [None] * len(py_obj)
             for i in range(len(py_obj)):
                 elements[i] = self.object_to_string(py_obj[i], is_copy_data)
             return "(" + ",".join(elements) + ")"
+        elif isinstance(py_obj, list) and not is_copy_data:
+            elements = [None] * len(py_obj)
+            for i in range(len(py_obj)):
+                elements[i] = self.object_to_string(py_obj[i], False)
+            # Use the ARRAY keyword to construct an array value
+            return f'ARRAY[{",".join(elements)}]'
+        elif isinstance(py_obj, set) and not is_copy_data:
+            elements = [None] * len(py_obj)
+            i = 0
+            for o in py_obj:
+                elements[i] = self.object_to_string(o, False)
+                i += 1
+            # Use the SET keyword to construct a set value
+            return f'SET[{",".join(elements)}]'
+        elif isinstance(py_obj, dict) and not is_copy_data:
+            elements = [None] * len(py_obj)
+            i = 0
+            for k, v in py_obj.items():
+                elements[i] = self.object_to_string(v, False) + f' AS "{k}"'
+                i += 1
+            # Use the ROW keyword to construct a row value
+            return f'ROW({",".join(elements)})'
         elif isinstance(py_obj, (datetime.datetime, datetime.date, datetime.time, UUID)):
             return self.format_quote(as_text(str(py_obj)), is_copy_data)
         else:
@@ -628,7 +655,8 @@ class Cursor(object):
         if isinstance(parameters, dict):
             if parameters and ':' not in operation:
                 raise ValueError(f'Invalid SQL: {operation}'
-                    "\nHINT: When argument 'parameters' is a dict, variables in SQL should be specified with named (:name) placeholders.")
+                    "\nHINT: When argument 'parameters' is a dict, variables in SQL should be specified with named (:name) placeholders."
+                    " If you use a dict to represent the value of a ROW type column, enclose the dict with brackets('[]') to construct a list.")
             for key, param in parameters.items():
                 if not isinstance(key, str):
                     key = str(key)
@@ -651,7 +679,6 @@ class Cursor(object):
             for param in parameters:
                 value = self.object_to_string(param, is_copy_data)
                 tlist.append(value)
-
             operation = operation % tuple(tlist)
         else:
             raise TypeError("Argument 'parameters' must be dict or tuple/list")

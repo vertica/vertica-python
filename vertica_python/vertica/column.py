@@ -83,6 +83,18 @@ class Column(object):
             self.child_columns = []
         self.child_columns.append(col)
 
+    def debug_info(self):
+        childs = ""
+        if self.child_columns:
+            c = ", ".join([col.debug_info() for col in self.child_columns])
+            childs = f", child_columns=[{c}]"
+        return (f"Column(name={self.name}, data_type_oid={self.type_code}, data_type_name={self.type_name}, "
+                f"schema_name={self.schema_name}, table_name={self.table_name}, table_oid={self.table_oid}, "
+                f"attribute_number={self.attribute_number}, precision={self.precision}, scale={self.scale}, "
+                f"null_ok={self.null_ok}, is_identity={self.is_identity}, format_code={self.format_code}, "
+                f"internal_size={self.internal_size}, display_size={self.display_size}{childs}"
+                ")")
+
     def __str__(self):
         return as_str(str(self.props))
 

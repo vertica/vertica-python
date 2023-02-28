@@ -39,6 +39,7 @@ from datetime import date, datetime, time
 from dateutil.relativedelta import relativedelta
 from dateutil.tz import tzoffset
 from decimal import Decimal
+from math import isnan
 from uuid import UUID
 
 from .base import VerticaPythonIntegrationTestCase
@@ -73,8 +74,212 @@ class TypeTestCase(VerticaPythonIntegrationTestCase):
 
 exec(TypeTestCase.createPrepStmtClass())
 
+class InsertComplexTypeTestCase(VerticaPythonIntegrationTestCase):
+    """
+    Python objects (list, set, dict) convert to SQL literal (ARRAY, SET, ROW)
+    Only for client-side bindings (use_prepared_statements=False)
+    """
+    def setUp(self):
+        super(InsertComplexTypeTestCase, self).setUp()
+        self.require_protocol_at_least(3 << 16 | 12)
+        self._table = 'insert_complex_types_test'
+
+    def tearDown(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(f"DROP TABLE IF EXISTS {self._table}")
+        super(InsertComplexTypeTestCase, self).tearDown()
+
+    def _test_insert_complex_type(self, col_type, values, expected=None):
+        if expected is None:
+            expected = values
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(f"DROP TABLE IF EXISTS {self._table}")
+            cur.execute(f"CREATE TABLE {self._table} (a INT, b {col_type})")
+            a = 1
+            for value in values:
+                # Some cases need explicit typecasting
+                cur.execute(f"INSERT INTO {self._table} (a, b) VALUES (%s, %s::{col_type})", [a, value], use_prepared_statements=False)
+                a += 1
+            rows = cur.execute(f"SELECT b FROM {self._table} ORDER BY a").fetchall()
+            results = [row[0] for row in rows]
+            self.assertEqual(results, expected)
+
+    #######################
+    # tests for ARRAY type
+    #######################
+    def test_Array_boolean_type(self):
+        self._test_insert_complex_type('ARRAY[BOOL]', [[True, False, None], None, [], [None]])
+
+    def test_Array_integer_type(self):
+        self._test_insert_complex_type('ARRAY[INT]', [[1,-2,3], [4,None,5], None, [], [None]])
+        self._test_insert_complex_type('ARRAY[ARRAY[INT]]', [[[1,2], [3,4], None, [5,None], []],
+            None, [], [None]])
+        self._test_insert_complex_type('ARRAY[ARRAY[ARRAY[ARRAY[INT]]]]', [[[[None,[1,2,3],None,[1,None,3],[None,None,None],[4,5],[],None]]],
+            None, [], [None]])
+
+    def test_Array_float_type(self):
+        self._test_insert_complex_type('ARRAY[FLOAT]', [[1.23456e-18,float('Inf'),float('-Inf'),None,-1.234,0.0], None, [], [None]])
+
+    def test_Array_numeric_type(self):
+        self._test_insert_complex_type('ARRAY[NUMERIC]', [[Decimal('-1.1200000000'), Decimal('0E-10'), None, Decimal('1234567890123456789.0123456789')],
+            None, [], [None]])
+
+    def test_Array_char_type(self):
+        self._test_insert_complex_type('ARRAY[CHAR(3)]', [['a', u'\u16b1', None, 'foo'], None, [], [None]], [['a  ', u'\u16b1', None, 'foo'], None, [], [None]])
+
+    def test_Array_varchar_type(self):
+        self._test_insert_complex_type('ARRAY[VARCHAR(10)]', [['', u'\u16b1\nb', None, 'foo'], None, [], [None]])
+
+    def test_Array_date_type(self):
+        self._test_insert_complex_type('ARRAY[DATE]', [[date(2021, 6, 10),None,date(221, 5, 2)], None, [], [None]])
+
+    def test_Array_time_type(self):
+        self._test_insert_complex_type('ARRAY[TIME(3)]', [[time(0, 0, 0),None,time(22, 36, 33, 124000)], None, [], [None]])
+
+    def test_Array_timetz_type(self):
+        self._test_insert_complex_type('ARRAY[TIMETZ(3)]', [[time(22, 36, 33, 123000, tzinfo=tzoffset(None, 23400)),None,
+            time(22, 36, 33, 123000, tzinfo=tzoffset(None, -10800))], None, [], [None]])
+
+    def test_Array_timestamp_type(self):
+        self._test_insert_complex_type('ARRAY[TIMESTAMP]', [[datetime(276, 12, 1, 11, 22, 33),None,datetime(2001, 12, 1, 0, 30, 45, 87000)], None, [], [None]])
+
+    def test_Array_timestamptz_type(self):
+        self._test_insert_complex_type('ARRAY[TIMESTAMPTZ]', [[datetime(276, 11, 30, 23, 32, 57, tzinfo=tzoffset(None, 3600)),None,datetime(2001, 12, 1, 0, 30, 45, 87000, tzinfo=tzoffset(None, -18000))], None, [], [None]])
+
+    def test_Array_UUID_type(self):
+        self._test_insert_complex_type('ARRAY[UUID]', [[UUID('00010203-0405-0607-0809-0a0b0c0d0e0f'),None,UUID('123e4567-e89b-12d3-a456-426655440a00')], None, [], [None]])
+
+    #####################
+    # tests for SET type
+    #####################
+    def test_1DSet_boolean_type(self):
+        self._test_insert_complex_type('SET[BOOL]', [{True, False, None}, None, set(), {None}])
+
+    def test_1DSet_integer_type(self):
+        self._test_insert_complex_type('SET[INT]', [{0, 1, -2, 3, None}, None, set(), {None}])
+
+    def test_1DSet_float_type(self):
+        self._test_insert_complex_type('SET[FLOAT]', [{float('Inf'), float('-Inf'), None, -1.234, 0.0, 1.23456e-18}, None, set(), {None}])
+
+    def test_1DSet_numeric_type(self):
+        self._test_insert_complex_type('SET[NUMERIC]', [{Decimal('-1.12'), Decimal('0E-15'), None, Decimal('1234567890123456789.0123456789')},
+            None, set(), {None}])
+
+    def test_1DSet_char_type(self):
+        self._test_insert_complex_type('SET[CHAR(3)]', [{'a  ', u'\u16b1', None, 'foo'}, None, set(), {None}])
+
+    def test_1DSet_varchar_type(self):
+        self._test_insert_complex_type('SET[VARCHAR(10)]', [{'', u'\u16b1\nb', None, 'foo'}, None, set(), {None}])
+
+    def test_1DSet_date_type(self):
+        self._test_insert_complex_type('SET[DATE]', [{date(2021, 6, 10), None, date(221, 5, 2)}, None, set(), {None}])
+
+    def test_1DSet_time_type(self):
+        self._test_insert_complex_type('SET[TIME(3)]', [{time(0, 0, 0), None, time(22, 36, 33, 124000)}, None, set(), {None}])
+
+    def test_1DSet_timetz_type(self):
+        self._test_insert_complex_type('SET[TIMETZ(3)]', [{time(22, 36, 33, 123000, tzinfo=tzoffset(None, 23400)),None,
+            time(22, 36, 33, 123000, tzinfo=tzoffset(None, -10800))}, None, set(), {None}])
+
+    def test_1DSet_timestamp_type(self):
+        self._test_insert_complex_type('SET[TIMESTAMP]', [{datetime(276, 12, 1, 11, 22, 33),None,datetime(2001, 12, 1, 0, 30, 45, 87000)}, None, set(), {None}])
+
+    def test_1DSet_timestamptz_type(self):
+        self._test_insert_complex_type('SET[TIMESTAMPTZ]', [{datetime(276, 11, 30, 23, 32, 57, tzinfo=tzoffset(None, 3600)),None,
+            datetime(2001, 12, 1, 0, 30, 45, 87000, tzinfo=tzoffset(None, -18000))}, None, set(), {None}])
+
+    def test_1DSet_UUID_type(self):
+        self._test_insert_complex_type('SET[UUID]', [{UUID('00010203-0405-0607-0809-0a0b0c0d0e0f'),None,UUID('123e4567-e89b-12d3-a456-426655440a00')}, None, set(), {None}])
+
+    #####################
+    # tests for ROW type
+    #####################
+    def test_row_boolean_type(self):
+        self._test_insert_complex_type('ROW(BOOL, ARRAY[BOOL], ROW(BOOL, ARRAY[BOOL]))', [
+                {'f0': True, 'f1': [None, False], 'f2': {'f0': False, 'f1': [True, None]}},
+                {'f0': None, 'f1': [None], 'f2': {'f0': None, 'f1': []}},
+            ])
+
+    def test_row_integer_type(self):
+        self._test_insert_complex_type('ROW(INT, ARRAY[INT], ROW(INT, ARRAY[INT]))', [
+                {'f0': -10, 'f1': [None, 1, 2], 'f2': {'f0': 90, 'f1': [0, None]}},
+                {'f0': None, 'f1': [None], 'f2': {'f0': None, 'f1': []}},
+                {'f0': 5, 'f1': [], 'f2': None},
+            ])
+
+    def test_row_float_type(self):
+        self._test_insert_complex_type('ROW(FLOAT, ARRAY[FLOAT], ROW(FLOAT, ARRAY[FLOAT]))', [
+                {'f0': 0.0, 'f1': [None, 1.23456e-18], 'f2': {'f0': float('-Inf'), 'f1': [-1.2, None]}},
+                {'f0': None, 'f1': [None], 'f2': {'f0': None, 'f1': []}},
+            ])
+
+    def test_row_numeric_type(self):
+        self._test_insert_complex_type('ROW(NUMERIC, ARRAY[NUMERIC], ROW(NUMERIC, ARRAY[NUMERIC]))', [
+                {'f0': Decimal('-1.12'), 'f1': [None, Decimal('0E-15')], 'f2': {'f0': Decimal('1234567890123456789.0123456789'), 'f1': [Decimal(10), None]}},
+                {'f0': None, 'f1': [None], 'f2': {'f0': None, 'f1': []}},
+            ])
+
+    def test_row_char_type(self):
+        self._test_insert_complex_type('ROW(CHAR(3), ARRAY[CHAR(3)], ROW(CHAR(3), ARRAY[CHAR(3)]))', [
+                {'f0': 'a  ', 'f1': [None, 'foo'], 'f2': {'f0': '\u16b1', 'f1': [' b ', None]}},
+                {'f0': None, 'f1': [None], 'f2': {'f0': None, 'f1': []}},
+            ])
+
+    def test_row_varchar_type(self):
+        self._test_insert_complex_type('ROW(VARCHAR, ARRAY[VARCHAR], ROW(VARCHAR, ARRAY[VARCHAR]))', [
+                {'f0': 'a', 'f1': [None, 'foo'], 'f2': {'f0': '\u16b1\nb', 'f1': ['', None]}},
+                {'f0': None, 'f1': [None], 'f2': {'f0': None, 'f1': []}},
+            ])
+
+    def test_row_date_type(self):
+        self._test_insert_complex_type('ROW(DATE, ARRAY[DATE], ROW(DATE, ARRAY[DATE]))', [
+                {'f0': date(2021, 6, 10), 'f1': [None, date(2021, 6, 11)], 'f2': {'f0': date(221, 5, 2), 'f1': [date(2023, 1, 1), None]}},
+                {'f0': None, 'f1': [None], 'f2': {'f0': None, 'f1': []}},
+            ])
+
+    def test_row_time_type(self):
+        self._test_insert_complex_type('ROW(TIME(3), ARRAY[TIME(3)], ROW(TIME(3), ARRAY[TIME(3)]))', [
+                {'f0': time(0, 0, 0), 'f1': [None, time(8, 30, 10)], 'f2': {'f0': time(22, 36, 33, 124000), 'f1': [time(0, 0, 0, 500000), None]}},
+                {'f0': None, 'f1': [None], 'f2': {'f0': None, 'f1': []}},
+            ])
+
+    def test_row_timetz_type(self):
+        self._test_insert_complex_type('ROW(TIMETZ(3), ARRAY[TIMETZ], ROW(TIMETZ, ARRAY[TIMETZ(3)]))', [
+                {'f0': time(22, 36, 33, 123000, tzinfo=tzoffset(None, 23400)), 'f1': [None, time(8, 30, 10, tzinfo=tzoffset(None, -23400))],
+                 'f2': {'f0': time(22, 36, 33, 123000, tzinfo=tzoffset(None, -10800)), 'f1': [time(0, 0, tzinfo=tzoffset(None, 10800)), None]}},
+                {'f0': None, 'f1': [None], 'f2': {'f0': None, 'f1': []}},
+            ])
+
+    def test_row_timestamp_type(self):
+        self._test_insert_complex_type('ROW(TIMESTAMP, ARRAY[TIMESTAMP], ROW(TIMESTAMP, ARRAY[TIMESTAMP]))', [
+                {'f0': datetime(276, 12, 1, 11, 22, 33), 'f1': [None, datetime(2001, 12, 1, 0, 30, 45, 87000)],
+                 'f2': {'f0': datetime(2023, 12, 1, 11, 30, 45, 87000), 'f1': [datetime(1998, 12, 1, 11, 22, 33), None]}},
+                {'f0': None, 'f1': [None], 'f2': {'f0': None, 'f1': []}},
+            ])
+
+    def test_row_timestamptz_type(self):
+        self._test_insert_complex_type('ROW(TIMESTAMPTZ, ARRAY[TIMESTAMPTZ], ROW(TIMESTAMPTZ, ARRAY[TIMESTAMPTZ]))', [
+                {'f0': datetime(276, 11, 30, 23, 32, 57, tzinfo=tzoffset(None, 23400)),
+                 'f1': [None, datetime(2001, 12, 1, 0, 30, 45, 87000, tzinfo=tzoffset(None, -18000))],
+                 'f2': {'f0':  datetime(2011, 12, 1, 0, 30, 45, 57000, tzinfo=tzoffset(None, 18000)),
+                        'f1': [datetime(2023, 12, 1, 11, 30, 45, tzinfo=tzoffset(None, -23400)), None]}},
+                {'f0': None, 'f1': [None], 'f2': {'f0': None, 'f1': []}},
+            ])
+
+    def test_row_UUID_type(self):
+        self._test_insert_complex_type('ROW(UUID, ARRAY[UUID], ROW(UUID, ARRAY[UUID]))', [
+                {'f0': UUID('00010203-0405-0607-0809-0a0b0c0d0e0f'), 'f1': [None, UUID('123e4567-e89b-12d3-a456-426655440a00')],
+                 'f2': {'f0': UUID('123e4567-e89b-12d3-a456-426655440a00'), 'f1': [UUID('00010203-0405-0607-0809-0a0b0c0d0e0f'), None]}},
+                {'f0': None, 'f1': [None], 'f2': {'f0': None, 'f1': []}},
+            ])
+
 
 class ComplexTypeTestCase(VerticaPythonIntegrationTestCase):
+    """
+    SQL data types (ARRAY, SET, ROW) convert to Python objects (list, set, dict)
+    """
     def setUp(self):
         super(ComplexTypeTestCase, self).setUp()
         self.require_protocol_at_least(3 << 16 | 12)
@@ -108,11 +313,12 @@ class ComplexTypeTestCase(VerticaPythonIntegrationTestCase):
 
     def test_1DArray_float_type(self):
         query = ("SELECT ARRAY['Infinity'::float, '-Infinity'::float, null, -1.234, 0, 1.23456e-18]::ARRAY[FLOAT],"
-                 " ARRAY[]::ARRAY[FLOAT], null::ARRAY[FLOAT]")
+                 " ARRAY[]::ARRAY[FLOAT], null::ARRAY[FLOAT], ARRAY['NaN'::float]::ARRAY[FLOAT]")
         res = self._query_and_fetchone(query)
         self.assertEqual(res[0], [float('Inf'), float('-Inf'), None, -1.234, 0.0, 1.23456e-18])
         self.assertEqual(res[1], [])
         self.assertEqual(res[2], None)
+        self.assertTrue(isnan(res[3][0]))
 
     def test_1DArray_numeric_type(self):
         query = "SELECT ARRAY[-1.12, 0, null, 1234567890123456789.0123456789]::ARRAY[NUMERIC], ARRAY[]::ARRAY[DECIMAL], null::ARRAY[NUMERIC]"

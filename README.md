@@ -529,27 +529,27 @@ Note: In other drivers, the batch insert is converted into a COPY statement by u
 
 #### Client-side binding: Query using named parameters or format parameters
 
-vertica-python can automatically convert Python objects to SQL literals, merge the query and the parameters on the client side, and then send the query to the server: using this feature your code will be more robust and reliable to prevent SQL injection attacks.
+vertica-python can automatically convert Python objects to SQL literals, merge the query and the parameters on the client side, and then send the query to the server: using this feature your code will be more robust and reliable to prevent SQL injection attacks. You need to set ```use_prepared_statements``` option to __False__ (at connection level or in cursor.execute*()) to use client-side binding.
 
 Variables can be specified with named (__:name__) placeholders.
 ```python
 cur = connection.cursor()
 data = {'propA': 1, 'propB': 'stringValue'}
-cur.execute("SELECT * FROM a_table WHERE a = :propA AND b = :propB", data)
-# converted into a SQL command similar to: "SELECT * FROM a_table WHERE a = 1 AND b = 'stringValue'"
+cur.execute("SELECT * FROM a_table WHERE a = :propA AND b = :propB", data, use_prepared_statements=False)
+# converted into a SQL command similar to: SELECT * FROM a_table WHERE a = 1 AND b = 'stringValue'
 
 cur.fetchall()
 # [ [1, 'stringValue'] ]
 ```
 
-Variables can also be specified with positional format (__%s__) placeholders. The placeholder __must always be a %s__, even if a different placeholder (such as a %d for integers or %f for floats) may look more appropriate. __Never__ use Python string concatenation (+) or string parameters interpolation (%) to pass variables to a SQL query string.
+Variables can also be specified with positional format (__%s__) placeholders. The placeholder __must always be a %s__, even if a different placeholder (such as a `%d` for integers or `%f` for floats) may look more appropriate. __Never__ use Python string concatenation (+) or string parameters interpolation (%) to pass variables to a SQL query string.
 ```python
 cur = connection.cursor()
 data = (1, "O'Reilly")
 cur.execute("SELECT * FROM a_table WHERE a = %s AND b = %s" % data) # WRONG: % operator
 cur.execute("SELECT * FROM a_table WHERE a = %d AND b = %s", data)  # WRONG: %d placeholder
 cur.execute("SELECT * FROM a_table WHERE a = %s AND b = %s", data)  # correct
-# converted into a SQL command similar to: "SELECT * FROM a_table WHERE a = 1 AND b = 'O''Reilly'"
+# converted into a SQL command: SELECT * FROM a_table WHERE a = 1 AND b = 'O''Reilly'
 
 cur.fetchall()
 # [ [1, "O'Reilly"] ]
@@ -563,7 +563,23 @@ The placeholder must not be quoted. _vertica-python_ will add quotes where neede
 >>> cur.execute("INSERT INTO table VALUES (%s)", ("someString",))   # correct
 ```
 
-_vertica-python_ supports default mapping for many standard Python types. It is possible to adapt new Python types to SQL literals via `Cursor.register_sql_literal_adapter(py_class_or_type, adapter_function)` function. Example:
+In order to merge the query (with placeholders) and the parameters on the client side, parameter values (python object) are converted to SQL literals (str). _vertica-python_ supports default mapping to SQL literals for many standard Python types (str, bytes, bool, int, float, decimal.Decimal, tuple, list, set, dict, datetime.datetime, datetime.date, datetime.time, uuid.UUID). For complex types, in some cases, you may need explicit typecasting for the placeholder (e.g. `%s::ARRAY[ARRAY[INT]]`, `%s::ROW(varchar,int,date)`):
+
+```python
+from datetime import date
+cur.execute("CREATE TABLE table (a INT, b ARRAY[DATE])")
+value = [date(2021, 6, 10), date(2021, 6, 12), date(2021, 6, 30)]
+
+cur.execute("INSERT INTO table VALUES (%s, %s)", [100, value], use_prepared_statements=False)  # WRONG
+# Error Message: Column "b" is of type array[date] but expression is of type array[varchar], Sqlstate: 42804, 
+# Hint: You will need to rewrite or cast the expression
+
+cur.execute("INSERT INTO table VALUES (%s, %s::ARRAY[DATE])", [100, value], use_prepared_statements=False)  # correct
+# converted into a SQL command: INSERT INTO vptest VALUES (100, ARRAY['2021-06-10','2021-06-12','2021-06-30']::ARRAY[DATE])
+```
+
+##### Register new SQL literal adapters
+It is possible to adapt new Python types to SQL literals via `Cursor.register_sql_literal_adapter(py_class_or_type, adapter_function)` function. Example:
 ```python
 class Point(object):
     def __init__(self, x, y):

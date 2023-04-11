@@ -59,8 +59,8 @@ __all__ = ['Connection', 'PROTOCOL_VERSION', 'version_info', 'apilevel', 'thread
 version_info = (1, 3, 1)
 __version__ = '.'.join(map(str, version_info))
 
-# The protocol version (3.12) implemented in this library.
-PROTOCOL_VERSION = 3 << 16 | 12
+# The protocol version (3.13) implemented in this library.
+PROTOCOL_VERSION = 3 << 16 | 13
 
 apilevel = 2.0
 threadsafety = 1  # Threads may share the module, but not connections!

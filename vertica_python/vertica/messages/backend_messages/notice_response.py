@@ -99,7 +99,7 @@ class NoticeResponse(_NoticeResponseAttrMixin, BackendMessage):
             unpacked = unpack_from('c{0}sx'.format(null_byte - 1 - pos), data, pos)
             key = unpacked[0]
             value = unpacked[1]
-            data_mapping[key] = value.decode('utf-8', 'replace')
+            data_mapping[key] = value.decode('utf-8', 'backslashreplace')
 
             pos += (len(value) + 2)
 

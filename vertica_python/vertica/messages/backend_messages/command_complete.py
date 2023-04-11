@@ -55,7 +55,11 @@ class CommandComplete(BackendMessage):
     def __init__(self, data):
         BackendMessage.__init__(self)
         data = unpack('{0}sx'.format(len(data) - 1), data)[0]
-        self.command_tag = data.decode('utf-8')
+        try:
+            self.command_tag = data.decode('utf-8')
+        except UnicodeDecodeError as e:
+            # (workaround for #493) something wrong in the server, hide the problem for now
+            self.command_tag = data.decode('utf-8', 'backslashreplace')
 
     def __str__(self):
         return 'CommandComplete: command_tag = "{}"'.format(self.command_tag)

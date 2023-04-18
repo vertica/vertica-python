@@ -77,7 +77,7 @@ try:
     DEFAULT_USER = getpass.getuser()
 except Exception as e:
     DEFAULT_USER = None
-    print("WARN: Cannot get the login user name: {}".format(str(e)))
+    warnings.warn(f"Cannot get the login user name: {str(e)}")
 
 
 def connect(**kwargs):

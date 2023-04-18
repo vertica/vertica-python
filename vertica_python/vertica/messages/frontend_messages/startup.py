@@ -44,6 +44,8 @@ from __future__ import print_function, division, absolute_import
 
 import platform
 import os
+import socket
+import warnings
 from struct import pack
 
 # noinspection PyUnresolvedReferences,PyCompatibility
@@ -63,13 +65,19 @@ class Startup(BulkFrontendMessage):
             os_platform = platform.platform()
         except Exception as e:
             os_platform = ''
-            print("WARN: Cannot get the OS info: {}".format(str(e)))
+            warnings.warn(f"Cannot get the OS info: {str(e)}")
 
         try:
             pid = str(os.getpid())
         except Exception as e:
             pid = '0'
-            print("WARN: Cannot get the process ID: {}".format(str(e)))
+            warnings.warn(f"Cannot get the process ID: {str(e)}")
+
+        try:
+            os_hostname = socket.gethostname()
+        except Exception as e:
+            os_hostname = ''
+            warnings.warn(f"Cannot get the OS hostname: {str(e)}")
 
         request_complex_types = 'true' if request_complex_types else 'false'
 
@@ -81,6 +89,7 @@ class Startup(BulkFrontendMessage):
             b'client_version': vertica_python.__version__,
             b'client_os': os_platform,
             b'client_os_user_name': os_user_name,
+            b'client_os_hostname': os_hostname,
             b'client_pid': pid,
             b'autocommit': 'on' if autocommit else 'off',
             b'binary_data_protocol': '1' if binary_transfer else '0', # Defaults to text format '0'

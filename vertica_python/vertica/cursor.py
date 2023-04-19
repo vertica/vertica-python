@@ -39,6 +39,7 @@ from __future__ import print_function, division, absolute_import
 import datetime
 import glob
 import inspect
+import os
 import re
 import sys
 import traceback
@@ -653,7 +654,7 @@ class Cursor(object):
     # noinspection PyArgumentList
     def format_operation_with_parameters(self, operation, parameters, is_copy_data=False):
         if isinstance(parameters, dict):
-            if parameters and ':' not in operation:
+            if parameters and ':' not in operation and os.environ.get('VERTICA_PYTHON_IGNORE_NAMED_PARAMETER_CHECK') != '1':
                 raise ValueError(f'Invalid SQL: {operation}'
                     "\nHINT: When argument 'parameters' is a dict, variables in SQL should be specified with named (:name) placeholders."
                     " If you use a dict to represent the value of a ROW type column, enclose the dict with brackets('[]') to construct a list.")

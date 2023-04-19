@@ -43,6 +43,7 @@ string is the name of the command that was run.
 from __future__ import print_function, division, absolute_import
 
 import re
+import warnings
 
 from struct import unpack
 
@@ -57,9 +58,26 @@ class CommandComplete(BackendMessage):
         data = unpack('{0}sx'.format(len(data) - 1), data)[0]
         try:
             self.command_tag = data.decode('utf-8')
-        except UnicodeDecodeError as e:
+        except Exception as e:
             # (workaround for #493) something wrong in the server, hide the problem for now
-            self.command_tag = data.decode('utf-8', 'backslashreplace')
+            warnings.warn("Hit a known server bug\n"
+                    f"{'='*80}\n"
+                    "We'd like to gather client-side information to help with the bug investigation.\n"
+                    "Please leave a comment under https://github.com/vertica/vertica-python/issues/493"
+                    " with the following info:\n"
+                    f"{'-'*80}\n"
+                    f"command tag length: {len(data)}\n"
+                    f"command tag content: {data}\n"
+                    f"{type(e).__name__}: {str(e)}\n"
+                    "Server version: xxx\n"
+                    "Query executed (if possible): xxx\n"
+                    "The OS of each server node (if possible): xxx\n"
+                    "The locale of each server node (if possible): xxx\n"
+                    f"{'-'*80}\n"
+                    f"We appreciate your help!\n"
+                    f"{'='*80}\n"
+                    )
+            self.command_tag = 'x'
 
     def __str__(self):
         return 'CommandComplete: command_tag = "{}"'.format(self.command_tag)

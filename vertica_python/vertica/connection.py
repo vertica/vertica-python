@@ -323,6 +323,8 @@ class Connection(object):
         self.options.setdefault('request_complex_types', DEFAULT_REQUEST_COMPLEX_TYPES)
         self._logger.debug('Complex types metadata is {}'.format(
                      'requested' if self.options['request_complex_types'] else 'not requested'))
+        
+        self.options.setdefault('workload', DEFAULT_WORKLOAD)
 
         self._logger.info('Connecting as user "{}" to database "{}" on host "{}" with port {}'.format(
                      self.options['user'], self.options['database'],
@@ -333,7 +335,6 @@ class Connection(object):
         self.complex_types_enabled = self.parameters['protocol_version'] >= (3 << 16 | 12) and \
                                      self.parameters.get('request_complex_types', 'off') == 'on'
 
-        self.options.setdefault('workload', DEFAULT_WORKLOAD)
         self._logger.info('Connection is ready')
 
     #############################################

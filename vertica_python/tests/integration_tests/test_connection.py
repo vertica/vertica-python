@@ -111,8 +111,7 @@ class ConnectionTestCase(VerticaPythonIntegrationTestCase):
     
     def test_workload_default(self):
         with self._connect() as conn:
-            if not self.protocolAtLeast(3, 15):
-                return
+            self.require_protocol_at_least(3 << 16 | 15)
             query = "SHOW WORKLOAD"
             res = self._query_and_fetchone(query)
             self.assertEqual(res[0], '')
@@ -120,8 +119,7 @@ class ConnectionTestCase(VerticaPythonIntegrationTestCase):
     def test_workload_set_property(self):
         self._conn_info['workload'] = 'python_test_workload'
         with self._connect() as conn:
-            if not self.protocolAtLeast(3, 15):
-                return
+            self.require_protocol_at_least(3 << 16 | 15)
             # we use dc_client_server_messages to test that the client is working properly.
             # We do not regularly test on a multi subcluster database and the server will reject this
             # workload from the startup packet, returning a parameter status message with an empty string.

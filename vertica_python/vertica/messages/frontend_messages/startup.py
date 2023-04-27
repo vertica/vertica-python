@@ -58,7 +58,7 @@ class Startup(BulkFrontendMessage):
     message_id = None
 
     def __init__(self, user, database, session_label, os_user_name, autocommit,
-                 binary_transfer, request_complex_types):
+                 binary_transfer, request_complex_types, workload):
         BulkFrontendMessage.__init__(self)
 
         try:
@@ -95,6 +95,7 @@ class Startup(BulkFrontendMessage):
             b'binary_data_protocol': '1' if binary_transfer else '0', # Defaults to text format '0'
             b'protocol_features': '{"request_complex_types":' + request_complex_types + '}',
             b'protocol_compat': 'VER',
+            b'workload': workload,
         }
 
     def read_bytes(self):

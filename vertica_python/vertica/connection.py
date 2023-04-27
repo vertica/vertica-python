@@ -117,7 +117,7 @@ def parse_dsn(dsn):
             continue
         elif key in ('connection_load_balance', 'use_prepared_statements',
                      'disable_copy_local', 'ssl', 'autocommit',
-                     'binary_transfer', 'request_complex_types'):
+                     'binary_transfer', 'request_complex_types', 'workload'):
             lower = value.lower()
             if lower in ('true', 'on', '1'):
                 result[key] = True
@@ -332,6 +332,8 @@ class Connection(object):
         # Complex types metadata is returned since protocol version 3.12
         self.complex_types_enabled = self.parameters['protocol_version'] >= (3 << 16 | 12) and \
                                      self.parameters.get('request_complex_types', 'off') == 'on'
+
+        self.options.setdefault('workload', DEFAULT_WORKLOAD)
         self._logger.info('Connection is ready')
 
     #############################################
@@ -823,8 +825,10 @@ class Connection(object):
         autocommit = self.options['autocommit']
         binary_transfer = self.options['binary_transfer']
         request_complex_types = self.options['request_complex_types']
+        workload = self.options['workload']
 
-        self.write(messages.Startup(user, database, session_label, os_user_name, autocommit, binary_transfer, request_complex_types))
+        self.write(messages.Startup(user, database, session_label, os_user_name, autocommit, binary_transfer, 
+                                    request_complex_types, workload))
 
         while True:
             message = self.read_message()

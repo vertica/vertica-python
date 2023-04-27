@@ -73,6 +73,7 @@ DEFAULT_LOG_LEVEL = logging.WARNING
 DEFAULT_LOG_PATH = 'vertica_python.log'
 DEFAULT_BINARY_TRANSFER = False
 DEFAULT_REQUEST_COMPLEX_TYPES = True
+DEFAULT_WORKLOAD = ''
 try:
     DEFAULT_USER = getpass.getuser()
 except Exception as e:

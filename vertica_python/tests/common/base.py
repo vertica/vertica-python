@@ -153,6 +153,3 @@ class VerticaPythonTestCase(unittest.TestCase):
         self.assertEqual(len(list1), len(list2), msg=msg)
         for l1, l2 in zip(list1, list2):
             self.assertListEqual(l1, l2, msg=msg)
-
-
-

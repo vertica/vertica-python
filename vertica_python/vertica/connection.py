@@ -118,7 +118,7 @@ def parse_dsn(dsn):
             continue
         elif key in ('connection_load_balance', 'use_prepared_statements',
                      'disable_copy_local', 'ssl', 'autocommit',
-                     'binary_transfer', 'request_complex_types', 'workload'):
+                     'binary_transfer', 'request_complex_types'):
             lower = value.lower()
             if lower in ('true', 'on', '1'):
                 result[key] = True
@@ -292,6 +292,7 @@ class Connection(object):
         self.options.setdefault('autocommit', DEFAULT_AUTOCOMMIT)
         self.options.setdefault('session_label', _generate_session_label())
         self.options.setdefault('backup_server_node', DEFAULT_BACKUP_SERVER_NODE)
+        self.options.setdefault('workload', DEFAULT_WORKLOAD)
         self.options.setdefault('kerberos_service_name', DEFAULT_KRB_SERVICE_NAME)
         # Kerberos authentication hostname defaults to the host value here so
         # the correct value cannot be overwritten by load balancing or failover
@@ -324,8 +325,6 @@ class Connection(object):
         self.options.setdefault('request_complex_types', DEFAULT_REQUEST_COMPLEX_TYPES)
         self._logger.debug('Complex types metadata is {}'.format(
                      'requested' if self.options['request_complex_types'] else 'not requested'))
-        
-        self.options.setdefault('workload', DEFAULT_WORKLOAD)
 
         self._logger.info('Connecting as user "{}" to database "{}" on host "{}" with port {}'.format(
                      self.options['user'], self.options['database'],

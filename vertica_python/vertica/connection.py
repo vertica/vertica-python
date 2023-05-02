@@ -73,6 +73,7 @@ DEFAULT_LOG_LEVEL = logging.WARNING
 DEFAULT_LOG_PATH = 'vertica_python.log'
 DEFAULT_BINARY_TRANSFER = False
 DEFAULT_REQUEST_COMPLEX_TYPES = True
+DEFAULT_WORKLOAD = ''
 try:
     DEFAULT_USER = getpass.getuser()
 except Exception as e:
@@ -291,6 +292,7 @@ class Connection(object):
         self.options.setdefault('autocommit', DEFAULT_AUTOCOMMIT)
         self.options.setdefault('session_label', _generate_session_label())
         self.options.setdefault('backup_server_node', DEFAULT_BACKUP_SERVER_NODE)
+        self.options.setdefault('workload', DEFAULT_WORKLOAD)
         self.options.setdefault('kerberos_service_name', DEFAULT_KRB_SERVICE_NAME)
         # Kerberos authentication hostname defaults to the host value here so
         # the correct value cannot be overwritten by load balancing or failover
@@ -332,6 +334,7 @@ class Connection(object):
         # Complex types metadata is returned since protocol version 3.12
         self.complex_types_enabled = self.parameters['protocol_version'] >= (3 << 16 | 12) and \
                                      self.parameters.get('request_complex_types', 'off') == 'on'
+
         self._logger.info('Connection is ready')
 
     #############################################
@@ -823,8 +826,10 @@ class Connection(object):
         autocommit = self.options['autocommit']
         binary_transfer = self.options['binary_transfer']
         request_complex_types = self.options['request_complex_types']
+        workload = self.options['workload']
 
-        self.write(messages.Startup(user, database, session_label, os_user_name, autocommit, binary_transfer, request_complex_types))
+        self.write(messages.Startup(user, database, session_label, os_user_name, autocommit, binary_transfer, 
+                                    request_complex_types, workload))
 
         while True:
             message = self.read_message()

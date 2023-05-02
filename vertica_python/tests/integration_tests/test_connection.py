@@ -48,6 +48,8 @@ class ConnectionTestCase(VerticaPythonIntegrationTestCase):
             del self._conn_info['session_label']
         if 'autocommit' in self._conn_info:
             del self._conn_info['autocommit']
+        if 'workload' in self._conn_info:
+            del self._conn_info['workload']
 
     def test_client_os_user_name_metadata(self):
         value = getpass.getuser()
@@ -106,5 +108,26 @@ class ConnectionTestCase(VerticaPythonIntegrationTestCase):
             # Set with attribute setter
             conn.autocommit = True
             self.assertTrue(conn.autocommit)
+    
+    def test_workload_default(self):
+        self.require_protocol_at_least(3 << 16 | 15)
+        with self._connect() as conn:
+            query = "SHOW WORKLOAD"
+            res = self._query_and_fetchone(query)
+            self.assertEqual(res[0], '')
+    
+    def test_workload_set_property(self):
+        self.require_protocol_at_least(3 << 16 | 15)
+        self._conn_info['workload'] = 'python_test_workload'
+        with self._connect() as conn:
+            # we use dc_client_server_messages to test that the client is working properly.
+            # We do not regularly test on a multi subcluster database and the server will reject this
+            # workload from the startup packet, returning a parameter status message with an empty string.
+            query = ("SELECT contents FROM dc_client_server_messages"
+                     " WHERE session_id = current_session()"
+                     "  AND message_type = '^+'"
+                     "  AND contents LIKE '%workload%'")
+            res = self._query_and_fetchone(query)
+            self.assertEqual(res[0], 'workload: python_test_workload')
 
 exec(ConnectionTestCase.createPrepStmtClass())

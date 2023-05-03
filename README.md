@@ -146,10 +146,12 @@ You can pass an `ssl.SSLContext` to `ssl` to customize the SSL connection option
 import vertica_python
 import ssl
 
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+# Ensure connection is encrypted, client trusts server certificate,
+# and server hostname matches the one listed in the server certificate.
+ssl_context = ssl.SSLContext()
 ssl_context.verify_mode = ssl.CERT_REQUIRED
 ssl_context.check_hostname = True
-ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem')
+ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem') # CA certificate used to verify server certificate
 
 conn_info = {'host': '127.0.0.1',
              'port': 5433,
@@ -748,6 +750,13 @@ with vertica_python.connect(**conn_info) as connection:
     print("Rows loaded 1:", cur.fetchall())
     cur.nextset()
     print("Rows loaded 2:", cur.fetchall())
+    
+    # Copy from local stdin (StringIO)
+    from io import StringIO
+    data = "Anna|123-456-789\nBrown|555-444-3333\nCindy|555-867-53093453453\nDodd|123-456-789\nEd|123-456-789"
+    cur.execute("COPY customers (firstNames, phoneNumbers) FROM LOCAL STDIN ENFORCELENGTH RETURNREJECTED AUTO",
+                copy_stdin=StringIO(data))
+
 ```
 When connection option `disable_copy_local` set to True, disables COPY LOCAL operations, including copying data from local files/stdin and using local files to store data and exceptions. You can use this property to prevent users from writing to and copying from files on a Vertica host, including an MC host. Note that this property doesn't apply to `Cursor.copy()`.
 

@@ -140,15 +140,62 @@ with vertica_python.connect(dsn=connection_str, **additional_info) as conn:
 ```
 
 #### TLS/SSL
+You can pass `True` to `ssl` to enable TLS/SSL connection (Internally [ssl.wrap_socket(sock)](https://docs.python.org/3/library/ssl.html#ssl.wrap_socket) is called).
+
+```python
+import vertica_python
+
+# [TLSMode: require]
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'ssl': True}
+connection = vertica_python.connect(**conn_info)
+```
+
 You can pass an `ssl.SSLContext` to `ssl` to customize the SSL connection options. For example,
 
 ```python
 import vertica_python
 import ssl
 
+# [TLSMode: require]
+# Ensure connection is encrypted.
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'ssl': ssl_context}
+connection = vertica_python.connect(**conn_info)
+
+
+# [TLSMode: verify-ca]
+# Ensure connection is encrypted, and client trusts server certificate.
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ssl_context.verify_mode = ssl.CERT_REQUIRED
+ssl_context.check_hostname = False
+ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem') # CA certificate used to verify server certificate
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'ssl': ssl_context}
+connection = vertica_python.connect(**conn_info)
+
+
+# [TLSMode: verify-full]
 # Ensure connection is encrypted, client trusts server certificate,
 # and server hostname matches the one listed in the server certificate.
-ssl_context = ssl.SSLContext()
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 ssl_context.verify_mode = ssl.CERT_REQUIRED
 ssl_context.check_hostname = True
 ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem') # CA certificate used to verify server certificate
@@ -160,7 +207,6 @@ conn_info = {'host': '127.0.0.1',
              'database': 'a_database',
              'ssl': ssl_context}
 connection = vertica_python.connect(**conn_info)
-
 ```
 
 See more on SSL options [here](https://docs.python.org/3/library/ssl.html).

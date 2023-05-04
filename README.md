@@ -103,13 +103,13 @@ with vertica_python.connect(**conn_info) as connection:
 | kerberos_service_name | See [Kerberos Authentication](#kerberos-authentication). <br>**_Default_**: "vertica" |
 | log_level | See [Logging](#logging). |
 | log_path | See [Logging](#logging). |
+| request_complex_types | See [SQL Data conversion to Python objects](#sql-data-conversion-to-python-objects). <br>**_Default_**: True |
 | session_label | Sets a label for the connection on the server. This value appears in the client_label column of the _v_monitor.sessions_ system table. <br>**_Default_**: an auto-generated label with format of `vertica-python-{version}-{random_uuid}` |
 | ssl | See [TLS/SSL](#tlsssl). <br>**_Default_**: False (disabled) |
 | unicode_error | See [UTF-8 encoding issues](#utf-8-encoding-issues). <br>**_Default_**: 'strict' (throw error on invalid UTF-8 results) |
 | use_prepared_statements | See [Passing parameters to SQL queries](#passing-parameters-to-sql-queries). <br>**_Default_**: False |
-| dsn | See [Set Properties with Connection String](#set-properties-with-connection-string). |
-| request_complex_types | See [SQL Data conversion to Python objects](#sql-data-conversion-to-python-objects). <br>**_Default_**: True |
 | workload | Sets the workload name associated with this session. Valid values are workload names that already exist in a workload routing rule on the server. If a workload name that doesn't exist is entered, the server will reject it and it will be set to the default. <br>**_Default_**: "" |
+| dsn | See [Set Properties with Connection String](#set-properties-with-connection-string). |
 
 
 Below are a few important connection topics you may deal with, or you can skip and jump to the next section: [Send Queries and Retrieve Results](#send-queries-and-retrieve-results)
@@ -140,16 +140,32 @@ with vertica_python.connect(dsn=connection_str, **additional_info) as conn:
 ```
 
 #### TLS/SSL
+You can pass `True` to `ssl` to enable TLS/SSL connection (Internally [ssl.wrap_socket(sock)](https://docs.python.org/3/library/ssl.html#ssl.wrap_socket) is called).
+
+```python
+import vertica_python
+
+# [TLSMode: require]
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'ssl': True}
+connection = vertica_python.connect(**conn_info)
+```
+
 You can pass an `ssl.SSLContext` to `ssl` to customize the SSL connection options. For example,
 
 ```python
 import vertica_python
 import ssl
 
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-ssl_context.verify_mode = ssl.CERT_REQUIRED
-ssl_context.check_hostname = True
-ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem')
+# [TLSMode: require]
+# Ensure connection is encrypted.
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
 
 conn_info = {'host': '127.0.0.1',
              'port': 5433,
@@ -159,6 +175,38 @@ conn_info = {'host': '127.0.0.1',
              'ssl': ssl_context}
 connection = vertica_python.connect(**conn_info)
 
+
+# [TLSMode: verify-ca]
+# Ensure connection is encrypted, and client trusts server certificate.
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ssl_context.verify_mode = ssl.CERT_REQUIRED
+ssl_context.check_hostname = False
+ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem') # CA certificate used to verify server certificate
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'ssl': ssl_context}
+connection = vertica_python.connect(**conn_info)
+
+
+# [TLSMode: verify-full]
+# Ensure connection is encrypted, client trusts server certificate,
+# and server hostname matches the one listed in the server certificate.
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ssl_context.verify_mode = ssl.CERT_REQUIRED
+ssl_context.check_hostname = True
+ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem') # CA certificate used to verify server certificate
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'ssl': ssl_context}
+connection = vertica_python.connect(**conn_info)
 ```
 
 See more on SSL options [here](https://docs.python.org/3/library/ssl.html).
@@ -748,6 +796,13 @@ with vertica_python.connect(**conn_info) as connection:
     print("Rows loaded 1:", cur.fetchall())
     cur.nextset()
     print("Rows loaded 2:", cur.fetchall())
+    
+    # Copy from local stdin (StringIO)
+    from io import StringIO
+    data = "Anna|123-456-789\nBrown|555-444-3333\nCindy|555-867-53093453453\nDodd|123-456-789\nEd|123-456-789"
+    cur.execute("COPY customers (firstNames, phoneNumbers) FROM LOCAL STDIN ENFORCELENGTH RETURNREJECTED AUTO",
+                copy_stdin=StringIO(data))
+
 ```
 When connection option `disable_copy_local` set to True, disables COPY LOCAL operations, including copying data from local files/stdin and using local files to store data and exceptions. You can use this property to prevent users from writing to and copying from files on a Vertica host, including an MC host. Note that this property doesn't apply to `Cursor.copy()`.
 

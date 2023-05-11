@@ -133,10 +133,10 @@ def parse_dsn(dsn):
 
     return result
 
-_AddressEntry = namedtuple('_AddressEntry', ['host', 'resolved', 'data'])
+_AddressEntry = namedtuple('_AddressEntry', ['host', 'resolved', 'data', 'proxy'])
 
 class _AddressList(object):
-    def __init__(self, host, port, backup_nodes, logger):
+    def __init__(self, host, port, backup_nodes, logger, proxy=None):
         """Creates a new deque with the primary host first, followed by any backup hosts"""
 
         self._logger = logger
@@ -149,7 +149,7 @@ class _AddressList(object):
         self.address_deque = deque()
 
         # load primary host into address_deque
-        self._append(host, port)
+        self._append(host, port, proxy)
 
         # load backup nodes into address_deque
         if not isinstance(backup_nodes, list):
@@ -172,7 +172,7 @@ class _AddressList(object):
                 raise TypeError(err_msg)
         self._logger.debug('Address list: {0}'.format(list(self.address_deque)))
 
-    def _append(self, host, port):
+    def _append(self, host, port, proxy):
         if not isinstance(host, str):
             err_msg = 'Host must be a string: invalid value: {0}'.format(host)
             self._logger.error(err_msg)
@@ -195,10 +195,10 @@ class _AddressList(object):
             self._logger.error(err_msg)
             raise ValueError(err_msg)
 
-        self.address_deque.append(_AddressEntry(host=host, resolved=False, data=port))
+        self.address_deque.append(_AddressEntry(host=host, resolved=False, data=port, proxy=proxy))
 
-    def push(self, host, port):
-        self.address_deque.appendleft(_AddressEntry(host=host, resolved=False, data=port))
+    def push(self, host, port, proxy):
+        self.address_deque.appendleft(_AddressEntry(host=host, resolved=False, data=port, proxy=proxy))
 
     def pop(self):
         self.address_deque.popleft()
@@ -218,9 +218,14 @@ class _AddressList(object):
                 # DNS resolve a single host name to multiple IP addresses
                 self.pop()
                 # keep host and port info for adding address entry to deque once it has been resolved
-                host, port = entry.host, entry.data
+                host, port, proxy = entry.host, entry.data, entry.proxy
                 try:
-                    resolved_hosts = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
+                    if proxy:
+                        proxy_host, proxy_port = proxy.split(':')
+                        resolved_hosts = socket.getaddrinfo(proxy_host, proxy_port, 0, socket.SOCK_STREAM)
+                    else:
+                        resolved_hosts = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
+                    self._logger.debug(f'resolved_hosts are: {resolved_hosts}')
                 except Exception as e:
                     self._logger.warning('Error resolving host "{0}" on port {1}: {2}'.format(host, port, e))
                     continue
@@ -228,9 +233,13 @@ class _AddressList(object):
                 # add resolved addrinfo (AF_INET and AF_INET6 only) to deque
                 random.shuffle(resolved_hosts)
                 for addrinfo in resolved_hosts:
+                    if proxy:
+                        new_addrinfo=addrinfo + (host, port)
+                    else:
+                        new_addrinfo=addrinfo
                     if addrinfo[0] in (socket.AF_INET, socket.AF_INET6):
                         self.address_deque.appendleft(_AddressEntry(
-                            host=host, resolved=True, data=addrinfo))
+                            host=host, resolved=True, data=new_addrinfo, proxy=proxy))
         return None
 
     def peek_host(self):
@@ -298,8 +307,11 @@ class Connection(object):
         # the correct value cannot be overwritten by load balancing or failover
         self.options.setdefault('kerberos_host_name', self.options['host'])
 
+        if 'proxy' in self.options and self.options['proxy']:
+            self.proxy = self.options['proxy']
+
         self.address_list = _AddressList(self.options['host'], self.options['port'],
-                                         self.options['backup_server_node'], self._logger)
+                                         self.options['backup_server_node'], self._logger, self.proxy)
 
         # we only support one cursor per connection
         self.options.setdefault('unicode_error', None)
@@ -566,19 +578,32 @@ class Connection(object):
 
         # Failover: loop to try all addresses
         while addrinfo:
-            (family, socktype, proto, canonname, sockaddr) = addrinfo
+            if not self.proxy:
+                (family, socktype, proto, canonname, sockaddr) = addrinfo
+                # _AddressList filters all addrs to AF_INET and AF_INET6, which both
+                # have host and port as values 0, 1 in the sockaddr tuple.
+                host = sockaddr[0]
+                port = sockaddr[1]
+            else:
+                (family, socktype, proto, canonname, sockaddr, host, port) = addrinfo
             last_exception = None
-
-            # _AddressList filters all addrs to AF_INET and AF_INET6, which both
-            # have host and port as values 0, 1 in the sockaddr tuple.
-            host = sockaddr[0]
-            port = sockaddr[1]
 
             self._logger.info('Establishing connection to host "{0}" on port {1}'.format(host, port))
 
             try:
                 raw_socket = self.create_socket(family)
-                raw_socket.connect(sockaddr)
+                if self.proxy:
+                    self._logger.info(f'Connecting to proxy: {self.proxy}')
+                    proxy_tuple=(self.proxy.split(':')[0], int(self.proxy.split(':')[1]))
+                    raw_socket.connect(proxy_tuple)
+                    fp = raw_socket.makefile(mode='rw')
+                    fp.write('CONNECT %s:%d HTTP/1.0\r\n\r\n' % (host, port))
+                    fp.flush()
+
+                    statusline = fp.readline().rstrip('\r\n')
+                    print(f'Proxy response is: {statusline}')
+                else:
+                    raw_socket.connect(sockaddr)
                 break
             except Exception as e:
                 self._logger.info('Failed to connect to host "{0}" on port {1}: {2}'.format(host, port, e))

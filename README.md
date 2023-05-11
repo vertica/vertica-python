@@ -57,6 +57,7 @@ import vertica_python
 
 conn_info = {'host': '127.0.0.1',
              'port': 5433,
+             'proxy': 'proxy.svc.local:3128', #optional
              'user': 'some_user',
              'password': 'some_password',
              'database': 'a_database',
@@ -90,6 +91,7 @@ with vertica_python.connect(**conn_info) as connection:
 | ------------- | ------------- |
 | host     | The server host of the connection. This can be a host name or an IP address. <br>**_Default_**: "localhost" |
 | port     | The port of the connection. <br>**_Default_**: 5433 |
+| proxy    | The proxy server host:port. <br>**_Default_**: "" (None) |
 | user     | The database user name to use to connect to the database. <br>**_Default_**: OS login user name |
 | password | The password to use to log into the database. <br>**_Default_**: "" |
 | database | The database name. <br>**_Default_**: "" |

@@ -221,7 +221,7 @@ class _AddressList(object):
                 host, port, proxy = entry.host, entry.data, entry.proxy
                 try:
                     if proxy:
-                        proxy_host, proxy_port = proxy.split(':')
+                        proxy_host, proxy_port = proxy.rsplit(':', 1)
                         resolved_hosts = socket.getaddrinfo(proxy_host, proxy_port, 0, socket.SOCK_STREAM)
                     else:
                         resolved_hosts = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
@@ -594,7 +594,7 @@ class Connection(object):
                 raw_socket = self.create_socket(family)
                 if self.proxy:
                     self._logger.info(f'Connecting to proxy: {self.proxy}')
-                    proxy_tuple=(self.proxy.split(':')[0], int(self.proxy.split(':')[1]))
+                    proxy_tuple=(self.proxy.rsplit(':', 1)[0], int(self.proxy.rsplit(':', 1)[1]))
                     raw_socket.connect(proxy_tuple)
                     fp = raw_socket.makefile(mode='rw')
                     fp.write('CONNECT %s:%d HTTP/1.0\r\n\r\n' % (host, port))

@@ -603,6 +603,21 @@ class Connection(object):
 
                     statusline = fp.readline().rstrip('\r\n')
                     print(f'Proxy response is: {statusline}')
+                    if statusline.count(' ') < 2:
+                        fp.close()
+                        raw_socket.close()
+                        raise IOError('Bad response')
+                    version, status, statusmsg = statusline.split(' ', 2)
+                    if not version in ('HTTP/1.0', 'HTTP/1.1'):
+                        fp.close()
+                        raw_socket.close()
+                        raise IOError('Unsupported HTTP version')
+                    try:
+                        status = int(status)
+                    except ValueError:
+                        fp.close()
+                        raw_socket.close()
+                        raise IOError('Bad response')
                 else:
                     raw_socket.connect(sockaddr)
                 break

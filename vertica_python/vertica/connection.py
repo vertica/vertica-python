@@ -307,6 +307,7 @@ class Connection(object):
         # the correct value cannot be overwritten by load balancing or failover
         self.options.setdefault('kerberos_host_name', self.options['host'])
 
+        self.proxy=None
         if 'proxy' in self.options and self.options['proxy']:
             self.proxy = self.options['proxy']
 

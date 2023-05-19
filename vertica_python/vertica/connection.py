@@ -598,7 +598,7 @@ class Connection(object):
                     proxy_tuple=(self.proxy.rsplit(':', 1)[0], int(self.proxy.rsplit(':', 1)[1]))
                     raw_socket.connect(proxy_tuple)
                     fp = raw_socket.makefile(mode='rw')
-                    fp.write('CONNECT %s:%d HTTP/1.0\r\n\r\n' % (host, port))
+                    fp.write('CONNECT %s:%d HTTP/1.1\r\n\r\n' % (host, port))
                     fp.flush()
 
                     statusline = fp.readline().rstrip('\r\n')

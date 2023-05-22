@@ -162,9 +162,9 @@ class _AddressList(object):
         # a (host, port) tuple
         for node in backup_nodes:
             if isinstance(node, str):
-                self._append(node, DEFAULT_PORT)
+                self._append(node, DEFAULT_PORT, proxy)
             elif isinstance(node, tuple) and len(node) == 2:
-                self._append(node[0], node[1])
+                self._append(node[0], node[1], proxy)
             else:
                 err_msg = ('Each item of connection option "backup_server_node"'
                            ' must be a host string or a (host, port) tuple')

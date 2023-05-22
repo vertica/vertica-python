@@ -16,6 +16,7 @@ from __future__ import print_function, division, absolute_import
 
 import socket
 import ssl
+from tempfile import NamedTemporaryFile
 
 from ... import errors
 from .base import VerticaPythonIntegrationTestCase
@@ -32,11 +33,16 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("ALTER TLS CONFIGURATION server CERTIFICATE NULL TLSMODE 'DISABLE'")
+            try:
+                cur.execute("ALTER TLS CONFIGURATION server REMOVE CA CERTIFICATES vp_CA_cert")
+            except:
+                pass
             cur.execute("DROP KEY IF EXISTS vp_server_key CASCADE")
+            cur.execute("DROP KEY IF EXISTS vp_client_key CASCADE")
             cur.execute("DROP KEY IF EXISTS vp_CA_key CASCADE")
         super(TlsTestCase, self).tearDown()
 
-    def _generate_and_set_certificates(self):
+    def _generate_and_set_certificates(self, mutual_mode=False):
         with self._connect() as conn:
             cur = conn.cursor()
             # Generate a root CA private key
@@ -56,10 +62,40 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
                     "SIGNED BY vp_CA_cert EXTENSIONS 'nsComment' = 'Vertica server cert', 'extendedKeyUsage' = 'serverAuth', "
                     "'subjectAltName' = 'DNS:localhost' KEY vp_server_key")
 
-            # In order to use Server Mode, set the server certificate for the server's TLS Configuration
-            cur.execute('ALTER TLS CONFIGURATION server CERTIFICATE vp_server_cert')
-            # Enable TLS. Server does not check client certificates.
-            cur.execute("ALTER TLS CONFIGURATION server TLSMODE 'ENABLE'")
+            if mutual_mode:
+                # Generate a client private key
+                cur.execute("CREATE KEY vp_client_key TYPE 'RSA' LENGTH 2048")
+                cur.execute("SELECT key FROM CRYPTOGRAPHIC_KEYS WHERE name='vp_client_key'")
+                vp_client_key = cur.fetchone()[0]
+                with NamedTemporaryFile(delete=False) as self.client_key:
+                    self.client_key.write(vp_client_key.encode())
+                print(self.client_key.name)
+                # Generate a client certificate
+                cur.execute("CREATE CERTIFICATE vp_client_cert "
+                        "SUBJECT '/C=US/ST=MA/L=Boston/O=Bar/OU=Vertica/CN=Vertica client/emailAddress=def@example.com' "
+                        "SIGNED BY vp_CA_cert EXTENSIONS 'nsComment' = 'Vertica client cert', 'extendedKeyUsage' = 'clientAuth' "
+                        "KEY vp_client_key")
+                cur.execute("SELECT certificate_text FROM CERTIFICATES WHERE name='vp_client_cert'")
+                vp_client_cert = cur.fetchone()[0]
+                with NamedTemporaryFile(delete=False) as self.client_cert:
+                    self.client_cert.write(vp_client_cert.encode())
+
+                # In order to use Mutual Mode, set a server and CA certificate.
+                # This CA certificate is used to verify client certificates
+                cur.execute('ALTER TLS CONFIGURATION server CERTIFICATE vp_server_cert ADD CA CERTIFICATES vp_CA_cert')
+                # Enable TLS. Connection succeeds if Vertica verifies that the client certificate is from a trusted CA.
+                # If the client does not present a client certificate, the connection uses plaintext.
+                cur.execute("ALTER TLS CONFIGURATION server TLSMODE 'VERIFY_CA'")
+            else:
+                # In order to use Server Mode, set the server certificate for the server's TLS Configuration
+                cur.execute('ALTER TLS CONFIGURATION server CERTIFICATE vp_server_cert')
+                # Enable TLS. Server does not check client certificates.
+                cur.execute("ALTER TLS CONFIGURATION server TLSMODE 'ENABLE'")
+
+            # For debug
+            # SELECT * FROM tls_configurations WHERE name='server';
+            # SELECT * FROM CRYPTOGRAPHIC_KEYS;
+            # SELECT * FROM CERTIFICATES;
 
             return vp_CA_cert
 
@@ -68,7 +104,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         self._conn_info['ssl'] = False
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session()) ')
+            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
             self.assertEqual(res[0], 'None')
 
     def test_TLSMode_require_server_disable(self):
@@ -108,6 +144,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         ssl_context.check_hostname = False
         ssl_context.load_verify_locations(cadata=CA_cert) # CA certificate used to verify server certificate
         self._conn_info['ssl'] = ssl_context
+
         with self._connect() as conn:
             cur = conn.cursor()
             res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
@@ -121,6 +158,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         ssl_context.verify_mode = ssl.CERT_REQUIRED
         ssl_context.check_hostname = True  # hostname in server cert's subjectAltName: localhost
         ssl_context.load_verify_locations(cadata=CA_cert) # CA certificate used to verify server certificate
+
         self._conn_info['ssl'] = ssl_context
         with self._connect() as conn:
             cur = conn.cursor()
@@ -128,19 +166,16 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             self.assertEqual(res[0], 'Server')
 
     def test_mutual_TLS(self):
-        return
-        with self._connect() as conn:
-            cur = conn.cursor()
-            cur.execute()
+        # Setting certificates with TLS configuration
+        CA_cert = self._generate_and_set_certificates(mutual_mode=True)
 
-            # In order to use Mutual Mode, set a server and CA certificate.
-            # This CA certificate is used to verify client certificates
-            cur.execute('ALTER TLS CONFIGURATION server CERTIFICATE vp_server_cert ADD CA CERTIFICATES ca_cert')
-            # Enable TLS. Connection succeeds if Vertica verifies that the client certificate is from a trusted CA.
-            # If the client does not present a client certificate, the connection uses plaintext.
-            cur.execute("ALTER TLS CONFIGURATION server TLSMODE 'VERIFY_CA'")
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
+        ssl_context.check_hostname = True  # hostname in server cert's subjectAltName: localhost
+        ssl_context.load_verify_locations(cadata=CA_cert) # CA certificate used to verify server certificate
+        ssl_context.load_cert_chain(certfile=self.client_cert.name, keyfile=self.client_key.name)
 
-        self._conn_info['ssl'] = True
+        self._conn_info['ssl'] = ssl_context
         with self._connect() as conn:
             cur = conn.cursor()
             res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')

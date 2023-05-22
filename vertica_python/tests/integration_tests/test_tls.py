@@ -14,6 +14,7 @@
 
 from __future__ import print_function, division, absolute_import
 
+import os
 import socket
 import ssl
 from tempfile import NamedTemporaryFile
@@ -23,30 +24,28 @@ from .base import VerticaPythonIntegrationTestCase
 
 
 class TlsTestCase(VerticaPythonIntegrationTestCase):
-    def setUp(self):
-        super(TlsTestCase, self).setUp()
-        print("\n",self._conn_info)
-
     def tearDown(self):
         if 'ssl' in self._conn_info:
             del self._conn_info['ssl']
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("ALTER TLS CONFIGURATION server CERTIFICATE NULL TLSMODE 'DISABLE'")
-            try:
+            if hasattr(self, 'client_cert'):
+                os.remove(self.client_cert.name)
                 cur.execute("ALTER TLS CONFIGURATION server REMOVE CA CERTIFICATES vp_CA_cert")
-            except:
-                pass
+            if hasattr(self, 'client_key'):
+                os.remove(self.client_key.name)
+                cur.execute("DROP KEY IF EXISTS vp_client_key CASCADE")
             cur.execute("DROP KEY IF EXISTS vp_server_key CASCADE")
-            cur.execute("DROP KEY IF EXISTS vp_client_key CASCADE")
             cur.execute("DROP KEY IF EXISTS vp_CA_key CASCADE")
         super(TlsTestCase, self).tearDown()
 
     def _generate_and_set_certificates(self, mutual_mode=False):
         with self._connect() as conn:
             cur = conn.cursor()
+
             # Generate a root CA private key
-            cur.execute("CREATE KEY vp_CA_key TYPE 'RSA' LENGTH 2048")
+            cur.execute("CREATE KEY vp_CA_key TYPE 'RSA' LENGTH 4096")
             # Generate a root CA certificate
             cur.execute("CREATE CA CERTIFICATE vp_CA_cert "
                     "SUBJECT '/C=US/ST=Massachusetts/L=Burlington/O=OpenText/OU=Vertica/CN=Vertica Root CA' "
@@ -55,7 +54,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             vp_CA_cert = cur.fetchone()[0]
 
             # Generate a server private key
-            cur.execute("CREATE KEY vp_server_key TYPE 'RSA' LENGTH 2048")
+            cur.execute("CREATE KEY vp_server_key TYPE 'RSA' LENGTH 4096")
             # Generate a server certificate
             cur.execute("CREATE CERTIFICATE vp_server_cert "
                     "SUBJECT '/C=US/ST=MA/L=Cambridge/O=Foo/OU=Vertica/CN=Vertica server/emailAddress=abc@example.com' "
@@ -64,12 +63,11 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
 
             if mutual_mode:
                 # Generate a client private key
-                cur.execute("CREATE KEY vp_client_key TYPE 'RSA' LENGTH 2048")
+                cur.execute("CREATE KEY vp_client_key TYPE 'RSA' LENGTH 4096")
                 cur.execute("SELECT key FROM CRYPTOGRAPHIC_KEYS WHERE name='vp_client_key'")
                 vp_client_key = cur.fetchone()[0]
                 with NamedTemporaryFile(delete=False) as self.client_key:
                     self.client_key.write(vp_client_key.encode())
-                print(self.client_key.name)
                 # Generate a client certificate
                 cur.execute("CREATE CERTIFICATE vp_client_cert "
                         "SUBJECT '/C=US/ST=MA/L=Boston/O=Bar/OU=Vertica/CN=Vertica client/emailAddress=def@example.com' "
@@ -86,6 +84,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
                 # Enable TLS. Connection succeeds if Vertica verifies that the client certificate is from a trusted CA.
                 # If the client does not present a client certificate, the connection uses plaintext.
                 cur.execute("ALTER TLS CONFIGURATION server TLSMODE 'VERIFY_CA'")
+
             else:
                 # In order to use Server Mode, set the server certificate for the server's TLS Configuration
                 cur.execute('ALTER TLS CONFIGURATION server CERTIFICATE vp_server_cert')
@@ -133,7 +132,6 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             cur = conn.cursor()
             res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
             self.assertEqual(res[0], 'Server')
-
 
     def test_TLSMode_verify_ca(self):
         # Setting certificates with TLS configuration

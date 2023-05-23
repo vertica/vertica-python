@@ -155,7 +155,7 @@ conn_info = {'host': '127.0.0.1',
 connection = vertica_python.connect(**conn_info)
 ```
 
-You can pass an `ssl.SSLContext` to `ssl` to customize the SSL connection options. For example,
+You can pass an `ssl.SSLContext` to `ssl` to customize the SSL connection options. Server mode TLS examples:
 
 ```python
 import vertica_python
@@ -199,6 +199,32 @@ ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 ssl_context.verify_mode = ssl.CERT_REQUIRED
 ssl_context.check_hostname = True
 ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem') # CA certificate used to verify server certificate
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'password': 'some_password',
+             'database': 'a_database',
+             'ssl': ssl_context}
+connection = vertica_python.connect(**conn_info)
+```
+
+Mutual mode TLS example:
+```python
+import vertica_python
+import ssl
+
+# [TLSMode: verify-full]
+# Ensure connection is encrypted, client trusts server certificate,
+# and server hostname matches the one listed in the server certificate.
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ssl_context.verify_mode = ssl.CERT_REQUIRED
+ssl_context.check_hostname = True
+ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem') # CA certificate used to verify server certificate
+
+# For Mutual mode, provide client certificate and client private key to ssl_context.
+# CA certificate used to verify client certificate should be set at the server side.
+ssl_context.load_cert_chain(certfile='/path/to/client.pem', keyfile='/path/to/client.key')
 
 conn_info = {'host': '127.0.0.1',
              'port': 5433,

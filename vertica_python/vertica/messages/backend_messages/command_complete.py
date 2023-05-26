@@ -59,24 +59,12 @@ class CommandComplete(BackendMessage):
         try:
             self.command_tag = data.decode('utf-8')
         except Exception as e:
-            # (workaround for #493) something wrong in the server, hide the problem for now
-            warnings.warn("Hit a known server bug\n"
-                    f"{'='*80}\n"
-                    "We'd like to gather client-side information to help with the bug investigation.\n"
-                    "Please leave a comment under https://github.com/vertica/vertica-python/issues/493"
-                    " with the following info:\n"
-                    f"{'-'*80}\n"
-                    f"command tag length: {len(data)}\n"
-                    f"command tag content: {data}\n"
-                    f"{type(e).__name__}: {str(e)}\n"
-                    "Server version: xxx\n"
-                    "Query executed (if possible): xxx\n"
-                    "The OS of each server node (if possible): xxx\n"
-                    "The locale of each server node (if possible): xxx\n"
-                    f"{'-'*80}\n"
-                    f"We appreciate your help!\n"
-                    f"{'='*80}\n"
-                    )
+            # VER-86494
+            warnings.warn(
+                    f"\n{'-'*70}\n"
+                    "Hit a known server bug (#493). To fix it,\n"
+                    "please upgrade your server to 12.0.4-3 or higher version.\n"
+                    f"{'-'*70}\n")
             self.command_tag = 'x'
 
     def __str__(self):

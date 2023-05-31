@@ -56,10 +56,12 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             # Generate a server private key
             cur.execute("CREATE KEY vp_server_key TYPE 'RSA' LENGTH 4096")
             # Generate a server certificate
+            host = self._conn_info['host']
+            hostname_for_verify = ('IP:' if host.count('.') == 3 else 'DNS:') + host
             cur.execute("CREATE CERTIFICATE vp_server_cert "
                     "SUBJECT '/C=US/ST=MA/L=Cambridge/O=Foo/OU=Vertica/CN=Vertica server/emailAddress=abc@example.com' "
                     "SIGNED BY vp_CA_cert EXTENSIONS 'nsComment' = 'Vertica server cert', 'extendedKeyUsage' = 'serverAuth', "
-                    "'subjectAltName' = 'DNS:localhost' KEY vp_server_key")
+                    f"'subjectAltName' = '{hostname_for_verify}' KEY vp_server_key")
 
             if mutual_mode:
                 # Generate a client private key
@@ -154,7 +156,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
 
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_context.verify_mode = ssl.CERT_REQUIRED
-        ssl_context.check_hostname = True  # hostname in server cert's subjectAltName: localhost
+        ssl_context.check_hostname = True  # hostname in server cert's subjectAltName
         ssl_context.load_verify_locations(cadata=CA_cert) # CA certificate used to verify server certificate
 
         self._conn_info['ssl'] = ssl_context
@@ -169,7 +171,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
 
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_context.verify_mode = ssl.CERT_REQUIRED
-        ssl_context.check_hostname = True  # hostname in server cert's subjectAltName: localhost
+        ssl_context.check_hostname = True  # hostname in server cert's subjectAltName
         ssl_context.load_verify_locations(cadata=CA_cert) # CA certificate used to verify server certificate
         ssl_context.load_cert_chain(certfile=self.client_cert.name, keyfile=self.client_key.name)
 

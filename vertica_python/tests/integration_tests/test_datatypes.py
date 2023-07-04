@@ -90,7 +90,7 @@ class InsertComplexTypeTestCase(VerticaPythonIntegrationTestCase):
             cur.execute(f"DROP TABLE IF EXISTS {self._table}")
         super(InsertComplexTypeTestCase, self).tearDown()
 
-    def _test_insert_complex_type(self, col_type, values, expected=None):
+    def _test_insert_complex_type(self, col_type, values, expected=None, test_executemany=False):
         if expected is None:
             expected = values
         with self._connect() as conn:
@@ -106,50 +106,62 @@ class InsertComplexTypeTestCase(VerticaPythonIntegrationTestCase):
             results = [row[0] for row in rows]
             self.assertEqual(results, expected)
 
+            if not test_executemany:
+                return
+            # test cursor.executemany
+            cur.execute(f"TRUNCATE TABLE {self._table}")
+            seq_of_values = [(i, values[i]) for i in range(len(values))]
+            print(seq_of_values)
+            cur.executemany(f"INSERT INTO {self._table} (a, b) VALUES (%s, %s)", seq_of_values, use_prepared_statements=False)
+            rows = cur.execute(f"SELECT b FROM {self._table} ORDER BY a").fetchall()
+            results = [row[0] for row in rows]
+            self.assertEqual(results, expected)
+
+
     #######################
     # tests for ARRAY type
     #######################
     def test_Array_boolean_type(self):
-        self._test_insert_complex_type('ARRAY[BOOL]', [[True, False, None], None, [], [None]])
+        self._test_insert_complex_type('ARRAY[BOOL]', [[True, False, None], None, [], [None]], test_executemany=True)
 
     def test_Array_integer_type(self):
-        self._test_insert_complex_type('ARRAY[INT]', [[1,-2,3], [4,None,5], None, [], [None]])
+        self._test_insert_complex_type('ARRAY[INT]', [[1,-2,3], [4,None,5], None, [], [None]], test_executemany=True)
         self._test_insert_complex_type('ARRAY[ARRAY[INT]]', [[[1,2], [3,4], None, [5,None], []],
             None, [], [None]])
         self._test_insert_complex_type('ARRAY[ARRAY[ARRAY[ARRAY[INT]]]]', [[[[None,[1,2,3],None,[1,None,3],[None,None,None],[4,5],[],None]]],
             None, [], [None]])
 
     def test_Array_float_type(self):
-        self._test_insert_complex_type('ARRAY[FLOAT]', [[1.23456e-18,float('Inf'),float('-Inf'),None,-1.234,0.0], None, [], [None]])
+        self._test_insert_complex_type('ARRAY[FLOAT]', [[1.23456e-18,float('Inf'),float('-Inf'),None,-1.234,0.0], None, [], [None]], test_executemany=True)
 
     def test_Array_numeric_type(self):
         self._test_insert_complex_type('ARRAY[NUMERIC]', [[Decimal('-1.1200000000'), Decimal('0E-10'), None, Decimal('1234567890123456789.0123456789')],
-            None, [], [None]])
+            None, [], [None]], test_executemany=True)
 
     def test_Array_char_type(self):
-        self._test_insert_complex_type('ARRAY[CHAR(3)]', [['a', u'\u16b1', None, 'foo'], None, [], [None]], [['a  ', u'\u16b1', None, 'foo'], None, [], [None]])
+        self._test_insert_complex_type('ARRAY[CHAR(3)]', [['a', u'\u16b1', None, 'foo'], None, [], [None]], [['a  ', u'\u16b1', None, 'foo'], None, [], [None]], test_executemany=True)
 
     def test_Array_varchar_type(self):
-        self._test_insert_complex_type('ARRAY[VARCHAR(10)]', [['', u'\u16b1\nb', None, 'foo'], None, [], [None]])
+        self._test_insert_complex_type('ARRAY[VARCHAR(10)]', [['', u'\u16b1\nb', None, 'foo'], None, [], [None]], test_executemany=True)
 
     def test_Array_date_type(self):
-        self._test_insert_complex_type('ARRAY[DATE]', [[date(2021, 6, 10),None,date(221, 5, 2)], None, [], [None]])
+        self._test_insert_complex_type('ARRAY[DATE]', [[date(2021, 6, 10),None,date(221, 5, 2)], None, [], [None]], test_executemany=True)
 
     def test_Array_time_type(self):
-        self._test_insert_complex_type('ARRAY[TIME(3)]', [[time(0, 0, 0),None,time(22, 36, 33, 124000)], None, [], [None]])
+        self._test_insert_complex_type('ARRAY[TIME(3)]', [[time(0, 0, 0),None,time(22, 36, 33, 124000)], None, [], [None]], test_executemany=True)
 
     def test_Array_timetz_type(self):
         self._test_insert_complex_type('ARRAY[TIMETZ(3)]', [[time(22, 36, 33, 123000, tzinfo=tzoffset(None, 23400)),None,
-            time(22, 36, 33, 123000, tzinfo=tzoffset(None, -10800))], None, [], [None]])
+            time(22, 36, 33, 123000, tzinfo=tzoffset(None, -10800))], None, [], [None]], test_executemany=True)
 
     def test_Array_timestamp_type(self):
-        self._test_insert_complex_type('ARRAY[TIMESTAMP]', [[datetime(276, 12, 1, 11, 22, 33),None,datetime(2001, 12, 1, 0, 30, 45, 87000)], None, [], [None]])
+        self._test_insert_complex_type('ARRAY[TIMESTAMP]', [[datetime(276, 12, 1, 11, 22, 33),None,datetime(2001, 12, 1, 0, 30, 45, 87000)], None, [], [None]], test_executemany=True)
 
     def test_Array_timestamptz_type(self):
-        self._test_insert_complex_type('ARRAY[TIMESTAMPTZ]', [[datetime(276, 11, 30, 23, 32, 57, tzinfo=tzoffset(None, 3600)),None,datetime(2001, 12, 1, 0, 30, 45, 87000, tzinfo=tzoffset(None, -18000))], None, [], [None]])
+        self._test_insert_complex_type('ARRAY[TIMESTAMPTZ]', [[datetime(276, 11, 30, 23, 32, 57, tzinfo=tzoffset(None, 3600)),None,datetime(2001, 12, 1, 0, 30, 45, 87000, tzinfo=tzoffset(None, -18000))], None, [], [None]], test_executemany=True)
 
     def test_Array_UUID_type(self):
-        self._test_insert_complex_type('ARRAY[UUID]', [[UUID('00010203-0405-0607-0809-0a0b0c0d0e0f'),None,UUID('123e4567-e89b-12d3-a456-426655440a00')], None, [], [None]])
+        self._test_insert_complex_type('ARRAY[UUID]', [[UUID('00010203-0405-0607-0809-0a0b0c0d0e0f'),None,UUID('123e4567-e89b-12d3-a456-426655440a00')], None, [], [None]], test_executemany=True)
 
     #####################
     # tests for SET type

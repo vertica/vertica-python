@@ -97,11 +97,10 @@ class InsertComplexTypeTestCase(VerticaPythonIntegrationTestCase):
             cur = conn.cursor()
             cur.execute(f"DROP TABLE IF EXISTS {self._table}")
             cur.execute(f"CREATE TABLE {self._table} (a INT, b {col_type})")
-            a = 1
-            for value in values:
+            seq_of_values = [(i, values[i]) for i in range(len(values))]
+            for value in seq_of_values:
                 # Some cases need explicit typecasting
-                cur.execute(f"INSERT INTO {self._table} (a, b) VALUES (%s, %s::{col_type})", [a, value], use_prepared_statements=False)
-                a += 1
+                cur.execute(f"INSERT INTO {self._table} (a, b) VALUES (%s, %s::{col_type})", value, use_prepared_statements=False)
             rows = cur.execute(f"SELECT b FROM {self._table} ORDER BY a").fetchall()
             results = [row[0] for row in rows]
             self.assertEqual(results, expected)
@@ -110,8 +109,6 @@ class InsertComplexTypeTestCase(VerticaPythonIntegrationTestCase):
                 return
             # test cursor.executemany
             cur.execute(f"TRUNCATE TABLE {self._table}")
-            seq_of_values = [(i, values[i]) for i in range(len(values))]
-            print(seq_of_values)
             cur.executemany(f"INSERT INTO {self._table} (a, b) VALUES (%s, %s)", seq_of_values, use_prepared_statements=False)
             rows = cur.execute(f"SELECT b FROM {self._table} ORDER BY a").fetchall()
             results = [row[0] for row in rows]

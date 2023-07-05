@@ -652,6 +652,10 @@ cur.execute("INSERT INTO table VALUES (%s, %s)", [100, value], use_prepared_stat
 
 cur.execute("INSERT INTO table VALUES (%s, %s::ARRAY[DATE])", [100, value], use_prepared_statements=False)  # correct
 # converted into a SQL command: INSERT INTO vptest VALUES (100, ARRAY['2021-06-10','2021-06-12','2021-06-30']::ARRAY[DATE])
+
+# Client-side binding of cursor.executemany is different from cursor.execute internally
+# But it also supports some of complex types mapping
+cur.executemany("INSERT INTO table (a, b) VALUES (%s, %s)", [[100, value]], use_prepared_statements=False)
 ```
 
 ##### Register new SQL literal adapters

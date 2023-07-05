@@ -303,13 +303,14 @@ class Cursor(object):
                 variables = ",".join([variable.strip().strip('"') for variable in variables.split(",")])
 
                 values = as_text(m.group('values'))
-                values = ",".join([value.strip().strip('"') for value in values.split(",")])
+                values = "|".join([value.strip().strip('"') for value in values.split(",")])
                 seq_of_values = [self.format_operation_with_parameters(values, parameters, is_copy_data=True)
                                  for parameters in seq_of_parameters]
                 data = "\n".join(seq_of_values)
 
                 copy_statement = (
-                    u"COPY {0} ({1}) FROM STDIN DELIMITER ',' ENCLOSED BY '\"' "
+                    u"COPY {0} ({1}) FROM STDIN "
+                    u"ENCLOSED BY '''' "  # '/r' will have trouble if ENCLOSED BY is not set
                     u"ENFORCELENGTH ABORT ON ERROR{2}").format(target, variables,
                     " NO COMMIT" if not self.connection.autocommit else '')
 
@@ -590,7 +591,7 @@ class Cursor(object):
         return [convert(value)
                 for convert, value in zip(self._deserializers, row_data.values)]
 
-    def object_to_string(self, py_obj, is_copy_data):
+    def object_to_string(self, py_obj, is_copy_data, is_collection=False):
         """Return the SQL representation of the object as a string"""
         if type(py_obj) in self._sql_literal_adapters and not is_copy_data:
             adapter = self._sql_literal_adapters[type(py_obj)]
@@ -601,15 +602,15 @@ class Cursor(object):
             return as_text(result)
 
         if isinstance(py_obj, type(None)):
-            return '' if is_copy_data else 'NULL'
+            return '' if is_copy_data and not is_collection else 'NULL'
         elif isinstance(py_obj, bool):
             return str(py_obj)
         elif isinstance(py_obj, (str, bytes)):
-            return self.format_quote(as_text(py_obj), is_copy_data)
+            return self.format_quote(as_text(py_obj), is_copy_data, is_collection)
         elif isinstance(py_obj, (int, Decimal)):
             return str(py_obj)
         elif isinstance(py_obj, float):
-            if py_obj in (float('Inf'), float('-Inf')) or isnan(py_obj):
+            if not is_copy_data and py_obj in (float('Inf'), float('-Inf')) or isnan(py_obj):
                 return f"'{str(py_obj)}'::FLOAT"
             return str(py_obj)
         elif isinstance(py_obj, tuple):  # tuple and namedtuple
@@ -617,20 +618,31 @@ class Cursor(object):
             for i in range(len(py_obj)):
                 elements[i] = self.object_to_string(py_obj[i], is_copy_data)
             return "(" + ",".join(elements) + ")"
-        elif isinstance(py_obj, list) and not is_copy_data:
+        elif isinstance(py_obj, list):
             elements = [None] * len(py_obj)
-            for i in range(len(py_obj)):
-                elements[i] = self.object_to_string(py_obj[i], False)
-            # Use the ARRAY keyword to construct an array value
-            return f'ARRAY[{",".join(elements)}]'
-        elif isinstance(py_obj, set) and not is_copy_data:
+            if is_copy_data:
+                for i in range(len(py_obj)):
+                    elements[i] = self.object_to_string(py_obj[i], True, True)
+                return f'[{",".join(elements)}]'
+            else:
+                for i in range(len(py_obj)):
+                    elements[i] = self.object_to_string(py_obj[i], False)
+                # Use the ARRAY keyword to construct an array value
+                return f'ARRAY[{",".join(elements)}]'
+        elif isinstance(py_obj, set):
             elements = [None] * len(py_obj)
             i = 0
-            for o in py_obj:
-                elements[i] = self.object_to_string(o, False)
-                i += 1
-            # Use the SET keyword to construct a set value
-            return f'SET[{",".join(elements)}]'
+            if is_copy_data:
+                for o in py_obj:
+                    elements[i] = self.object_to_string(o, True, True)
+                    i += 1
+                return f'[{",".join(elements)}]'
+            else:
+                for o in py_obj:
+                    elements[i] = self.object_to_string(o, False)
+                    i += 1
+                # Use the SET keyword to construct a set value
+                return f'SET[{",".join(elements)}]'
         elif isinstance(py_obj, dict) and not is_copy_data:
             elements = [None] * len(py_obj)
             i = 0
@@ -640,7 +652,7 @@ class Cursor(object):
             # Use the ROW keyword to construct a row value
             return f'ROW({",".join(elements)})'
         elif isinstance(py_obj, (datetime.datetime, datetime.date, datetime.time, UUID)):
-            return self.format_quote(as_text(str(py_obj)), is_copy_data)
+            return self.format_quote(as_text(str(py_obj)), is_copy_data, is_collection)
         else:
             if is_copy_data:
                 return str(py_obj)
@@ -686,13 +698,19 @@ class Cursor(object):
 
         return operation
 
-    def format_quote(self, param, is_copy_data):
-        if is_copy_data:
+    def format_quote(self, param, is_copy_data, is_collection):
+        if is_collection: # COPY COLLECTIONENCLOSE
             s = list(param)
             for i, c in enumerate(param):
-                if c in u'()[]{}?"*+-|^$\\.&~# \t\n\r\v\f':
+                if c in '\\\n\"':
                     s[i] = "\\" + c
             return u'"{0}"'.format(u"".join(s))
+        elif is_copy_data: # COPY ENCLOSED BY
+            s = list(param)
+            for i, c in enumerate(param):
+                if c in '\\|\n\'':
+                    s[i] = "\\" + c
+            return u"'{0}'".format(u"".join(s))
         else:
             return u"'{0}'".format(param.replace(u"'", u"''"))
 

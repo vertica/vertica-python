@@ -143,6 +143,7 @@ class InsertComplexTypeTestCase(VerticaPythonIntegrationTestCase):
 
     def test_Array_varchar_type(self):
         self._test_insert_complex_type('ARRAY[VARCHAR(10)]', [['', u'\u16b1\nb', None, 'foo'], None, [], [None]], test_executemany=True)
+        self._test_insert_complex_type('ARRAY[VARCHAR]', [[chr(i)] for i in range(1, 128)], test_executemany=True)
 
     def test_Array_date_type(self):
         self._test_insert_complex_type('ARRAY[DATE]', [[date(2021, 6, 10),None,date(221, 5, 2)], None, [], [None]], test_executemany=True)
@@ -167,43 +168,44 @@ class InsertComplexTypeTestCase(VerticaPythonIntegrationTestCase):
     # tests for SET type
     #####################
     def test_1DSet_boolean_type(self):
-        self._test_insert_complex_type('SET[BOOL]', [{True, False, None}, None, set(), {None}])
+        self._test_insert_complex_type('SET[BOOL]', [{True, False, None}, None, set(), {None}], test_executemany=True)
 
     def test_1DSet_integer_type(self):
-        self._test_insert_complex_type('SET[INT]', [{0, 1, -2, 3, None}, None, set(), {None}])
+        self._test_insert_complex_type('SET[INT]', [{0, 1, -2, 3, None}, None, set(), {None}], test_executemany=True)
 
     def test_1DSet_float_type(self):
-        self._test_insert_complex_type('SET[FLOAT]', [{float('Inf'), float('-Inf'), None, -1.234, 0.0, 1.23456e-18}, None, set(), {None}])
+        self._test_insert_complex_type('SET[FLOAT]', [{float('Inf'), float('-Inf'), None, -1.234, 0.0, 1.23456e-18}, None, set(), {None}], test_executemany=True)
 
     def test_1DSet_numeric_type(self):
         self._test_insert_complex_type('SET[NUMERIC]', [{Decimal('-1.12'), Decimal('0E-15'), None, Decimal('1234567890123456789.0123456789')},
-            None, set(), {None}])
+            None, set(), {None}], test_executemany=True)
 
     def test_1DSet_char_type(self):
-        self._test_insert_complex_type('SET[CHAR(3)]', [{'a  ', u'\u16b1', None, 'foo'}, None, set(), {None}])
+        self._test_insert_complex_type('SET[CHAR(3)]', [{'a  ', u'\u16b1', None, 'foo'}, None, set(), {None}], test_executemany=True)
 
     def test_1DSet_varchar_type(self):
-        self._test_insert_complex_type('SET[VARCHAR(10)]', [{'', u'\u16b1\nb', None, 'foo'}, None, set(), {None}])
+        self._test_insert_complex_type('SET[VARCHAR(10)]', [{'', u'\u16b1\nb', None, 'foo'}, None, set(), {None}], test_executemany=True)
+        self._test_insert_complex_type('SET[VARCHAR]', [{chr(i)} for i in range(1, 128)], test_executemany=True)
 
     def test_1DSet_date_type(self):
-        self._test_insert_complex_type('SET[DATE]', [{date(2021, 6, 10), None, date(221, 5, 2)}, None, set(), {None}])
+        self._test_insert_complex_type('SET[DATE]', [{date(2021, 6, 10), None, date(221, 5, 2)}, None, set(), {None}], test_executemany=True)
 
     def test_1DSet_time_type(self):
-        self._test_insert_complex_type('SET[TIME(3)]', [{time(0, 0, 0), None, time(22, 36, 33, 124000)}, None, set(), {None}])
+        self._test_insert_complex_type('SET[TIME(3)]', [{time(0, 0, 0), None, time(22, 36, 33, 124000)}, None, set(), {None}], test_executemany=True)
 
     def test_1DSet_timetz_type(self):
         self._test_insert_complex_type('SET[TIMETZ(3)]', [{time(22, 36, 33, 123000, tzinfo=tzoffset(None, 23400)),None,
-            time(22, 36, 33, 123000, tzinfo=tzoffset(None, -10800))}, None, set(), {None}])
+            time(22, 36, 33, 123000, tzinfo=tzoffset(None, -10800))}, None, set(), {None}], test_executemany=True)
 
     def test_1DSet_timestamp_type(self):
-        self._test_insert_complex_type('SET[TIMESTAMP]', [{datetime(276, 12, 1, 11, 22, 33),None,datetime(2001, 12, 1, 0, 30, 45, 87000)}, None, set(), {None}])
+        self._test_insert_complex_type('SET[TIMESTAMP]', [{datetime(276, 12, 1, 11, 22, 33),None,datetime(2001, 12, 1, 0, 30, 45, 87000)}, None, set(), {None}], test_executemany=True)
 
     def test_1DSet_timestamptz_type(self):
         self._test_insert_complex_type('SET[TIMESTAMPTZ]', [{datetime(276, 11, 30, 23, 32, 57, tzinfo=tzoffset(None, 3600)),None,
-            datetime(2001, 12, 1, 0, 30, 45, 87000, tzinfo=tzoffset(None, -18000))}, None, set(), {None}])
+            datetime(2001, 12, 1, 0, 30, 45, 87000, tzinfo=tzoffset(None, -18000))}, None, set(), {None}], test_executemany=True)
 
     def test_1DSet_UUID_type(self):
-        self._test_insert_complex_type('SET[UUID]', [{UUID('00010203-0405-0607-0809-0a0b0c0d0e0f'),None,UUID('123e4567-e89b-12d3-a456-426655440a00')}, None, set(), {None}])
+        self._test_insert_complex_type('SET[UUID]', [{UUID('00010203-0405-0607-0809-0a0b0c0d0e0f'),None,UUID('123e4567-e89b-12d3-a456-426655440a00')}, None, set(), {None}], test_executemany=True)
 
     #####################
     # tests for ROW type

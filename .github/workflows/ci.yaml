@@ -17,11 +17,21 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Set up a Vertica server
+      - name: Set up a Keycloak docker container
+        timeout-minutes: 5
+        run: |
+          docker network create -d bridge my-network
+          docker run -d -p 8080:8080 \
+            --name keycloak --network my-network \
+            -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin \
+            quay.io/keycloak/keycloak:21.0.1 start-dev
+          docker container ls
+
+      - name: Set up a Vertica server docker container
         timeout-minutes: 15
         run: |
           docker run -d -p 5433:5433 -p 5444:5444 \
-            --name vertica_docker \
+            --name vertica_docker --network my-network \
             vertica/vertica-ce:12.0.4-0
           echo "Vertica startup ..."
           until docker exec vertica_docker test -f /data/vertica/VMart/agent_start.out; do \
@@ -31,6 +41,40 @@ jobs:
           echo "Vertica is up"
           docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "\l"
           docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "select version()"
+
+      - name: Configure Keycloak
+        run: |
+          echo "Wait for keycloak ready ..."
+          bash -c 'while true; do curl -s localhost:8080 &>/dev/null; ret=$?; [[ $ret -eq 0 ]] && break; echo "..."; sleep 3; done'
+
+          REALM="test"
+          USER="oauth_user"
+          PASSWORD="password"
+          CLIENT_ID="vertica"
+          CLIENT_SECRET="P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs"
+
+          docker exec -i keycloak /bin/bash <<EOF
+            /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user admin --password admin
+            /opt/keycloak/bin/kcadm.sh create realms -s realm=${REALM} -s enabled=true
+            /opt/keycloak/bin/kcadm.sh update realms/${REALM} -s accessTokenLifespan=3600
+            /opt/keycloak/bin/kcadm.sh get realms/${REALM}
+            /opt/keycloak/bin/kcadm.sh create users -r ${REALM} -s username=${USER} -s enabled=true
+            /opt/keycloak/bin/kcadm.sh set-password -r ${REALM} --username ${USER} --new-password ${PASSWORD}
+            /opt/keycloak/bin/kcadm.sh get users -r ${REALM}
+            /opt/keycloak/bin/kcadm.sh create clients -r ${REALM} -s clientId=${CLIENT_ID} -s enabled=true \
+              -s 'redirectUris=["/*"]' -s 'webOrigins=["/*"]' -s secret=${CLIENT_SECRET} -s directAccessGrantsEnabled=true -o
+          EOF
+
+          # Retrieving an Access Token
+          curl --location --request POST http://`hostname`:8080/realms/${REALM}/protocol/openid-connect/token \
+              --header 'Content-Type: application/x-www-form-urlencoded' \
+              --data-urlencode "username=${USER}" \
+              --data-urlencode "password=${PASSWORD}" \
+              --data-urlencode "client_id=${CLIENT_ID}" \
+              --data-urlencode "client_secret=${CLIENT_SECRET}" \
+              --data-urlencode 'grant_type=password' -o oauth.json
+          cat oauth.json
+
       - name: Install dependencies
         run: pip install tox
       - name: Run tests

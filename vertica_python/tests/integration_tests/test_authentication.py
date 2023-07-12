@@ -107,5 +107,9 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
                 cur.execute("DROP AUTHENTICATION IF EXISTS testIPv6hostHash CASCADE")
                 cur.execute("DROP AUTHENTICATION IF EXISTS testlocalHash CASCADE")
 
+    def test_oauth(self):
+        self.require_protocol_at_least(3 << 16 | 11)
+
+
 
 exec(AuthenticationTestCase.createPrepStmtClass())

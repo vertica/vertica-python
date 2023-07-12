@@ -73,6 +73,7 @@ DEFAULT_LOG_LEVEL = logging.WARNING
 DEFAULT_LOG_PATH = 'vertica_python.log'
 DEFAULT_BINARY_TRANSFER = False
 DEFAULT_REQUEST_COMPLEX_TYPES = True
+DEFAULT_OAUTH_ACCESS_TOKEN = ''
 DEFAULT_WORKLOAD = ''
 try:
     DEFAULT_USER = getpass.getuser()
@@ -289,6 +290,7 @@ class Connection(object):
                 raise KeyError(msg)
         self.options.setdefault('database', DEFAULT_DATABASE)
         self.options.setdefault('password', DEFAULT_PASSWORD)
+        self.options.setdefault('oauth_access_token', DEFAULT_OAUTH_ACCESS_TOKEN)
         self.options.setdefault('autocommit', DEFAULT_AUTOCOMMIT)
         self.options.setdefault('session_label', _generate_session_label())
         self.options.setdefault('backup_server_node', DEFAULT_BACKUP_SERVER_NODE)
@@ -826,10 +828,11 @@ class Connection(object):
         autocommit = self.options['autocommit']
         binary_transfer = self.options['binary_transfer']
         request_complex_types = self.options['request_complex_types']
+        oauth_access_token = self.options['oauth_access_token']
         workload = self.options['workload']
 
         self.write(messages.Startup(user, database, session_label, os_user_name, autocommit, binary_transfer, 
-                                    request_complex_types, workload))
+                                    request_complex_types, oauth_access_token, workload))
 
         while True:
             message = self.read_message()
@@ -848,6 +851,8 @@ class Connection(object):
                     self._logger.warning(password_grace)
                 elif message.code == messages.Authentication.GSS:
                     self.make_GSS_authentication()
+                elif message.code == messages.Authentication.OAUTH:
+                    self.write(messages.Password(oauth_access_token, message.code))
                 else:
                     self.write(messages.Password(password, message.code,
                                                  {'user': user,

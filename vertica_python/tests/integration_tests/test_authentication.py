@@ -26,6 +26,8 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
     def tearDown(self):
         self._conn_info['user'] = self._user
         self._conn_info['password'] = self._password
+        if 'oauth_access_token' in self._conn_info:
+            del self._conn_info['oauth_access_token']
         super(AuthenticationTestCase, self).tearDown()
 
     def test_SHA512(self):
@@ -109,7 +111,16 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
 
     def test_oauth(self):
         self.require_protocol_at_least(3 << 16 | 11)
+        if not self._oauth_info['access_token']:
+            self.skipTest('OAuth not set')
 
+        self._conn_info['user'] = self._oauth_info['user']
+        self._conn_info['oauth_access_token'] = self._oauth_info['access_token']
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT authentication_method FROM sessions WHERE session_id=(SELECT current_session())")
+            res = cur.fetchone()
+            self.assertEqual(res[0], 'OAuth')
 
 
 exec(AuthenticationTestCase.createPrepStmtClass())

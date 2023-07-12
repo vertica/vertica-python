@@ -73,11 +73,27 @@ jobs:
               --data-urlencode "client_id=${CLIENT_ID}" \
               --data-urlencode "client_secret=${CLIENT_SECRET}" \
               --data-urlencode 'grant_type=password' -o oauth.json
-          cat oauth.json
+          cat oauth.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["access_token"])' > access_token.txt
+
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "CREATE AUTHENTICATION v_oauth METHOD 'oauth' HOST '0.0.0.0/0';"
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "ALTER AUTHENTICATION v_oauth SET client_id = '${CLIENT_ID}';"
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "ALTER AUTHENTICATION v_oauth SET client_secret = '${CLIENT_SECRET}';"
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "ALTER AUTHENTICATION v_oauth SET discovery_url = 'http://`hostname`:8080/realms/${REALM}/.well-known/openid-configuration';"
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "ALTER AUTHENTICATION v_oauth SET introspect_url = 'http://`hostname`:8080/realms/${REALM}/protocol/openid-connect/token/introspect';"
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "SELECT * FROM client_auth WHERE auth_name='v_oauth';"
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "CREATE USER ${USER};"
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "GRANT AUTHENTICATION v_oauth TO ${USER};"
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "GRANT ALL ON SCHEMA PUBLIC TO ${USER};"
+          # A dbadmin-specific authentication record (connect remotely) is needed after setting up an OAuth user
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "CREATE AUTHENTICATION v_dbadmin_hash METHOD 'hash' HOST '0.0.0.0/0';"
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "ALTER AUTHENTICATION v_dbadmin_hash PRIORITY 10000;"
+          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "GRANT AUTHENTICATION v_dbadmin_hash TO dbadmin;"
 
       - name: Install dependencies
         run: pip install tox
       - name: Run tests
         run: |
           export VP_TEST_USER=dbadmin
+          export VP_TEST_OAUTH_ACCESS_TOKEN=`cat access_token.txt`
+          export VP_TEST_OAUTH_USER=oauth_user
           tox -e py

@@ -103,6 +103,7 @@ with vertica_python.connect(**conn_info) as connection:
 | kerberos_service_name | See [Kerberos Authentication](#kerberos-authentication). <br>**_Default_**: "vertica" |
 | log_level | See [Logging](#logging). |
 | log_path | See [Logging](#logging). |
+| oauth_access_token | To authenticate via OAuth, provide an OAuth Access Token that authorizes a user to the database. <br>**_Default_**: "" |
 | request_complex_types | See [SQL Data conversion to Python objects](#sql-data-conversion-to-python-objects). <br>**_Default_**: True |
 | session_label | Sets a label for the connection on the server. This value appears in the client_label column of the _v_monitor.sessions_ system table. <br>**_Default_**: an auto-generated label with format of `vertica-python-{version}-{random_uuid}` |
 | ssl | See [TLS/SSL](#tlsssl). <br>**_Default_**: False (disabled) |

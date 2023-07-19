@@ -60,7 +60,6 @@ class Password(BulkFrontendMessage):
             self._auth_method = Authentication.CLEARTEXT_PASSWORD
 
     def encoded_password(self):
-
         if self._auth_method == Authentication.CLEARTEXT_PASSWORD:
             return self._password
         elif self._auth_method == Authentication.CRYPT_PASSWORD:
@@ -83,8 +82,10 @@ class Password(BulkFrontendMessage):
             return prefix + self._password
         elif self._auth_method == Authentication.GSS:
             return self._password
+        elif self._auth_method == Authentication.OAUTH:
+            return self._password
         else:
-            raise ValueError("unsupported authentication method: {0}".format(self._auth_method))
+            raise ValueError(f"unsupported authentication method: {self._auth_method}")
 
     def read_bytes(self):
         encoded_pw = self.encoded_password()

@@ -54,7 +54,8 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
     @classmethod
     def setUpClass(cls):
         config_list = ['log_dir', 'log_level', 'host', 'port',
-                       'user', 'password', 'database']
+                       'user', 'password', 'database',
+                       'oauth_access_token', 'oauth_user',]
         cls.test_config = cls._load_test_config(config_list)
 
         # Test logger
@@ -72,6 +73,10 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
             'password': cls.test_config['password'],
             'log_level': cls.test_config['log_level'],
             'log_path': logfile,
+        }
+        cls._oauth_info = {
+            'access_token': cls.test_config['oauth_access_token'],
+            'user': cls.test_config['oauth_user'],
         }
         cls.db_node_num = cls._get_node_num()
         cls.logger.info("Number of database node(s) = {}".format(cls.db_node_num))

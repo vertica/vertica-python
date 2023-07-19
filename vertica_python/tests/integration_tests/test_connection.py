@@ -142,7 +142,7 @@ class ConnectionTestCase(VerticaPythonIntegrationTestCase):
         with self._connect() as conn:
             query = "SHOW WORKLOAD"
             res = self._query_and_fetchone(query)
-            self.assertEqual(res[0], '')
+            self.assertEqual(res[1], '')
     
     def test_workload_set_property(self):
         self.require_protocol_at_least(3 << 16 | 15)

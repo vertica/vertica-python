@@ -10,7 +10,7 @@ This document will guide you through the contribution process. There are a numbe
 
 If you find a bug, submit an [issue](https://github.com/vertica/vertica-python/issues) with a complete and reproducible bug report. If the issue can't be reproduced, it will be closed. If you opened an issue, but figured out the answer later on your own, comment on the issue to let people know, then close the issue.
 
-For issues (e.g. security related issues) that are **not suitable** to be reported publicly on the GitHub issue system, report your issues to [Vertica open source team](mailto:vertica-opensrc@microfocus.com) directly or file a case with Vertica support if you have a support account.
+For issues (e.g. security related issues) that are **not suitable** to be reported publicly on the GitHub issue system, report your issues to [Vertica open source team](mailto:vertica-opensrc@opentext.com) directly or file a case with Vertica support if you have a support account.
 
 # Feature Requests
 

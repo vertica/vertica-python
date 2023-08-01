@@ -29,7 +29,7 @@ class VerifiedFiles(BulkFrontendMessage):
         self.filenames = file_list
 
     def read_bytes(self):
-        bytes_ = pack('!H', len(self.filenames))
+        bytes_ = pack('!I', len(self.filenames))
         for filename in self.filenames:
             utf_filename = filename.encode('utf-8')
             bytes_ += pack('!{0}sx'.format(len(utf_filename)), utf_filename)

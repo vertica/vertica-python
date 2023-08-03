@@ -777,7 +777,8 @@ class Cursor(object):
             # Check that the input files are readable
             self.valid_read_file_path = self._check_copy_local_files(input_files)
 
-            self.connection.write(messages.VerifiedFiles(self.valid_read_file_path))
+            self.connection.write(messages.VerifiedFiles(self.valid_read_file_path,
+                                  self.connection.parameters.get('protocol_version', 0)))
         except Exception as e:
             tb = sys.exc_info()[2]
             stk = traceback.extract_tb(tb, 1)

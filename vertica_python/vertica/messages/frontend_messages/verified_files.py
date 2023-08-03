@@ -24,12 +24,16 @@ from ..message import BulkFrontendMessage
 class VerifiedFiles(BulkFrontendMessage):
     message_id = b'F'
 
-    def __init__(self, file_list):
+    def __init__(self, file_list, protocol_version):
         BulkFrontendMessage.__init__(self)
         self.filenames = file_list
+        self.protocol_version = protocol_version
 
     def read_bytes(self):
-        bytes_ = pack('!I', len(self.filenames))
+        if self.protocol_version >= (3 << 16 | 15):
+            bytes_ = pack('!I', len(self.filenames)) # Int32
+        else:
+            bytes_ = pack('!H', len(self.filenames)) # Int16
         for filename in self.filenames:
             utf_filename = filename.encode('utf-8')
             bytes_ += pack('!{0}sx'.format(len(utf_filename)), utf_filename)

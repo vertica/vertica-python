@@ -830,6 +830,9 @@ class Connection(object):
         request_complex_types = self.options['request_complex_types']
         oauth_access_token = self.options['oauth_access_token']
         workload = self.options['workload']
+        auth_category = ''
+        if len(oauth_access_token) > 0:
+            auth_category = 'OAuth'
 
         self.write(messages.Startup(user, database, session_label, os_user_name, autocommit, binary_transfer, 
                                     request_complex_types, oauth_access_token, workload, auth_category))

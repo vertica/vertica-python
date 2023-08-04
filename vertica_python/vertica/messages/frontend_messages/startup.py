@@ -98,11 +98,12 @@ class Startup(BulkFrontendMessage):
             b'protocol_features': '{"request_complex_types":' + request_complex_types + '}',
             b'protocol_compat': 'VER',
             b'workload': workload,
+            b'auth_category': auth_category,
         }
 
         if len(oauth_access_token) > 0:
             self.parameters[b'oauth_access_token'] = oauth_access_token # protocol version 3.11
-            self.parameters[b'auth_category'] = 'OAuth'                 # protocol version 3.12+
+            #self.parameters[b'auth_category'] = 'OAuth'                 # protocol version 3.12+
 
     def read_bytes(self):
         # The fixed protocol version is followed by pairs of parameter name and value strings.

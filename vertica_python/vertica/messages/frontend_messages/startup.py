@@ -59,8 +59,9 @@ class Startup(BulkFrontendMessage):
 
     def __init__(self, user, database, session_label, os_user_name, autocommit,
                  binary_transfer, request_complex_types, oauth_access_token,
-                 workload):
+                 workload, auth_category):
         BulkFrontendMessage.__init__(self)
+        print(f'auth_category: {auth_category}')
 
         try:
             os_platform = platform.platform()

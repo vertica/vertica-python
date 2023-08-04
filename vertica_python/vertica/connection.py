@@ -832,7 +832,7 @@ class Connection(object):
         workload = self.options['workload']
 
         self.write(messages.Startup(user, database, session_label, os_user_name, autocommit, binary_transfer, 
-                                    request_complex_types, oauth_access_token, workload))
+                                    request_complex_types, oauth_access_token, workload, auth_category))
 
         while True:
             message = self.read_message()

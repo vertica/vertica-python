@@ -562,7 +562,8 @@ class Cursor(object):
 
         while True:
             message = self.connection.read_message()
-            if isinstance(message, END_OF_RESULT_RESPONSES):
+            if (isinstance(message, messages.ReadyForQuery) or
+                isinstance(message, END_OF_RESULT_RESPONSES)):
                 self._message = message
                 break
 

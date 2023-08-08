@@ -693,6 +693,28 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
             with self.assertRaises(errors.MissingColumn):
                 cur.nextset()
 
+    # test for #526
+    def test_nextset_with_error_2(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE {0} (a INT, b INT)".format(self._table))
+            # insert data
+            cur.execute("INSERT INTO {0} (a, b) VALUES (8, 2)".format(self._table))
+            cur.execute("INSERT INTO {0} (a, b) VALUES (2, 0)".format(self._table))
+            conn.commit()
+
+            cur.execute("SELECT 1; SELECT a/b FROM {}; SELECT 2".format(self._table))
+            # verify data from first query
+            res1 = cur.fetchall()
+            self.assertListOfListsEqual(res1, [[1]])
+            self.assertIsNone(cur.fetchone())
+
+            self.assertTrue(cur.nextset())
+            self.assertEqual(cur.fetchone()[0], Decimal('4'))
+            # Division by zero error at the second row, should be skipped by next nextset()
+            self.assertFalse(cur.nextset())
+            self.assertIsNone(cur.fetchone())
+
     def test_qmark_paramstyle(self):
         with self._connect() as conn:
             cur = conn.cursor()

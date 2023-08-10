@@ -61,7 +61,6 @@ class Startup(BulkFrontendMessage):
                  binary_transfer, request_complex_types, oauth_access_token,
                  workload, auth_category):
         BulkFrontendMessage.__init__(self)
-        print(f'auth_category: {auth_category}')
 
         try:
             os_platform = platform.platform()
@@ -102,8 +101,8 @@ class Startup(BulkFrontendMessage):
         }
 
         if len(oauth_access_token) > 0:
-            self.parameters[b'oauth_access_token'] = oauth_access_token # protocol version 3.11
-            #self.parameters[b'auth_category'] = 'OAuth'                 # protocol version 3.12+
+            # compatibility for protocol version 3.11
+            self.parameters[b'oauth_access_token'] = oauth_access_token
 
     def read_bytes(self):
         # The fixed protocol version is followed by pairs of parameter name and value strings.

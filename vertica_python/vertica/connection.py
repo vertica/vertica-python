@@ -295,6 +295,7 @@ class Connection(object):
         self.options.setdefault('session_label', _generate_session_label())
         self.options.setdefault('backup_server_node', DEFAULT_BACKUP_SERVER_NODE)
         self.options.setdefault('workload', DEFAULT_WORKLOAD)
+        self.kerberos_is_set = 'kerberos_service_name' in self.options or 'kerberos_host_name' in self.options
         self.options.setdefault('kerberos_service_name', DEFAULT_KRB_SERVICE_NAME)
         # Kerberos authentication hostname defaults to the host value here so
         # the correct value cannot be overwritten by load balancing or failover
@@ -830,9 +831,14 @@ class Connection(object):
         request_complex_types = self.options['request_complex_types']
         oauth_access_token = self.options['oauth_access_token']
         workload = self.options['workload']
-        auth_category = ''
         if len(oauth_access_token) > 0:
             auth_category = 'OAuth'
+        elif self.kerberos_is_set:
+            auth_category = 'Kerberos'
+        elif password:
+            auth_category = 'User'
+        else:
+            auth_category = ''
 
         self.write(messages.Startup(user, database, session_label, os_user_name, autocommit, binary_transfer, 
                                     request_complex_types, oauth_access_token, workload, auth_category))

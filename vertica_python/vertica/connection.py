@@ -295,7 +295,7 @@ class Connection(object):
         self.options.setdefault('session_label', _generate_session_label())
         self.options.setdefault('backup_server_node', DEFAULT_BACKUP_SERVER_NODE)
         self.options.setdefault('workload', DEFAULT_WORKLOAD)
-        self.kerberos_is_set = 'kerberos_service_name' in self.options or 'kerberos_host_name' in self.options
+        self.kerberos_is_set = self.options.get('kerberos_host_name', None) or self.options.get('kerberos_service_name', None)
         self.options.setdefault('kerberos_service_name', DEFAULT_KRB_SERVICE_NAME)
         # Kerberos authentication hostname defaults to the host value here so
         # the correct value cannot be overwritten by load balancing or failover

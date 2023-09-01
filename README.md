@@ -950,7 +950,7 @@ The `Cursor.register_sqldata_converter(oid, converter_func)` method allows to cu
 
 PARAMETERS:
 - oid – The Vertica type OID to manage.
-- converter_func – The converter function to register for oid.
+- converter_func – The converter function to register for oid. <val, ctx> binary_transfer
 
 Each Vertica type OID is an integer representing a SQL type, you can look up OIDs in `vertica_python.datatypes`:
 ```
@@ -964,8 +964,38 @@ $ python3
 9
 >>>
 >>> from vertica_python.datatypes import TYPENAME
->>> TYPENAME
+>>> TYPENAME   # mapping from OIDs to readable names
 {4: 'Unknown', 5: 'Boolean', 6: 'Integer', 7: 'Float', 8: 'Char', 9: 'Varchar', 115: 'Long Varchar', 10: 'Date', 11: 'Time', 15: 'TimeTz', 12: 'Timestamp', 13: 'TimestampTz', 117: 'Binary', 17: 'Varbinary', 116: 'Long Varbinary', 16: 'Numeric', 20: 'Uuid', 300: 'Row', 301: 'Array', 302: 'Map', 1505: 'Array[Boolean]', 1506: 'Array[Int8]', 1507: 'Array[Float8]', 1508: 'Array[Char]', 1509: 'Array[Varchar]', 1510: 'Array[Date]', 1511: 'Array[Time]', 1512: 'Array[Timestamp]', 1513: 'Array[TimestampTz]', 1515: 'Array[TimeTz]', 1516: 'Array[Numeric]', 1517: 'Array[Varbinary]', 1520: 'Array[Uuid]', 1522: 'Array[Binary]', 1519: 'Array[Long Varchar]', 1518: 'Array[Long Varbinary]', 2705: 'Set[Boolean]', 2706: 'Set[Int8]', 2707: 'Set[Float8]', 2708: 'Set[Char]', 2709: 'Set[Varchar]', 2710: 'Set[Date]', 2711: 'Set[Time]', 2712: 'Set[Timestamp]', 2713: 'Set[TimestampTz]', 2715: 'Set[TimeTz]', 2716: 'Set[Numeric]', 2717: 'Set[Varbinary]', 2720: 'Set[Uuid]', 2722: 'Set[Binary]', 2719: 'Set[Long Varchar]', 2718: 'Set[Long Varbinary]'}
+```
+
+**Example: Vertica numeric to Python float**
+Normally Vertica NUMERIC values are converted to Python [decimal.Decimal](https://docs.python.org/3/library/decimal.html#decimal.Decimal) instances, because both the types allow fixed-precision arithmetic and are not subject to rounding. Sometimes, however, you may want to perform floating-point math on NUMERIC values, and decimal.Decimal may get in the way. If you are fine with the potential loss of precision and you simply want to receive NUMERIC values as Python float, you can register a converter on NUMERIC.
+
+```python
+import vertica_python
+from vertica_python.datatypes import VerticaType
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'binary_transfer': False,  # TEXT transfer format
+             ...
+            }
+
+conn = vertica_python.connect(**conn_info)
+cur = conn.cursor()
+cur.execute("SELECT 123.45::NUMERIC")
+print(cur.fetchone()[0])
+# Decimal('123.45')
+
+def convert_numeric(val, ctx):
+    # val: bytes - Since the connection uses TEXT transfer format, this is a text representation of NUMERIC value
+    # ctx: dict
+    return float(val)
+
+cur.register_sqldata_converter(VerticaType.NUMERIC, convert_numeric)
+cur.execute("SELECT 123.45::NUMERIC")
+print(cur.fetchone()[0])
+# 123.45
 ```
 
 ### Shortcuts

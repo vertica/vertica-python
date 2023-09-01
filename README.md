@@ -943,7 +943,7 @@ with vertica_python.connect(**conn_info) as conn:
     # [[b'foo', b'100', b'2001-12-01 02:50:00']]
 ```
 
-As a result, this can improve query performance when you call `fetchall()` but ignore/skip result data. This can also be used when defining customized data converters.
+As a result, this can improve query performance when you call `fetchall()` but ignore/skip result data.
 
 #### Customize data conversion to Python objects
 The `Cursor.register_sqldata_converter(oid, converter_func)` method allows to customize how SQL data values are converted to Python objects when query results are returned.

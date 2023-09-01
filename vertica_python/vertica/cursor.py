@@ -152,6 +152,7 @@ class Cursor(object):
         self.error = None
         self._sql_literal_adapters = {}
         self._disable_sqldata_converter = False
+        self._sqldata_converters = {}
         self._des = Deserializer()
 
         #
@@ -333,7 +334,8 @@ class Cursor(object):
                 return row
             elif isinstance(self._message, messages.RowDescription):
                 self.description = self._message.get_description()
-                self._deserializers = self._des.get_row_deserializers(self.description,
+                self._deserializers = self._des.get_row_deserializers(
+                                        self.description, self._sqldata_converters,
                                         {'unicode_error': self.unicode_error,
                                          'session_tz': self.connection.parameters.get('timezone', 'unknown'),
                                          'complex_types_enabled': self.connection.complex_types_enabled,})
@@ -394,7 +396,8 @@ class Cursor(object):
             self._message = self.connection.read_message()
             if isinstance(self._message, messages.RowDescription):
                 self.description = self._message.get_description()
-                self._deserializers = self._des.get_row_deserializers(self.description,
+                self._deserializers = self._des.get_row_deserializers(
+                                        self.description, self._sqldata_converters,
                                         {'unicode_error': self.unicode_error,
                                          'session_tz': self.connection.parameters.get('timezone', 'unknown'),
                                          'complex_types_enabled': self.connection.complex_types_enabled,})
@@ -533,6 +536,17 @@ class Cursor(object):
         If set to True, bypass conversions from SQL type raw data to the native Python object
         """
         self._disable_sqldata_converter = bool(value)
+
+    def register_sqldata_converter(self, oid, converter_func):
+        if not isinstance(oid, int):
+            raise TypeError(f"sqldata converters should be registered on oid integer, got {oid} instead.")
+
+        if not callable(converter_func):
+            raise TypeError("Cannot register this sqldata converter. The converter is not callable.")
+
+        # Transfer format (BINARY/TEXT) is fixed in one connection
+        self._sqldata_converters[oid] = converter_func
+
 
     #############################################
     # internal
@@ -736,7 +750,8 @@ class Cursor(object):
             raise errors.QueryError.from_error_response(self._message, query)
         elif isinstance(self._message, messages.RowDescription):
             self.description = self._message.get_description()
-            self._deserializers = self._des.get_row_deserializers(self.description,
+            self._deserializers = self._des.get_row_deserializers(
+                                    self.description, self._sqldata_converters,
                                     {'unicode_error': self.unicode_error,
                                      'session_tz': self.connection.parameters.get('timezone', 'unknown'),
                                      'complex_types_enabled': self.connection.complex_types_enabled,})
@@ -931,7 +946,8 @@ class Cursor(object):
             self.description = None  # response was NoData for a DDL/transaction PreparedStatement
         else:
             self.description = self._message.get_description()
-            self._deserializers = self._des.get_row_deserializers(self.description,
+            self._deserializers = self._des.get_row_deserializers(
+                                    self.description, self._sqldata_converters,
                                     {'unicode_error': self.unicode_error,
                                      'session_tz': self.connection.parameters.get('timezone', 'unknown'),
                                      'complex_types_enabled': self.connection.complex_types_enabled,})

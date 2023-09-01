@@ -30,15 +30,18 @@ from ..vertica.column import FormatCode
 
 
 class Deserializer(object):
-    def get_row_deserializers(self, columns, context):
+    def get_row_deserializers(self, columns, custom_converters, context):
         result = [None] * len(columns)
         for idx, col in enumerate(columns):
-            result[idx] = self.get_column_deserializer(col, context)
+            result[idx] = self.get_column_deserializer(col, custom_converters, context)
         return result
 
-    def get_column_deserializer(self, col, context):
+    def get_column_deserializer(self, col, custom_converters, context):
         """Return a function that inputs a column's raw data and returns a Python object"""
-        f = DEFAULTS.get(col.format_code, {}).get(col.type_code)
+        if col.type_code in custom_converters:
+            f = custom_converters[col.type_code]
+        else:
+            f = DEFAULTS.get(col.format_code, {}).get(col.type_code)
         if f is None:  # skip conversion
             return lambda data: data
 

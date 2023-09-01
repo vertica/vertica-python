@@ -950,7 +950,8 @@ The `Cursor.register_sqldata_converter(oid, converter_func)` method allows to cu
 
 PARAMETERS:
 - oid – The Vertica type OID to manage.
-- converter_func – The converter function to register for oid. <val, ctx> binary_transfer
+- converter_func – The converter function to register for oid. The function should have two arguments <`val`, `ctx`>. [Data Transfer Format](#data-transfer-format) matters for `val` (SQL data value). `ctx` is a dict managing resources that may be used by convertions. `ctx['column'].format_code` would be 0 (Text transfer) or 1 (Binary transfer).
+
 
 Each Vertica type OID is an integer representing a SQL type, you can look up OIDs in `vertica_python.datatypes`:
 ```
@@ -969,7 +970,8 @@ $ python3
 ```
 
 **Example: Vertica numeric to Python float**
-Normally Vertica NUMERIC values are converted to Python [decimal.Decimal](https://docs.python.org/3/library/decimal.html#decimal.Decimal) instances, because both the types allow fixed-precision arithmetic and are not subject to rounding. Sometimes, however, you may want to perform floating-point math on NUMERIC values, and decimal.Decimal may get in the way. If you are fine with the potential loss of precision and you simply want to receive NUMERIC values as Python float, you can register a converter on NUMERIC.
+
+Normally Vertica NUMERIC values are converted to Python decimal.Decimal instances, because both the types allow fixed-precision arithmetic and are not subject to rounding. Sometimes, however, you may want to perform floating-point math on NUMERIC values, and decimal.Decimal may get in the way. If you are fine with the potential loss of precision and you simply want to receive NUMERIC values as Python float, you can register a converter on NUMERIC.
 
 ```python
 import vertica_python
@@ -977,7 +979,6 @@ from vertica_python.datatypes import VerticaType
 
 conn_info = {'host': '127.0.0.1',
              'port': 5433,
-             'binary_transfer': False,  # TEXT transfer format
              ...
             }
 
@@ -988,8 +989,8 @@ print(cur.fetchone()[0])
 # Decimal('123.45')
 
 def convert_numeric(val, ctx):
-    # val: bytes - Since the connection uses TEXT transfer format, this is a text representation of NUMERIC value
-    # ctx: dict
+    # val: bytes - this is a text representation of NUMERIC value
+    # ctx: dict - some info that may be useful to the converter
     return float(val)
 
 cur.register_sqldata_converter(VerticaType.NUMERIC, convert_numeric)

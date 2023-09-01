@@ -945,6 +945,24 @@ with vertica_python.connect(**conn_info) as conn:
 
 As a result, this can improve query performance when you call `fetchall()` but ignore/skip result data. This can also be used when defining customized data converters.
 
+#### Customize data conversion to Python objects
+The `Cursor.register_sqldata_converter(oid, converter_func)` method allows to customize how SQL data values are converted to Python objects when query results are returned.
+
+PARAMETERS:
+- oid – The Vertica type OID to manage.
+- converter_func – The converter function to register for oid.
+
+Each Vertica type OID is an integer representing a SQL type, you can look up OIDs in `vertica_python.datatypes`:
+```
+>>> from vertica_python.datatypes import VerticaType
+>>> {k:v for k,v in dict(VerticaType.__dict__).items() if not k.startswith('_')}
+{'UNKNOWN': 4, 'BOOL': 5, 'INT8': 6, 'FLOAT8': 7, 'CHAR': 8, 'VARCHAR': 9, 'DATE': 10, 'TIME': 11, 'TIMESTAMP': 12, 'TIMESTAMPTZ': 13, 'INTERVAL': 14, 'INTERVALYM': 114, 'TIMETZ': 15, 'NUMERIC': 16, 'VARBINARY': 17, 'UUID': 20, 'LONGVARCHAR': 115, 'LONGVARBINARY': 116, 'BINARY': 117, 'ROW': 300, 'ARRAY': 301, 'MAP': 302, 'ARRAY1D_BOOL': 1505, 'ARRAY1D_INT8': 1506, 'ARRAY1D_FLOAT8': 1507, 'ARRAY1D_CHAR': 1508, 'ARRAY1D_VARCHAR': 1509, 'ARRAY1D_DATE': 1510, 'ARRAY1D_TIME': 1511, 'ARRAY1D_TIMESTAMP': 1512, 'ARRAY1D_TIMESTAMPTZ': 1513, 'ARRAY1D_INTERVAL': 1514, 'ARRAY1D_INTERVALYM': 1521, 'ARRAY1D_TIMETZ': 1515, 'ARRAY1D_NUMERIC': 1516, 'ARRAY1D_VARBINARY': 1517, 'ARRAY1D_UUID': 1520, 'ARRAY1D_BINARY': 1522, 'ARRAY1D_LONGVARCHAR': 1519, 'ARRAY1D_LONGVARBINARY': 1518, 'SET_BOOL': 2705, 'SET_INT8': 2706, 'SET_FLOAT8': 2707, 'SET_CHAR': 2708, 'SET_VARCHAR': 2709, 'SET_DATE': 2710, 'SET_TIME': 2711, 'SET_TIMESTAMP': 2712, 'SET_TIMESTAMPTZ': 2713, 'SET_INTERVAL': 2714, 'SET_INTERVALYM': 2721, 'SET_TIMETZ': 2715, 'SET_NUMERIC': 2716, 'SET_VARBINARY': 2717, 'SET_UUID': 2720, 'SET_BINARY': 2722, 'SET_LONGVARCHAR': 2719, 'SET_LONGVARBINARY': 2718}
+>>>
+>>> from vertica_python.datatypes import TYPENAME
+>>> TYPENAME
+{4: 'Unknown', 5: 'Boolean', 6: 'Integer', 7: 'Float', 8: 'Char', 9: 'Varchar', 115: 'Long Varchar', 10: 'Date', 11: 'Time', 15: 'TimeTz', 12: 'Timestamp', 13: 'TimestampTz', 117: 'Binary', 17: 'Varbinary', 116: 'Long Varbinary', 16: 'Numeric', 20: 'Uuid', 300: 'Row', 301: 'Array', 302: 'Map', 1505: 'Array[Boolean]', 1506: 'Array[Int8]', 1507: 'Array[Float8]', 1508: 'Array[Char]', 1509: 'Array[Varchar]', 1510: 'Array[Date]', 1511: 'Array[Time]', 1512: 'Array[Timestamp]', 1513: 'Array[TimestampTz]', 1515: 'Array[TimeTz]', 1516: 'Array[Numeric]', 1517: 'Array[Varbinary]', 1520: 'Array[Uuid]', 1522: 'Array[Binary]', 1519: 'Array[Long Varchar]', 1518: 'Array[Long Varbinary]', 2705: 'Set[Boolean]', 2706: 'Set[Int8]', 2707: 'Set[Float8]', 2708: 'Set[Char]', 2709: 'Set[Varchar]', 2710: 'Set[Date]', 2711: 'Set[Time]', 2712: 'Set[Timestamp]', 2713: 'Set[TimestampTz]', 2715: 'Set[TimeTz]', 2716: 'Set[Numeric]', 2717: 'Set[Varbinary]', 2720: 'Set[Uuid]', 2722: 'Set[Binary]', 2719: 'Set[Long Varchar]', 2718: 'Set[Long Varbinary]'}
+```
+
 ### Shortcuts
 The `Cursor.execute()` method returns `self`. This means that you can chain a fetch operation, such as `fetchone()`, to the `execute()` call:
 ```python

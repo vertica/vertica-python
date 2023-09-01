@@ -950,7 +950,7 @@ The `Cursor.register_sqldata_converter(oid, converter_func)` method allows to cu
 
 PARAMETERS:
 - oid – The Vertica type OID to manage.
-- converter_func – The converter function to register for oid. The function should have two arguments <`val`, `ctx`>. [Data Transfer Format](#data-transfer-format) matters for `val` (SQL data value). `ctx` is a dict managing resources that may be used by convertions. `ctx['column'].format_code` would be 0 (Text transfer) or 1 (Binary transfer).
+- converter_func – The converter function to register for oid. The function should have two arguments <`val`, `ctx`>. [Data Transfer Format](#data-transfer-format) matters for `val` (SQL data value). `ctx` is a dict managing resources that may be used by convertions. E.g. `ctx['column'].format_code` would be 0 (Text transfer format) or 1 (Binary transfer format).
 
 
 Each Vertica type OID is an integer representing a SQL type, you can look up OIDs in `vertica_python.datatypes`:
@@ -998,6 +998,8 @@ cur.execute("SELECT 123.45::NUMERIC")
 print(cur.fetchone()[0])
 # 123.45
 ```
+
+If you want to learn how default converters for each transfer format and oid works, look at the source code `vertica_python/vertica/deserializer.py`
 
 ### Shortcuts
 The `Cursor.execute()` method returns `self`. This means that you can chain a fetch operation, such as `fetchone()`, to the `execute()` call:

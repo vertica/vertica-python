@@ -43,6 +43,7 @@ import os
 import re
 import sys
 import traceback
+import warnings
 from decimal import Decimal
 from io import IOBase, BytesIO, StringIO
 from math import isnan
@@ -544,8 +545,15 @@ class Cursor(object):
         if not callable(converter_func):
             raise TypeError("Cannot register this sqldata converter. The converter is not callable.")
 
-        # Transfer format (BINARY/TEXT) is fixed in one connection
+        # For an oid, transfer format (BINARY/TEXT) is fixed in a connection
         self._sqldata_converters[oid] = converter_func
+
+    def unregister_sqldata_converter(self, oid):
+        if oid in self._sqldata_converters:
+            del self._sqldata_converters[oid]
+        else:
+            no_such_oid = f'Nothing was unregistered (oid={oid})'
+            warnings.warn(no_such_oid)
 
 
     #############################################

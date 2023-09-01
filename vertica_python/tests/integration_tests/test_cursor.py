@@ -488,6 +488,20 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
             else:
                 self.assertListOfListsEqual(res, [[b'1', b'aa'], [b'2', b'bb']])
 
+    def test_custom_sqldata_converter(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.register_sqldata_converter(5, lambda val, ctx: 'yes' if val == b't' else 'no')
+            cur.execute("SELECT 't'::BOOL, NULL::BOOL, 'f'::BOOL")
+            self.assertListOfListsEqual(cur.fetchall(), [['yes', None, 'no']])
+
+        self._conn_info['binary_transfer'] = True
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.register_sqldata_converter(5, lambda val, ctx: 'yes' if val == b'\x01' else 'no')
+            cur.execute("SELECT 't'::BOOL, NULL::BOOL, 'f'::BOOL")
+            self.assertListOfListsEqual(cur.fetchall(), [['yes', None, 'no']])
+
 exec(CursorTestCase.createPrepStmtClass())
 
 

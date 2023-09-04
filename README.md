@@ -952,6 +952,7 @@ PARAMETERS:
 - oid – The Vertica type OID to manage.
 - converter_func – The converter function to register for oid. The function should have two arguments <`val`, `ctx`>. [Data Transfer Format](#data-transfer-format) matters for `val` (SQL data value). `ctx` is a dict managing resources that may be used by convertions. E.g. `ctx['column'].format_code` would be 0 (Text transfer format) or 1 (Binary transfer format).
 
+The `Cursor.unregister_sqldata_converter(oid)` method allows to cancel customization and use the default converter.
 
 Each Vertica type OID is an integer representing a SQL type, you can look up OIDs in `vertica_python.datatypes`:
 ```

@@ -997,9 +997,14 @@ cur.register_sqldata_converter(VerticaType.NUMERIC, convert_numeric)
 cur.execute("SELECT 123.45::NUMERIC")
 print(cur.fetchone()[0])
 # 123.45
+
+cur.unregister_sqldata_converter(VerticaType.NUMERIC)  # reset
+cur.execute("SELECT 123.45::NUMERIC")
+print(cur.fetchone()[0])
+# Decimal('123.45')
 ```
 
-If you want to learn how default converters for each transfer format and oid works, look at the source code `vertica_python/vertica/deserializer.py`
+If you want to learn how default converters for each transfer format and oid works, look at the source code at `vertica_python/vertica/deserializer.py`
 
 ### Shortcuts
 The `Cursor.execute()` method returns `self`. This means that you can chain a fetch operation, such as `fetchone()`, to the `execute()` call:

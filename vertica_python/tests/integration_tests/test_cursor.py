@@ -489,27 +489,36 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
                 self.assertListOfListsEqual(res, [[b'1', b'aa'], [b'2', b'bb']])
 
     def test_custom_sqldata_converter(self):
-        # Note that for use_prepared_statements=True, query should not be the same,
-        # because register_sqldata_converter() doesn't take effect on prepared sql.
         with self._connect() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT 't'::BOOL, 'f'::BOOL")
-            self.assertListOfListsEqual(cur.fetchall(), [[True, False]])
             cur.register_sqldata_converter(5, lambda val, ctx: 'yes' if val == b't' else 'no')
             cur.execute("SELECT 't'::BOOL, NULL::BOOL, 'f'::BOOL")
             self.assertListOfListsEqual(cur.fetchall(), [['yes', None, 'no']])
+            cur.unregister_sqldata_converter(5)
+            cur.execute("SELECT 't'::BOOL, NULL::BOOL, 'f'::BOOL")
+            self.assertListOfListsEqual(cur.fetchall(), [[True, None, False]])
 
         self._conn_info['binary_transfer'] = True
         with self._connect() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT 't'::BOOL, 'f'::BOOL")
-            self.assertListOfListsEqual(cur.fetchall(), [[True, False]])
+            cur.execute("SELECT 't'::BOOL, NULL::BOOL, 'f'::BOOL")
+            self.assertListOfListsEqual(cur.fetchall(), [[True, None, False]])
             cur.register_sqldata_converter(5, lambda val, ctx: 'on' if val == b'\x01' else 'off')
             cur.execute("SELECT 't'::BOOL, NULL::BOOL, 'f'::BOOL")
             self.assertListOfListsEqual(cur.fetchall(), [['on', None, 'off']])
             cur.unregister_sqldata_converter(5)
-            cur.execute("SELECT 'f'::BOOL, NULL::BOOL, 't'::BOOL")
-            self.assertListOfListsEqual(cur.fetchall(), [[False, None, True]])
+            cur.execute("SELECT 't'::BOOL, NULL::BOOL, 'f'::BOOL")
+            self.assertListOfListsEqual(cur.fetchall(), [[True, None, False]])
+
+    def test_custom_sqldata_converter_errors(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            with self.assertRaises(TypeError): # first arg is not an integer
+                cur.register_sqldata_converter("string", lambda val, ctx: val)
+
+            with self.assertRaises(TypeError): # second arg is not a function
+                cur.register_sqldata_converter(6, "string")
 
 
 exec(CursorTestCase.createPrepStmtClass())

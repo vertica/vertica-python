@@ -43,6 +43,7 @@ import os
 import re
 import sys
 import traceback
+import warnings
 from decimal import Decimal
 from io import IOBase, BytesIO, StringIO
 from math import isnan
@@ -152,6 +153,7 @@ class Cursor(object):
         self.error = None
         self._sql_literal_adapters = {}
         self._disable_sqldata_converter = False
+        self._sqldata_converters = {}
         self._des = Deserializer()
 
         #
@@ -333,10 +335,7 @@ class Cursor(object):
                 return row
             elif isinstance(self._message, messages.RowDescription):
                 self.description = self._message.get_description()
-                self._deserializers = self._des.get_row_deserializers(self.description,
-                                        {'unicode_error': self.unicode_error,
-                                         'session_tz': self.connection.parameters.get('timezone', 'unknown'),
-                                         'complex_types_enabled': self.connection.complex_types_enabled,})
+                self._deserializers = self.get_deserializers()
             elif isinstance(self._message, messages.ReadyForQuery):
                 return None
             elif isinstance(self._message, END_OF_RESULT_RESPONSES):
@@ -394,10 +393,7 @@ class Cursor(object):
             self._message = self.connection.read_message()
             if isinstance(self._message, messages.RowDescription):
                 self.description = self._message.get_description()
-                self._deserializers = self._des.get_row_deserializers(self.description,
-                                        {'unicode_error': self.unicode_error,
-                                         'session_tz': self.connection.parameters.get('timezone', 'unknown'),
-                                         'complex_types_enabled': self.connection.complex_types_enabled,})
+                self._deserializers = self.get_deserializers()
                 self._message = self.connection.read_message()
                 if isinstance(self._message, messages.VerifyFiles):
                     self._handle_copy_local_protocol()
@@ -534,9 +530,39 @@ class Cursor(object):
         """
         self._disable_sqldata_converter = bool(value)
 
+    def register_sqldata_converter(self, oid, converter_func):
+        if not isinstance(oid, int):
+            raise TypeError(f"sqldata converters should be registered on oid integer, got {oid} instead.")
+
+        if not callable(converter_func):
+            raise TypeError("Cannot register this sqldata converter. The converter is not callable.")
+
+        # For an oid, transfer format (BINARY/TEXT) is fixed in a connection
+        self._sqldata_converters[oid] = converter_func
+        # For prepared statements, need to reset self._deserializers
+        if self.description: self._deserializers = self.get_deserializers()
+
+    def unregister_sqldata_converter(self, oid):
+        if oid in self._sqldata_converters:
+            del self._sqldata_converters[oid]
+            # For prepared statements, need to reset self._deserializers
+            if self.description: self._deserializers = self.get_deserializers()
+        else:
+            no_such_oid = f'Nothing was unregistered (oid={oid})'
+            warnings.warn(no_such_oid)
+
+
     #############################################
     # internal
     #############################################
+    def get_deserializers(self):
+        return self._des.get_row_deserializers(
+                  self.description, self._sqldata_converters,
+                  {'unicode_error': self.unicode_error,
+                   'session_tz': self.connection.parameters.get('timezone', 'unknown'),
+                   'complex_types_enabled': self.connection.complex_types_enabled,}
+               )
+
     def flush_to_query_ready(self):
         # if the last message isn't empty or ReadyForQuery, read all remaining messages
         if self._message is None \
@@ -736,10 +762,7 @@ class Cursor(object):
             raise errors.QueryError.from_error_response(self._message, query)
         elif isinstance(self._message, messages.RowDescription):
             self.description = self._message.get_description()
-            self._deserializers = self._des.get_row_deserializers(self.description,
-                                    {'unicode_error': self.unicode_error,
-                                     'session_tz': self.connection.parameters.get('timezone', 'unknown'),
-                                     'complex_types_enabled': self.connection.complex_types_enabled,})
+            self._deserializers = self.get_deserializers()
             self._message = self.connection.read_message()
             if isinstance(self._message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(self._message, query)
@@ -931,10 +954,7 @@ class Cursor(object):
             self.description = None  # response was NoData for a DDL/transaction PreparedStatement
         else:
             self.description = self._message.get_description()
-            self._deserializers = self._des.get_row_deserializers(self.description,
-                                    {'unicode_error': self.unicode_error,
-                                     'session_tz': self.connection.parameters.get('timezone', 'unknown'),
-                                     'complex_types_enabled': self.connection.complex_types_enabled,})
+            self._deserializers = self.get_deserializers()
 
         # Read expected message: CommandDescription
         self._message = self.connection.read_expected_message(messages.CommandDescription, self._error_handler)

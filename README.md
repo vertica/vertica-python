@@ -1052,6 +1052,39 @@ print(data)
 #[[ -1 234   5]
 # [ 88   0  19]]
 ```
+```python
+import pandas
+import vertica_python
+from io import BytesIO
+from vertica_python.datatypes import VerticaType
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'binary_transfer': False/True,
+             ...
+            }
+
+conn = vertica_python.connect(**conn_info)
+cur = conn.cursor()
+
+cur.execute("SELECT ROW(ROW('a','b') as row1, ROW('c','d') as row2)")
+data = cur.fetchone()[0]
+print(type(data)) # <class 'dict'>
+print(data)  # {'row1': {'f0': 'a', 'f1': 'b'}, 'row2': {'f0': 'c', 'f1': 'd'}}
+
+def convert_row(val, ctx):
+    # val: b'{"row1":{"f0":"a","f1":"b"},"row2":{"f0":"c","f1":"d"}}'
+    return pandas.read_json(BytesIO(val), orient='index')
+
+cur.register_sqldata_converter(VerticaType.ROW, convert_row)
+cur.execute("SELECT ROW(ROW('a','b') as row1, ROW('c','d') as row2)")
+data = cur.fetchone()[0]
+print(type(data)) # <class 'pandas.core.frame.DataFrame'>
+print(data)
+#      f0 f1
+# row1  a  b
+# row2  c  d
+```
 
 
 If you want to learn how default converters for each transfer format and oid works, look at the source code at `vertica_python/vertica/deserializer.py`

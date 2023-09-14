@@ -1005,6 +1005,45 @@ print(cur.fetchone()[0])
 # Decimal('123.45')
 ```
 
+**Example: Vertica complex types**
+
+The raw bytes data of complex types (ARRAY, MAP, ROW, SET) are in JSON format for both Text & Binary transfer format.
+
+```python
+import json
+import numpy as np
+import vertica_python
+from vertica_python.datatypes import VerticaType
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'binary_transfer': False/True,
+             ...
+            }
+
+conn = vertica_python.connect(**conn_info)
+cur = conn.cursor()
+
+#======================================
+cur.execute("SELECT ARRAY[-1.234, 0, 1.66, null, 50]::ARRAY[FLOAT]")
+data = cur.fetchone()[0]
+print(type(data))  # <class 'list'>
+print(data)  # [-1.234, 0.0, 1.66, None, 50.0]
+numpy_data = np.array(data) # This is equal to the query value below
+#======================================
+def convert_array(val, ctx):
+    # val: b'[-1.234,0.0,1.66,null,50.0]'
+    json_data = json.loads(val)
+    return np.array(json_data)
+
+cur.register_sqldata_converter(VerticaType.ARRAY1D_FLOAT8, convert_array)
+cur.execute("SELECT ARRAY[-1.234, 0, 1.66, null, 50]::ARRAY[FLOAT]")
+data = cur.fetchone()[0]
+print(type(data))  # <class 'numpy.ndarray'>
+print(data)  # [-1.234 0.0 1.66 None 50.0]
+```
+
+
 If you want to learn how default converters for each transfer format and oid works, look at the source code at `vertica_python/vertica/deserializer.py`
 
 ### Shortcuts

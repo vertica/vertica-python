@@ -1024,23 +1024,33 @@ conn_info = {'host': '127.0.0.1',
 conn = vertica_python.connect(**conn_info)
 cur = conn.cursor()
 
-#======================================
+#==================================================
 cur.execute("SELECT ARRAY[-1.234, 0, 1.66, null, 50]::ARRAY[FLOAT]")
 data = cur.fetchone()[0]
 print(type(data))  # <class 'list'>
 print(data)  # [-1.234, 0.0, 1.66, None, 50.0]
 numpy_data = np.array(data) # This is equal to the query value below
-#======================================
+#==================================================
 def convert_array(val, ctx):
     # val: b'[-1.234,0.0,1.66,null,50.0]'
     json_data = json.loads(val)
     return np.array(json_data)
-
+# VerticaType.ARRAY1D_FLOAT8 represents one-dimensional array of FLOAT type
 cur.register_sqldata_converter(VerticaType.ARRAY1D_FLOAT8, convert_array)
 cur.execute("SELECT ARRAY[-1.234, 0, 1.66, null, 50]::ARRAY[FLOAT]")
 data = cur.fetchone()[0]
 print(type(data))  # <class 'numpy.ndarray'>
 print(data)  # [-1.234 0.0 1.66 None 50.0]
+
+#==================================================
+# VerticaType.ARRAY represents multidimensional array or contain ROWs
+cur.register_sqldata_converter(VerticaType.ARRAY, convert_array)
+cur.execute("SELECT ARRAY[ARRAY[-1, 234, 5],ARRAY[88, 0, 19]]::ARRAY[ARRAY[INT]]")
+data = cur.fetchone()[0]
+print(type(data))  # <class 'numpy.ndarray'>
+print(data)
+#[[ -1 234   5]
+# [ 88   0  19]]
 ```
 
 

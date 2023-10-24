@@ -548,7 +548,9 @@ class Connection(object):
                         raise errors.ConnectionError(msg)
                     raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=server_host)
                 else:
-                    ssl_context = ssl.create_default_context()
+                    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                    ssl_context.check_hostname = False
+                    ssl_context.verify_mode = ssl.CERT_NONE
                     raw_socket = ssl_context.wrap_socket(raw_socket)
             except ssl.CertificateError as e:
                 raise errors.ConnectionError(str(e))

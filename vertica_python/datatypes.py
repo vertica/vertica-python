@@ -36,7 +36,7 @@
 
 from __future__ import print_function, division, absolute_import
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 
 
 # noinspection PyPep8Naming
@@ -56,19 +56,19 @@ def Timestamp(year, month, day, hour, minute, second):
 
 # noinspection PyPep8Naming
 def DateFromTicks(ticks):
-    d = datetime.utcfromtimestamp(ticks)
+    d = datetime.fromtimestamp(ticks, timezone.utc)
     return d.date()
 
 
 # noinspection PyPep8Naming
 def TimeFromTicks(ticks):
-    d = datetime.utcfromtimestamp(ticks)
+    d = datetime.fromtimestamp(ticks, timezone.utc)
     return d.time()
 
 
 # noinspection PyPep8Naming
 def TimestampFromTicks(ticks):
-    d = datetime.utcfromtimestamp(ticks)
+    d = datetime.fromtimestamp(ticks, timezone.utc)
     return d.time()
 
 

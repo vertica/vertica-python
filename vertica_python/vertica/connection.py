@@ -88,7 +88,7 @@ def connect(**kwargs):
     return Connection(kwargs)
 
 
-def parse_dsn(dsn):
+def parse_dsn(dsn: str):
     """Parse connection string into a dictionary of keywords and values.
        Connection string format:
            vertica://<user>:<password>@<host>:<port>/<database>?k1=v1&k2=v2&...
@@ -107,6 +107,7 @@ def parse_dsn(dsn):
     }
     for key, values in parse_qs(url.query, keep_blank_values=True).items():
         # Try to get the last non-blank value in the list of values for each key
+        value = ''
         for i in reversed(range(len(values))):
             value = values[i]
             if value != '':
@@ -242,7 +243,7 @@ class _AddressList(object):
         return self.address_deque[0].host
 
 
-def _generate_session_label():
+def _generate_session_label() -> str:
     return '{type}-{version}-{id}'.format(
         type='vertica-python',
         version=vertica_python.__version__,
@@ -251,7 +252,7 @@ def _generate_session_label():
 
 
 class Connection(object):
-    def __init__(self, options=None):
+    def __init__(self, options=None) -> None:
         # type: (Optional[Dict[str, Any]]) -> None
         self.parameters = {}
         self.session_id = None
@@ -277,7 +278,7 @@ class Connection(object):
             self.options.setdefault('log_level', DEFAULT_LOG_LEVEL)
             self.options.setdefault('log_path', DEFAULT_LOG_PATH)
             VerticaLogging.setup_logging(logger_name, self.options['log_path'],
-                                         self.options['log_level'], id(self))
+                                         self.options['log_level'], str(id(self)))
 
         self.options.setdefault('host', DEFAULT_HOST)
         self.options.setdefault('port', DEFAULT_PORT)
@@ -353,21 +354,24 @@ class Connection(object):
     #############################################
     # dbapi methods
     #############################################
-    def close(self):
+    def close(self) -> None:
+        """Close the connection now."""
         self._logger.info('Close the connection')
         try:
             self.write(messages.Terminate())
         finally:
             self.close_socket()
 
-    def commit(self):
+    def commit(self) -> None:
+        """Commit any pending transaction to the database."""
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
         cur = self.cursor()
         cur.execute('COMMIT;')
 
-    def rollback(self):
+    def rollback(self) -> None:
+        """Roll back to the start of any pending transaction."""
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
@@ -376,6 +380,10 @@ class Connection(object):
 
     def cursor(self, cursor_type=None):
         # type: (Self, Optional[Union[Literal['list', 'dict'], Type[list[Any]], Type[dict[Any, Any]]]]) -> Cursor
+        """Return the Cursor Object using the connection.
+
+        vertica-python only support one cursor per connection.
+        """
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
@@ -390,14 +398,14 @@ class Connection(object):
     # non-dbapi methods
     #############################################
     @property
-    def autocommit(self):
-        """Read the connection's AUTOCOMMIT setting from cache"""
+    def autocommit(self) -> bool:
+        """Read the connection's AUTOCOMMIT setting from cache."""
         # For a new session, autocommit is off by default
         return self.parameters.get('auto_commit', 'off') == 'on'
 
     @autocommit.setter
-    def autocommit(self, value):
-        """Change the connection's AUTOCOMMIT setting"""
+    def autocommit(self, value: bool) -> None:
+        """Change the connection's AUTOCOMMIT setting."""
         if self.autocommit is value:
             return
         val = 'on' if value else 'off'
@@ -405,9 +413,11 @@ class Connection(object):
         cur.execute('SET SESSION AUTOCOMMIT TO {}'.format(val), use_prepared_statements=False)
         cur.fetchall()   # check for errors and update the cache
 
-    def cancel(self):
-        """Cancel the current database operation. This can be called from a
-           different thread than the one currently executing a database operation.
+    def cancel(self) -> None:
+        """Cancel the current database operation.
+        
+        This method can be called from a different thread than the one currently
+        executing a database operation.
         """
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
@@ -419,15 +429,17 @@ class Connection(object):
 
         self._logger.info('Cancel request issued')
 
-    def opened(self):
+    def opened(self) -> bool:
+        """Returns True if the connection is opened."""
         return (self.socket is not None
                 and self.backend_pid is not None
                 and self.transaction_status is not None)
 
-    def closed(self):
+    def closed(self) -> bool:
+        """Returns True if the connection is closed."""
         return not self.opened()
 
-    def __str__(self):
+    def __str__(self) -> str:
         safe_options = {key: value for key, value in self.options.items() if key != 'password'}
 
         s1 = "<Vertica.Connection:{0} parameters={1} backend_pid={2}, ".format(
@@ -627,7 +639,7 @@ class Connection(object):
             else:
                 raise
 
-    def close_socket(self):
+    def close_socket(self) -> None:
         self._logger.debug("Close connection's socket")
         try:
             if self.socket is not None:

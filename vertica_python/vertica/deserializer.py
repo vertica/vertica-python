@@ -64,7 +64,7 @@ TIMETZ_RE = re.compile(
 TZ_RE = re.compile(r"(?ix) ^([-+]) (\d+) (?: : (\d+) )? (?: : (\d+) )? $")
 SECONDS_PER_DAY = 86400
 
-def load_bool_binary(val, ctx):
+def load_bool_binary(val:bytes, ctx) -> bool:
     """
     Parses binary representation of a BOOLEAN type.
     :param val: a byte - b'\x01' for True, b'\x00' for False
@@ -73,7 +73,7 @@ def load_bool_binary(val, ctx):
     """
     return val == b'\x01'
 
-def load_int8_binary(val, ctx):
+def load_int8_binary(val: bytes, ctx) -> int:
     """
     Parses binary representation of a INTEGER type.
     :param val: bytes - a 64-bit integer.
@@ -82,7 +82,7 @@ def load_int8_binary(val, ctx):
     """
     return unpack("!q", val)[0]
 
-def load_float8_binary(val, ctx):
+def load_float8_binary(val: bytes, ctx) -> float:
     """
     Parses binary representation of a FLOAT type.
     :param val: bytes - a float encoded in IEEE-754 format.
@@ -91,7 +91,7 @@ def load_float8_binary(val, ctx):
     """
     return unpack("!d", val)[0]
 
-def load_numeric_binary(val, ctx):
+def load_numeric_binary(val: bytes, ctx) -> Decimal:
     """
     Parses binary representation of a NUMERIC type.
     :param val: bytes
@@ -106,7 +106,7 @@ def load_numeric_binary(val, ctx):
     # The numeric value is (unscaledVal * 10^(-scale))
     return Decimal(unscaledVal).scaleb(-scale, context=Context(prec=precision))
 
-def load_varchar_text(val, ctx):
+def load_varchar_text(val: bytes, ctx) -> str:
     """
     Parses text/binary representation of a CHAR / VARCHAR / LONG VARCHAR type.
     :param val: bytes
@@ -115,7 +115,7 @@ def load_varchar_text(val, ctx):
     """
     return val.decode('utf-8', ctx['unicode_error'])
 
-def load_date_text(val, ctx):
+def load_date_text(val: bytes, ctx) -> date:
     """
     Parses text representation of a DATE type.
     :param val: bytes
@@ -131,7 +131,7 @@ def load_date_text(val, ctx):
     except ValueError:
         raise errors.NotSupportedError('Dates after year 9999 are not supported by datetime.date. Got: {0}'.format(s))
 
-def load_date_binary(val, ctx):
+def load_date_binary(val: bytes, ctx) -> date:
     """
     Parses binary representation of a DATE type.
     :param val: bytes
@@ -149,7 +149,7 @@ def load_date_binary(val, ctx):
         raise errors.NotSupportedError('Dates after year 9999 are not supported by datetime.date. Got: Julian day number {0}'.format(jdn))
     return date.fromordinal(days)
 
-def load_time_text(val, ctx):
+def load_time_text(val: bytes, ctx) -> time:
     """
     Parses text representation of a TIME type.
     :param val: bytes
@@ -161,7 +161,7 @@ def load_time_text(val, ctx):
         return datetime.strptime(val, '%H:%M:%S').time()
     return datetime.strptime(val, '%H:%M:%S.%f').time()
 
-def load_time_binary(val, ctx):
+def load_time_binary(val: bytes, ctx):
     """
     Parses binary representation of a TIME type.
     :param val: bytes
@@ -212,7 +212,7 @@ def load_timetz_text(val, ctx):
 
     return time(int(hr), int(mi), int(sec), us, tz.tzoffset(None, tz_offset))
 
-def load_timetz_binary(val, ctx):
+def load_timetz_binary(val: bytes, ctx) -> time:
     """
     Parses binary representation of a TIMETZ type.
     :param val: bytes
@@ -222,9 +222,9 @@ def load_timetz_binary(val, ctx):
     # 8-byte value where
     #   - Upper 40 bits contain the number of microseconds since midnight in the UTC time zone.
     #   - Lower 24 bits contain time zone as the UTC offset in seconds.
-    val = load_int8_binary(val, ctx)
-    tz_offset = SECONDS_PER_DAY - (val & 0xffffff) # in seconds
-    msecs = val >> 24
+    v = load_int8_binary(val, ctx)
+    tz_offset = SECONDS_PER_DAY - (v & 0xffffff) # in seconds
+    msecs = v >> 24
     # shift to given time zone
     msecs += tz_offset * 1000000
     msecs %= SECONDS_PER_DAY * 1000000
@@ -233,7 +233,7 @@ def load_timetz_binary(val, ctx):
     hour, minute = divmod(msecs, 60)
     return time(hour, minute, second, fraction, tz.tzoffset(None, tz_offset))
 
-def load_timestamp_text(val, ctx):
+def load_timestamp_text(val: bytes, ctx) -> datetime:
     """
     Parses text representation of a TIMESTAMP type.
     :param val: bytes
@@ -249,7 +249,7 @@ def load_timestamp_text(val, ctx):
     except ValueError:
         raise errors.NotSupportedError('Timestamps after year 9999 are not supported by datetime.datetime. Got: {0}'.format(s))
 
-def load_timestamp_binary(val, ctx):
+def load_timestamp_binary(val: bytes, ctx) -> datetime:
     """
     Parses binary representation of a TIMESTAMP type.
     :param val: bytes
@@ -267,7 +267,7 @@ def load_timestamp_binary(val, ctx):
         else:
             raise errors.NotSupportedError('Timestamps after year 9999 are not supported by datetime.datetime.')
 
-def load_timestamptz_text(val, ctx):
+def load_timestamptz_text(val: bytes, ctx) -> datetime:
     """
     Parses text representation of a TIMESTAMPTZ type.
     :param val: bytes
@@ -287,7 +287,7 @@ def load_timestamptz_text(val, ctx):
     t = load_timetz_text(dt[1], ctx)
     return datetime.combine(d, t)
 
-def load_timestamptz_binary(val, ctx):
+def load_timestamptz_binary(val: bytes, ctx) -> datetime:
     """
     Parses binary representation of a TIMESTAMPTZ type.
     :param val: bytes
@@ -312,7 +312,7 @@ def load_timestamptz_binary(val, ctx):
         else:  # year might be over 9999
             raise errors.NotSupportedError('TimestampTzs after year 9999 are not supported by datetime.datetime.')
 
-def load_interval_text(val, ctx):
+def load_interval_text(val: bytes, ctx) -> relativedelta:
     """
     Parses text representation of a INTERVAL day-time type.
     :param val: bytes
@@ -361,7 +361,7 @@ def load_interval_text(val, ctx):
 
     return relativedelta(days=parts[0], hours=parts[1], minutes=parts[2], seconds=parts[3], microseconds=parts[4])
 
-def load_interval_binary(val, ctx):
+def load_interval_binary(val: bytes, ctx) -> relativedelta:
     """
     Parses binary representation of a INTERVAL day-time type.
     :param val: bytes
@@ -372,7 +372,7 @@ def load_interval_binary(val, ctx):
     msecs = load_int8_binary(val, ctx)
     return relativedelta(microseconds=msecs)
 
-def load_intervalYM_text(val, ctx):
+def load_intervalYM_text(val: bytes, ctx) -> relativedelta:
     """
     Parses text representation of a INTERVAL YEAR TO MONTH / INTERVAL YEAR / INTERVAL MONTH type.
     :param val: bytes
@@ -398,7 +398,7 @@ def load_intervalYM_text(val, ctx):
         else:   # Interval Month
             return relativedelta(months=interval)
 
-def load_intervalYM_binary(val, ctx):
+def load_intervalYM_binary(val: bytes, ctx) -> relativedelta:
     """
     Parses binary representation of a INTERVAL YEAR TO MONTH / INTERVAL YEAR / INTERVAL MONTH type.
     :param val: bytes
@@ -409,7 +409,7 @@ def load_intervalYM_binary(val, ctx):
     months = load_int8_binary(val, ctx)
     return relativedelta(months=months)
 
-def load_uuid_binary(val, ctx):
+def load_uuid_binary(val: bytes, ctx) -> UUID:
     """
     Parses binary representation of a UUID type.
     :param val: bytes
@@ -419,7 +419,7 @@ def load_uuid_binary(val, ctx):
     # 16-byte value in big-endian order interpreted as UUID
     return UUID(bytes=bytes(val))
 
-def load_varbinary_text(s, ctx):
+def load_varbinary_text(s: bytes, ctx) -> bytes:
     """
     Parses text representation of a BINARY / VARBINARY / LONG VARBINARY type.
     :param s: bytes
@@ -443,21 +443,21 @@ def load_varbinary_text(s, ctx):
         buf.append(c)
     return b''.join(buf)
 
-def load_array_text(val, ctx):
+def load_array_text(val: bytes, ctx):
     """
     Parses text/binary representation of an ARRAY type.
     :param val: bytes
     :param ctx: dict
     :return: list
     """
-    val = val.decode('utf-8', ctx['unicode_error'])
+    v = val.decode('utf-8', ctx['unicode_error'])
     # Some old servers have a bug of sending ARRAY oid without child metadata
     if not ctx['complex_types_enabled']:
-        return val
-    json_data = json.loads(val)
+        return v
+    json_data = json.loads(v)
     return parse_array(json_data, ctx)
 
-def load_set_text(val, ctx):
+def load_set_text(val: bytes, ctx):
     """
     Parses text/binary representation of a SET type.
     :param val: bytes
@@ -485,18 +485,18 @@ def parse_array(json_data, ctx):
         parsed_array[idx] = parse_json_element(element, child_ctx)
     return parsed_array
 
-def load_row_text(val, ctx):
+def load_row_text(val: bytes, ctx):
     """
     Parses text/binary representation of a ROW type.
     :param val: bytes
     :param ctx: dict
     :return: dict
     """
-    val = val.decode('utf-8', ctx['unicode_error'])
+    v = val.decode('utf-8', ctx['unicode_error'])
     # Some old servers have a bug of sending ROW oid without child metadata
     if not ctx['complex_types_enabled']:
-        return val
-    json_data = json.loads(val)
+        return v
+    json_data = json.loads(v)
     return parse_row(json_data, ctx)
 
 def parse_row(json_data, ctx):

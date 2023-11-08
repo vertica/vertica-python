@@ -297,7 +297,7 @@ COMPLEX_ELEMENT_TYPE = {
     VerticaType.SET_LONGVARBINARY: VerticaType.LONGVARBINARY,
 }
 
-def getTypeName(data_type_oid, type_modifier):
+def getTypeName(data_type_oid: int, type_modifier: int) -> str:
     """Returns the base type name according to data_type_oid and type_modifier"""
     if data_type_oid in TYPENAME:
         return TYPENAME[data_type_oid]
@@ -310,11 +310,11 @@ def getTypeName(data_type_oid, type_modifier):
     else:
         return "Unknown"
 
-def getComplexElementType(data_type_oid):
+def getComplexElementType(data_type_oid: int):
     """For 1D ARRAY or SET, returns the type of its elements"""
     return COMPLEX_ELEMENT_TYPE.get(data_type_oid)
 
-def getIntervalRange(data_type_oid, type_modifier):
+def getIntervalRange(data_type_oid: int, type_modifier: int):
     """Extracts an interval's range from the bits set in its type_modifier"""
 
     if data_type_oid not in (VerticaType.INTERVAL, VerticaType.INTERVALYM):
@@ -361,7 +361,7 @@ def getIntervalRange(data_type_oid, type_modifier):
             return "Day to Second"
 
 
-def getIntervalLeadingPrecision(data_type_oid, type_modifier):
+def getIntervalLeadingPrecision(data_type_oid: int, type_modifier: int):
     """
     Returns the leading precision for an interval, which is the largest number
     of digits that can fit in the leading field of the interval.
@@ -394,7 +394,7 @@ def getIntervalLeadingPrecision(data_type_oid, type_modifier):
         raise ValueError("Invalid interval range: {}".format(interval_range))
 
 
-def getPrecision(data_type_oid, type_modifier):
+def getPrecision(data_type_oid: int, type_modifier: int):
     """
     Returns the precision for the given Vertica type with consideration of
     the type modifier.
@@ -423,7 +423,7 @@ def getPrecision(data_type_oid, type_modifier):
         return None  # None if no meaningful values can be provided
 
 
-def getScale(data_type_oid, type_modifier):
+def getScale(data_type_oid: int, type_modifier: int):
     """
     Returns the scale for the given Vertica type with consideration of
     the type modifier.
@@ -435,7 +435,7 @@ def getScale(data_type_oid, type_modifier):
         return None  # None if no meaningful values can be provided
 
 
-def getDisplaySize(data_type_oid, type_modifier):
+def getDisplaySize(data_type_oid: int, type_modifier: int):
     """
     Returns the column display size for the given Vertica type with
     consideration of the type modifier.

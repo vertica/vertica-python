@@ -34,7 +34,7 @@
 # THE SOFTWARE.
 
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 import base64
 import logging
@@ -44,14 +44,14 @@ import getpass
 import uuid
 import warnings
 from struct import unpack
-from collections import deque, namedtuple
+from collections import deque
 import random
 
 # noinspection PyCompatibility,PyUnresolvedReferences
 from urllib.parse import urlparse, parse_qs
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from typing import Any, Dict, Literal, Optional, Type, Union
+    from typing import Any, Dict, List, Optional, Type, Union, Deque, Tuple, NamedTuple
     from typing_extensions import Self
 
 import vertica_python
@@ -82,8 +82,7 @@ except Exception as e:
     warnings.warn(f"Cannot get the login user name: {str(e)}")
 
 
-def connect(**kwargs):
-    # type: (Any) -> Connection
+def connect(**kwargs: Any) -> Connection:
     """Opens a new connection to a Vertica database."""
     return Connection(kwargs)
 
@@ -135,10 +134,15 @@ def parse_dsn(dsn: str):
 
     return result
 
-_AddressEntry = namedtuple('_AddressEntry', ['host', 'resolved', 'data'])
+class _AddressEntry(NamedTuple):
+    host: str
+    resolved: bool
+    data: Any
 
 class _AddressList(object):
-    def __init__(self, host, port, backup_nodes, logger):
+    def __init__(self, host: str, port: Union[int, str],
+                 backup_nodes: List[Union[str, Tuple[str, Union[int, str]]]],
+                 logger: logging.Logger) -> None:
         """Creates a new deque with the primary host first, followed by any backup hosts"""
 
         self._logger = logger
@@ -148,7 +152,7 @@ class _AddressList(object):
         #   - when resolved is False, data is port
         #   - when resolved is True, data is the 5-tuple from socket.getaddrinfo
         # This allows for lazy resolution. Seek peek() for more.
-        self.address_deque = deque()
+        self.address_deque: Deque['_AddressEntry'] = deque()
 
         # load primary host into address_deque
         self._append(host, port)
@@ -174,7 +178,7 @@ class _AddressList(object):
                 raise TypeError(err_msg)
         self._logger.debug('Address list: {0}'.format(list(self.address_deque)))
 
-    def _append(self, host, port):
+    def _append(self, host: str, port: Union[int, str]) -> None:
         if not isinstance(host, str):
             err_msg = 'Host must be a string: invalid value: {0}'.format(host)
             self._logger.error(err_msg)
@@ -199,10 +203,10 @@ class _AddressList(object):
 
         self.address_deque.append(_AddressEntry(host=host, resolved=False, data=port))
 
-    def push(self, host, port):
+    def push(self, host: str, port: int) -> None:
         self.address_deque.appendleft(_AddressEntry(host=host, resolved=False, data=port))
 
-    def pop(self):
+    def pop(self) -> None:
         self.address_deque.popleft()
 
     def peek(self):
@@ -235,8 +239,8 @@ class _AddressList(object):
                             host=host, resolved=True, data=addrinfo))
         return None
 
-    def peek_host(self):
-        # returning the leftmost host result
+    def peek_host(self) -> Optional[str]:
+        """Return the leftmost host result."""
         self._logger.debug('Peek host at address list: {0}'.format(list(self.address_deque)))
         if len(self.address_deque) == 0:
             return None
@@ -252,8 +256,7 @@ def _generate_session_label() -> str:
 
 
 class Connection(object):
-    def __init__(self, options=None) -> None:
-        # type: (Optional[Dict[str, Any]]) -> None
+    def __init__(self, options: Optional[Dict[str, Any]] = None) -> None:
         self.parameters = {}
         self.session_id = None
         self.backend_pid = None
@@ -345,7 +348,6 @@ class Connection(object):
     # supporting `with` statements
     #############################################
     def __enter__(self):
-        # type: () -> Self
         return self
 
     def __exit__(self, type_, value, traceback):
@@ -378,8 +380,8 @@ class Connection(object):
         cur = self.cursor()
         cur.execute('ROLLBACK;')
 
-    def cursor(self, cursor_type=None):
-        # type: (Self, Optional[Union[Literal['list', 'dict'], Type[list[Any]], Type[dict[Any, Any]]]]) -> Cursor
+    def cursor(self,
+               cursor_type: Union[None, str, Type[List[Any]], Type[Dict[Any, Any]]] = None) -> Cursor:
         """Return the Cursor Object using the connection.
 
         vertica-python only support one cursor per connection.
@@ -496,7 +498,7 @@ class Connection(object):
             self.socket_as_file = self._socket().makefile('rb')
         return self.socket_as_file
 
-    def create_socket(self, family):
+    def create_socket(self, family) -> socket.socket:
         """Create a TCP socket object"""
         raw_socket = socket.socket(family, socket.SOCK_STREAM)
         raw_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
@@ -506,7 +508,7 @@ class Connection(object):
             raw_socket.settimeout(connection_timeout)
         return raw_socket
 
-    def balance_load(self, raw_socket):
+    def balance_load(self, raw_socket: socket.socket) -> socket.socket:
         # Send load balance request and read server response
         self._logger.debug('=> %s', messages.LoadBalanceRequest())
         raw_socket.sendall(messages.LoadBalanceRequest().get_message())
@@ -543,7 +545,9 @@ class Connection(object):
 
         return raw_socket
 
-    def enable_ssl(self, raw_socket, ssl_options):
+    def enable_ssl(self,
+                   raw_socket: socket.socket,
+                   ssl_options: Union[ssl.SSLContext, bool]) -> ssl.SSLSocket:
         # Send SSL request and read server response
         self._logger.debug('=> %s', messages.SslRequest())
         raw_socket.sendall(messages.SslRequest().get_message())
@@ -574,7 +578,7 @@ class Connection(object):
             raise errors.SSLNotSupported(err_msg)
         return raw_socket
 
-    def establish_socket_connection(self, address_list):
+    def establish_socket_connection(self, address_list: _AddressList) -> socket.socket:
         """Given a list of database node addresses, establish the socket
            connection to the database server. Return a connected socket object.
         """
@@ -584,7 +588,7 @@ class Connection(object):
 
         # Failover: loop to try all addresses
         while addrinfo:
-            (family, socktype, proto, canonname, sockaddr) = addrinfo
+            (family, _socktype, _proto, _canonname, sockaddr) = addrinfo
             last_exception = None
 
             # _AddressList filters all addrs to AF_INET and AF_INET6, which both
@@ -613,7 +617,7 @@ class Connection(object):
 
         return raw_socket
 
-    def ssl(self):
+    def ssl(self) -> bool:
         return self.socket is not None and isinstance(self.socket, ssl.SSLSocket)
 
     def write(self, message, vsocket=None):
@@ -653,7 +657,7 @@ class Connection(object):
         self.close()
         self.startup_connection()
 
-    def is_asynchronous_message(self, message):
+    def is_asynchronous_message(self, message) -> bool:
         # Check if it is an asynchronous response message
         # Note: ErrorResponse is a subclass of NoticeResponse
         return (isinstance(message, messages.ParameterStatus) or
@@ -674,7 +678,7 @@ class Connection(object):
                 warnings.warn(notice)
                 self._logger.warning(message.error_message())
 
-    def read_string(self):
+    def read_string(self) -> bytearray:
         s = bytearray()
         while True:
             char = self.read_bytes(1)
@@ -747,7 +751,7 @@ class Connection(object):
             self._logger.error(msg)
             raise errors.MessageError(msg)
 
-    def read_bytes(self, n):
+    def read_bytes(self, n: int) -> bytes:
         if n == 1:
             result = self._socket_as_file().read(1)
             if not result:
@@ -765,7 +769,7 @@ class Connection(object):
                 to_read -= received
             return buf
 
-    def send_GSS_response_and_receive_challenge(self, response):       
+    def send_GSS_response_and_receive_challenge(self, response):
         # Send the GSS response data to the vertica server
         token = base64.b64decode(response)
         self.write(messages.Password(token, messages.Authentication.GSS))

@@ -139,8 +139,11 @@ class Cursor(object):
     # NOTE: this is used in executemany and is here for pandas compatibility
     _insert_statement = re.compile(RE_BASIC_INSERT_STAT, re.U | re.I)
 
-    def __init__(self, connection, logger, cursor_type=None, unicode_error=None):
-        # type: (Connection, Logger, Optional[Union[Literal['list', 'dict'], Type[list[Any]], Type[dict[Any, Any]]]], Optional[str]) -> None
+    def __init__(self,
+                 connection: Connection,
+                 logger: Logger,
+                 cursor_type: Union[None, str, Type[List[Any]], Type[Dict[Any, Any]]] = None,
+                 unicode_error: Optional[str] = None) -> None:
         self.connection = connection
         self._logger = logger
         self.cursor_type = cursor_type

@@ -37,22 +37,21 @@
 from __future__ import print_function, division, absolute_import, annotations
 
 import base64
+import getpass
 import logging
+import random
 import socket
 import ssl
-import getpass
 import uuid
 import warnings
-from struct import unpack
 from collections import deque
-import random
+from struct import unpack
 
 # noinspection PyCompatibility,PyUnresolvedReferences
 from urllib.parse import urlparse, parse_qs
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 if TYPE_CHECKING:
-    from typing import Any, Dict, List, Optional, Type, Union, Deque, Tuple, NamedTuple
-    from typing_extensions import Self
+    from typing import Any, Dict, List, Optional, Type, Union, Deque, Tuple
 
 import vertica_python
 from .. import errors
@@ -87,8 +86,8 @@ def connect(**kwargs: Any) -> Connection:
     return Connection(kwargs)
 
 
-def parse_dsn(dsn: str):
-    """Parse connection string into a dictionary of keywords and values.
+def parse_dsn(dsn: str) -> Dict[str, Union[str, int, bool, float]]:
+    """Parse connection string (DSN) into a dictionary of keywords and values.
        Connection string format:
            vertica://<user>:<password>@<host>:<port>/<database>?k1=v1&k2=v2&...
     """
@@ -97,7 +96,7 @@ def parse_dsn(dsn: str):
         raise ValueError("Only vertica:// scheme is supported.")
 
     # Ignore blank/invalid values
-    result = {k: v for k, v in (
+    result: Dict[str, Union[str, int, bool, float]] = {k: v for k, v in (
         ('host', url.hostname),
         ('port', url.port),
         ('user', url.username),
@@ -257,7 +256,7 @@ def _generate_session_label() -> str:
 
 class Connection(object):
     def __init__(self, options: Optional[Dict[str, Any]] = None) -> None:
-        self.parameters = {}
+        self.parameters: Dict[str, Union[str, int]] = {}
         self.session_id = None
         self.backend_pid = None
         self.backend_key = None
@@ -385,6 +384,17 @@ class Connection(object):
         """Return the Cursor Object using the connection.
 
         vertica-python only support one cursor per connection.
+
+        Argument cursor_type determines the type of query result rows.
+        The following cases return each row as a list. E.g. [ [1, 'foo'], [2, 'bar'] ]
+         - cursor()
+         - cursor(cursor_type=list)
+         - cursor(cursor_type='list')
+
+        The following cases return each row as a dict with column names as keys.
+        E.g. [ {'id': 1, 'value': 'foo'}, {'id': 2, 'value': 'bar'} ]
+         - cursor(cursor_type=dict)
+         - cursor(cursor_type='dict')
         """
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
@@ -499,7 +509,7 @@ class Connection(object):
         return self.socket_as_file
 
     def create_socket(self, family) -> socket.socket:
-        """Create a TCP socket object"""
+        """Create a TCP socket object."""
         raw_socket = socket.socket(family, socket.SOCK_STREAM)
         raw_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         connection_timeout = self.options.get('connection_timeout')
@@ -618,6 +628,7 @@ class Connection(object):
         return raw_socket
 
     def ssl(self) -> bool:
+        """Returns True if the TCP socket is a SSL socket."""
         return self.socket is not None and isinstance(self.socket, ssl.SSLSocket)
 
     def write(self, message, vsocket=None):

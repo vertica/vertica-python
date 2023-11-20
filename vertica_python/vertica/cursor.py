@@ -458,6 +458,7 @@ class Cursor(object):
 
         """
         sql = as_text(sql)
+        self.operation = sql
 
         if self.closed():
             raise errors.InterfaceError('Cursor is closed')
@@ -479,7 +480,7 @@ class Cursor(object):
         # Execute a `COPY FROM STDIN` SQL statement
         self.connection.write(messages.Query(sql))
 
-        buffer_size = kwargs['buffer_size'] if 'buffer_size' in kwargs else DEFAULT_BUFFER_SIZE
+        self.buffer_size = kwargs.get('buffer_size', DEFAULT_BUFFER_SIZE)
 
         while True:
             message = self.connection.read_message()
@@ -490,10 +491,10 @@ class Cursor(object):
             elif isinstance(message, messages.ReadyForQuery):
                 break
             elif isinstance(message, messages.CommandComplete):
-                pass
+                break
             elif isinstance(message, messages.CopyInResponse):
                 try:
-                    self._send_copy_data(stream, buffer_size)
+                    self._send_copy_data(stream, self.buffer_size)
                 except Exception as e:
                     # COPY termination: report the cause of failure to the backend
                     self.connection.write(messages.CopyFail(str(e)))

@@ -409,6 +409,10 @@ class Cursor(object):
                 # result of a DDL/transaction
                 self.rowcount = -1
                 return True
+            elif isinstance(self._message, messages.CopyInResponse):
+                raise errors.MessageError(
+                    'Unexpected nextset() state after END_OF_RESULT_RESPONSES: {self._message}\n'
+                    'HINT: Do you pass multiple COPY statements into Cursor.copy()?')
             elif isinstance(self._message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(self._message, self.operation)
             else:
@@ -458,6 +462,7 @@ class Cursor(object):
 
         """
         sql = as_text(sql)
+        self.operation = sql
 
         if self.closed():
             raise errors.InterfaceError('Cursor is closed')
@@ -473,13 +478,11 @@ class Cursor(object):
         else:
             raise TypeError("Not valid type of data {0}".format(type(data)))
 
-        # TODO: check sql is a valid `COPY FROM STDIN` SQL statement
-
         self._logger.info(u'Execute COPY statement: [{}]'.format(sql))
         # Execute a `COPY FROM STDIN` SQL statement
         self.connection.write(messages.Query(sql))
 
-        buffer_size = kwargs['buffer_size'] if 'buffer_size' in kwargs else DEFAULT_BUFFER_SIZE
+        self.buffer_size = kwargs.get('buffer_size', DEFAULT_BUFFER_SIZE)
 
         while True:
             message = self.connection.read_message()
@@ -490,10 +493,10 @@ class Cursor(object):
             elif isinstance(message, messages.ReadyForQuery):
                 break
             elif isinstance(message, messages.CommandComplete):
-                pass
+                break
             elif isinstance(message, messages.CopyInResponse):
                 try:
-                    self._send_copy_data(stream, buffer_size)
+                    self._send_copy_data(stream, self.buffer_size)
                 except Exception as e:
                     # COPY termination: report the cause of failure to the backend
                     self.connection.write(messages.CopyFail(str(e)))
@@ -503,8 +506,13 @@ class Cursor(object):
 
                 # Successful termination for COPY
                 self.connection.write(messages.CopyDone())
+            elif isinstance(message, messages.RowDescription):
+                raise errors.MessageError(f'Unexpected message: {message}\n'
+                     f'HINT: Query for Cursor.copy() should be a `COPY FROM STDIN` SQL statement.'
+                     ' `COPY FROM LOCAL` should be executed with Cursor.execute().\n'
+                     f'SQL: {sql}')
             else:
-                raise errors.MessageError('Unexpected message: {0}'.format(message))
+                raise errors.MessageError(f'Unexpected message: {message}')
 
         if self.error is not None:
             raise self.error

@@ -346,6 +346,16 @@ class CursorTestCase(VerticaPythonIntegrationTestCase):
 
             self.assertListOfListsEqual(res, [[1]])
 
+    def test_copy_multiple_statements(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.copy("COPY {0} (a, b) FROM STDIN DELIMITER ','; SELECT 5".format(self._table),
+                     "1,foo\n2,bar")
+            self.assertListOfListsEqual(cur.fetchall(), [])
+            self.assertTrue(cur.nextset())
+            self.assertListOfListsEqual(cur.fetchall(), [[5]])
+            self.assertFalse(cur.nextset())
+
     def test_with_conn(self):
         with self._connect() as conn:
             cur = conn.cursor()

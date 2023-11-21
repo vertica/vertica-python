@@ -409,6 +409,10 @@ class Cursor(object):
                 # result of a DDL/transaction
                 self.rowcount = -1
                 return True
+            elif isinstance(self._message, messages.CopyInResponse):
+                raise errors.MessageError(
+                    'Unexpected nextset() state after END_OF_RESULT_RESPONSES: {self._message}\n'
+                    'HINT: Do you pass multiple COPY statements into Cursor.copy()?')
             elif isinstance(self._message, messages.ErrorResponse):
                 raise errors.QueryError.from_error_response(self._message, self.operation)
             else:

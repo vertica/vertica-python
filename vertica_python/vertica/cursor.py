@@ -474,8 +474,6 @@ class Cursor(object):
         else:
             raise TypeError("Not valid type of data {0}".format(type(data)))
 
-        # TODO: check sql is a valid `COPY FROM STDIN` SQL statement
-
         self._logger.info(u'Execute COPY statement: [{}]'.format(sql))
         # Execute a `COPY FROM STDIN` SQL statement
         self.connection.write(messages.Query(sql))
@@ -504,8 +502,13 @@ class Cursor(object):
 
                 # Successful termination for COPY
                 self.connection.write(messages.CopyDone())
+            elif isinstance(message, messages.RowDescription):
+                raise errors.MessageError(f'Unexpected message: {message}\n'
+                     f'HINT: Query for Cursor.copy() should be a `COPY FROM STDIN` SQL statement.'
+                     ' `COPY FROM LOCAL` should be executed with Cursor.execute().\n'
+                     f'SQL: {sql}')
             else:
-                raise errors.MessageError('Unexpected message: {0}'.format(message))
+                raise errors.MessageError(f'Unexpected message: {message}')
 
         if self.error is not None:
             raise self.error

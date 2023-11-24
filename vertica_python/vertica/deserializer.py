@@ -161,7 +161,7 @@ def load_time_text(val: bytes, ctx) -> time:
         return datetime.strptime(val, '%H:%M:%S').time()
     return datetime.strptime(val, '%H:%M:%S.%f').time()
 
-def load_time_binary(val: bytes, ctx):
+def load_time_binary(val: bytes, ctx) -> time:
     """
     Parses binary representation of a TIME type.
     :param val: bytes
@@ -180,7 +180,7 @@ def load_time_binary(val: bytes, ctx):
     except ValueError:
         raise errors.NotSupportedError("Time not supported by datetime.time. Got: hour={}".format(hour))
 
-def load_timetz_text(val, ctx):
+def load_timetz_text(val: bytes, ctx) -> time:
     """
     Parses text representation of a TIMETZ type.
     :param val: bytes

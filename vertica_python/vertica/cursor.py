@@ -34,7 +34,7 @@
 # THE SOFTWARE.
 
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 import datetime
 import glob
@@ -60,7 +60,7 @@ except ImportError:
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from typing import IO, Any, AnyStr, Callable, Dict, Generator, List, Literal, Optional, Sequence, Tuple, Type, TypeVar, Union
+    from typing import IO, Any, AnyStr, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Type, TypeVar, Union
     from typing_extensions import Self
     from .connection import Connection
     from logging import Logger
@@ -139,8 +139,11 @@ class Cursor(object):
     # NOTE: this is used in executemany and is here for pandas compatibility
     _insert_statement = re.compile(RE_BASIC_INSERT_STAT, re.U | re.I)
 
-    def __init__(self, connection, logger, cursor_type=None, unicode_error=None):
-        # type: (Connection, Logger, Optional[Union[Literal['list', 'dict'], Type[list[Any]], Type[dict[Any, Any]]]], Optional[str]) -> None
+    def __init__(self,
+                 connection: Connection,
+                 logger: Logger,
+                 cursor_type: Union[None, str, Type[List[Any]], Type[Dict[Any, Any]]] = None,
+                 unicode_error: Optional[str] = None) -> None:
         self.connection = connection
         self._logger = logger
         self.cursor_type = cursor_type
@@ -433,8 +436,7 @@ class Cursor(object):
     #############################################
     # non-dbapi methods
     #############################################
-    def closed(self):
-        # type: () -> bool
+    def closed(self) -> bool:
         return self._closed or self.connection.closed()
 
     def cancel(self):
@@ -454,12 +456,12 @@ class Cursor(object):
     def copy(self, sql, data, **kwargs):
         # type: (str, IO[AnyStr], Any) -> None
         """
-
         EXAMPLE:
+        ```
         >> with open("/tmp/file.csv", "rb") as fs:
         >>     cursor.copy("COPY table(field1,field2) FROM STDIN DELIMITER ',' ENCLOSED BY ''''",
         >>                 fs, buffer_size=65536)
-
+        ```
         """
         sql = as_text(sql)
         self.operation = sql
@@ -895,8 +897,8 @@ class Cursor(object):
             self._send_copy_data(f, self.buffer_size)
         self.connection.write(messages.EndOfBatchRequest())
 
-    def _read_copy_data_response(self, is_stdin_copy=False):
-        """Return True if the server wants us to load more data, false if we are done"""
+    def _read_copy_data_response(self, is_stdin_copy: bool = False):
+        """Returns True if the server wants us to load more data, False if we are done."""
         self._message = self.connection.read_expected_message(END_OF_BATCH_RESPONSES)
         # Check for rejections during this load
         while isinstance(self._message, messages.WriteFile):

@@ -19,7 +19,7 @@ import errno
 import os
 
 
-def ensure_dir_exists(filepath):
+def ensure_dir_exists(filepath: str) -> None:
     """Ensure that a directory exists
 
     If it doesn't exist, try to create it and protect against a race condition
@@ -33,7 +33,7 @@ def ensure_dir_exists(filepath):
             if e.errno != errno.EEXIST:
                 raise
 
-def check_file_readable(filename):
+def check_file_readable(filename: str) -> None:
     """Ensure this is a readable file"""
     if not os.path.exists(filename):
         raise OSError('{} does not exist'.format(filename))
@@ -42,7 +42,7 @@ def check_file_readable(filename):
     elif not os.access(filename, os.R_OK):
         raise OSError('{} is not readable'.format(filename))
 
-def check_file_writable(filename):
+def check_file_writable(filename: str) -> None:
     """Ensure this is a writable file. If the file doesn't exist,
        ensure its directory is writable.
     """

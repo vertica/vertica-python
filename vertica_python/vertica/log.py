@@ -37,12 +37,15 @@
 from __future__ import print_function, division, absolute_import
 
 import logging
+from typing import Union
 from ..os_utils import ensure_dir_exists
 
 class VerticaLogging(object):
 
     @classmethod
-    def setup_logging(cls, logger_name, logfile, log_level=logging.INFO, context=''):
+    def setup_logging(cls, logger_name: str, logfile: str,
+                      log_level: Union[int, str] = logging.INFO,
+                      context: str = '') -> None:
         logger = logging.getLogger(logger_name)
         logger.setLevel(log_level)
 

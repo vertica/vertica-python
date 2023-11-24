@@ -48,10 +48,10 @@ class LoadBalanceResponse(BackendMessage):
         self.port = unpacked[0]
         self.host = unpacked[1].decode('utf-8')
 
-    def get_port(self):
+    def get_port(self) -> int:
         return self.port
 
-    def get_host(self):
+    def get_host(self) -> str:
         return self.host
 
     def __str__(self):

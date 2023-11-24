@@ -60,7 +60,7 @@ except ImportError:
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from typing import IO, Any, AnyStr, Callable, Dict, Generator, List, Literal, Optional, Sequence, Tuple, Type, TypeVar, Union
+    from typing import IO, Any, AnyStr, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Type, TypeVar, Union
     from typing_extensions import Self
     from .connection import Connection
     from logging import Logger
@@ -432,8 +432,7 @@ class Cursor(object):
     #############################################
     # non-dbapi methods
     #############################################
-    def closed(self):
-        # type: () -> bool
+    def closed(self) -> bool:
         return self._closed or self.connection.closed()
 
     def cancel(self):
@@ -453,12 +452,12 @@ class Cursor(object):
     def copy(self, sql, data, **kwargs):
         # type: (str, IO[AnyStr], Any) -> None
         """
-
         EXAMPLE:
+        ```
         >> with open("/tmp/file.csv", "rb") as fs:
         >>     cursor.copy("COPY table(field1,field2) FROM STDIN DELIMITER ',' ENCLOSED BY ''''",
         >>                 fs, buffer_size=65536)
-
+        ```
         """
         sql = as_text(sql)
 
@@ -890,8 +889,8 @@ class Cursor(object):
             self._send_copy_data(f, self.buffer_size)
         self.connection.write(messages.EndOfBatchRequest())
 
-    def _read_copy_data_response(self, is_stdin_copy=False):
-        """Return True if the server wants us to load more data, false if we are done"""
+    def _read_copy_data_response(self, is_stdin_copy: bool = False):
+        """Returns True if the server wants us to load more data, False if we are done."""
         self._message = self.connection.read_expected_message(END_OF_BATCH_RESPONSES)
         # Check for rejections during this load
         while isinstance(self._message, messages.WriteFile):

@@ -133,10 +133,12 @@ def parse_dsn(dsn: str) -> Dict[str, Union[str, int, bool, float]]:
 
     return result
 
+
 class _AddressEntry(NamedTuple):
     host: str
     resolved: bool
     data: Any
+
 
 class _AddressList(object):
     def __init__(self, host: str, port: Union[int, str],
@@ -631,7 +633,7 @@ class Connection(object):
         """Returns True if the TCP socket is a SSL socket."""
         return self.socket is not None and isinstance(self.socket, ssl.SSLSocket)
 
-    def write(self, message, vsocket=None):
+    def write(self, message, vsocket=None) -> None:
         if not isinstance(message, FrontendMessage):
             raise TypeError("invalid message: ({0})".format(message))
         if vsocket is None:
@@ -639,7 +641,7 @@ class Connection(object):
         self._logger.debug('=> %s', message)
         try:
             for data in message.fetch_message():
-                size = 8192 # Max msg size, consistent with how the server works
+                size = 8192  # Max msg size, consistent with how the server works
                 pos = 0
                 while pos < len(data):
                     sent = vsocket.send(data[pos : pos + size])
@@ -664,7 +666,7 @@ class Connection(object):
         finally:
             self.reset_values()
 
-    def reset_connection(self):
+    def reset_connection(self) -> None:
         self.close()
         self.startup_connection()
 
@@ -675,13 +677,13 @@ class Connection(object):
             (isinstance(message, messages.NoticeResponse) and
              not isinstance(message, messages.ErrorResponse)))
 
-    def handle_asynchronous_message(self, message):
+    def handle_asynchronous_message(self, message) -> None:
         if isinstance(message, messages.ParameterStatus):
             if message.name == 'protocol_version':
                 message.value = int(message.value)
             self.parameters[message.name] = message.value
         elif (isinstance(message, messages.NoticeResponse) and
-             not isinstance(message, messages.ErrorResponse)):
+              not isinstance(message, messages.ErrorResponse)):
             if getattr(self, 'notice_handler', None) is not None:
                 self.notice_handler(message)
             else:
@@ -794,7 +796,7 @@ class Connection(object):
             raise errors.MessageError(msg)
         return message.auth_data
 
-    def make_GSS_authentication(self):
+    def make_GSS_authentication(self) -> None:
         try:
             import kerberos
         except ImportError as e:
@@ -850,7 +852,7 @@ class Connection(object):
             self._logger.error(msg)
             raise errors.KerberosError(msg)
 
-    def startup_connection(self):
+    def startup_connection(self) -> None:
         user = self.options['user']
         database = self.options['database']
         session_label = self.options['session_label']

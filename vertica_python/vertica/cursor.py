@@ -60,7 +60,7 @@ except ImportError:
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from typing import IO, Any, AnyStr, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Type, TypeVar, Union
+    from typing import IO, Any, AnyStr, Callable, Dict, Generator, List, NoReturn, Optional, Sequence, Tuple, Type, TypeVar, Union
     from typing_extensions import Self
     from .connection import Connection
     from logging import Logger
@@ -169,8 +169,7 @@ class Cursor(object):
     #############################################
     # supporting `with` statements
     #############################################
-    def __enter__(self):
-        # type: () -> Self
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, type_, value, traceback):
@@ -196,19 +195,23 @@ class Cursor(object):
     # dbapi methods
     #############################################
     # noinspection PyMethodMayBeStatic
-    def callproc(self, procname, parameters=None):
+    def callproc(self, procname, parameters=None) -> NoReturn:
         raise errors.NotSupportedError('Cursor.callproc() is not implemented')
 
     def close(self):
+        """Close the cursor now."""
         self._logger.info('Close the cursor')
         if not self.closed() and self.prepared_sql:
             self._close_prepared_statement()
         self._closed = True
 
     @handle_ctrl_c
-    def execute(self, operation, parameters=None, use_prepared_statements=None,
-                copy_stdin=None, buffer_size=DEFAULT_BUFFER_SIZE):
-        # type: (str, Optional[Union[List[Any], Tuple[Any], Dict[str, Any]]], Optional[bool], Optional[Union[IO[AnyStr], List[IO[AnyStr]]]], int) -> Self
+    def execute(self, operation: str,
+                parameters: Optional[Union[List[Any], Tuple[Any], Dict[str, Any]]] = None,
+                use_prepared_statements: Optional[bool] = None,
+                copy_stdin: Optional[Union[IO[AnyStr], List[IO[AnyStr]]]] = None,
+                buffer_size: int = DEFAULT_BUFFER_SIZE) -> Self:
+        """Execute a query or command to the database."""
         if self.closed():
             raise errors.InterfaceError('Cursor is closed')
 
@@ -264,8 +267,11 @@ class Cursor(object):
         return self
 
     @handle_ctrl_c
-    def executemany(self, operation, seq_of_parameters, use_prepared_statements=None):
-        # type: (str, Sequence[Union[List[Any], Tuple[Any], Dict[str, Any]]], Optional[bool]) -> None
+    def executemany(self,
+                    operation: str,
+                    seq_of_parameters: Sequence[Union[List[Any], Tuple[Any], Dict[str, Any]]],
+                    use_prepared_statements: Optional[bool] = None) -> None:
+        """Execute the same command with a sequence of input data."""
 
         if not isinstance(seq_of_parameters, (list, tuple)):
             raise TypeError("seq_of_parameters should be list/tuple")
@@ -324,8 +330,8 @@ class Cursor(object):
                 raise NotImplementedError(
                     "executemany is implemented for simple INSERT statements only")
 
-    def fetchone(self):
-        # type: () -> Optional[Union[List[Any], OrderedDict[str, Any]]]
+    def fetchone(self) -> Optional[Union[List[Any], OrderedDict[str, Any]]]:
+        """Return the next record from the current statement result set."""
         while True:
             if isinstance(self._message, messages.DataRow):
                 if self.rowcount == -1:
@@ -359,8 +365,10 @@ class Cursor(object):
 
             self._message = self.connection.read_message()
 
-    def fetchmany(self, size=None):
-        # type: (Optional[int]) -> List[Union[List[Any], OrderedDict[str, Any]]]
+    def fetchmany(self, size: Optional[int] = None) -> List[Union[List[Any], OrderedDict[str, Any]]]:
+        """Return the next `size` records from the current statement result set.
+        `size` default to `cursor.arraysize` if not specified.
+        """
         if not size:
             size = self.arraysize
         results = []
@@ -373,11 +381,11 @@ class Cursor(object):
                 break
         return results
 
-    def fetchall(self):
+    def fetchall(self) -> List[Union[List[Any], OrderedDict[str, Any]]]:
+        """Return all the remaining records from the current statement result set."""
         return list(self.iterate())
 
-    def nextset(self):
-        # type: () -> bool
+    def nextset(self) -> bool:
         """
         Skip to the next available result set, discarding any remaining rows
         from the current result set.
@@ -427,35 +435,37 @@ class Cursor(object):
         else:
             raise errors.MessageError('Unexpected nextset() state: {0}'.format(self._message))
 
-    def setinputsizes(self, sizes):
+    def setinputsizes(self, sizes) -> None:
         pass
 
-    def setoutputsize(self, size, column=None):
+    def setoutputsize(self, size, column=None) -> None:
         pass
 
     #############################################
     # non-dbapi methods
     #############################################
     def closed(self) -> bool:
+        """Returns True if the cursor is closed."""
         return self._closed or self.connection.closed()
 
-    def cancel(self):
-        # Cancel is a session-level operation, cursor-level API does not make
-        # sense. Keep this API for backward compatibility.
+    def cancel(self) -> NoReturn:
+        """Cancel is a session-level operation, cursor-level API does not make
+        sense. Keep this API for backward compatibility.
+        """
         raise errors.NotSupportedError(
             'Cursor.cancel() is deprecated. Call Connection.cancel() '
             'to cancel the current database operation.')
 
-    def iterate(self):
-        # type: () -> Generator[Union[List[Any], OrderedDict[str, Any]], None, None]
+    def iterate(self) -> Generator[Union[List[Any], OrderedDict[str, Any]], None, None]:
         row = self.fetchone()
         while row:
             yield row
             row = self.fetchone()
 
-    def copy(self, sql, data, **kwargs):
-        # type: (str, IO[AnyStr], Any) -> None
+    def copy(self, sql: str, data: IO[AnyStr], **kwargs: Any) -> None:
         """
+        Execute a "COPY FROM STDIN" SQL.
+
         EXAMPLE:
         ```
         >> with open("/tmp/file.csv", "rb") as fs:
@@ -519,28 +529,30 @@ class Cursor(object):
         if self.error is not None:
             raise self.error
 
-    def object_to_sql_literal(self, py_obj):
+    def object_to_sql_literal(self, py_obj: Any) -> str:
+        """Returns the SQL literal string converted from a Python object."""
         return self.object_to_string(py_obj, False)
 
-    def register_sql_literal_adapter(self, obj_type, adapter_func):
-        # type: (T, Callable[[T], str]) -> None
+    def register_sql_literal_adapter(self, obj_type: T, adapter_func: Callable[[T], str]) -> None:
+        """Register a sql literal adapter, which adapt a Python type/class to SQL literals."""
         if not callable(adapter_func):
             raise TypeError("Cannot register this sql literal adapter. The adapter is not callable.")
         self._sql_literal_adapters[obj_type] = adapter_func
 
     @property
-    def disable_sqldata_converter(self):
+    def disable_sqldata_converter(self) -> bool:
         return self._disable_sqldata_converter
 
     @disable_sqldata_converter.setter
-    def disable_sqldata_converter(self, value):
+    def disable_sqldata_converter(self, value: bool) -> None:
         """By default, the client does data conversions for query results:
         reading a bytes sequence from server and creating a Python object out of it.
-        If set to True, bypass conversions from SQL type raw data to the native Python object
+        If set to True, bypass conversions from SQL type raw data to the native Python object.
         """
         self._disable_sqldata_converter = bool(value)
 
-    def register_sqldata_converter(self, oid, converter_func):
+    def register_sqldata_converter(self, oid: int, converter_func: Callable[[bytes, Dict[str, Any]], Any]) -> None:
+        """Customize how SQL data values are converted to Python objects when query results are returned."""
         if not isinstance(oid, int):
             raise TypeError(f"sqldata converters should be registered on oid integer, got {oid} instead.")
 
@@ -552,7 +564,8 @@ class Cursor(object):
         # For prepared statements, need to reset self._deserializers
         if self.description: self._deserializers = self.get_deserializers()
 
-    def unregister_sqldata_converter(self, oid):
+    def unregister_sqldata_converter(self, oid: int) -> None:
+        """Cancel customized SQL data values converter and use the default converter."""
         if oid in self._sqldata_converters:
             del self._sqldata_converters[oid]
             # For prepared statements, need to reset self._deserializers
@@ -573,7 +586,7 @@ class Cursor(object):
                    'complex_types_enabled': self.connection.complex_types_enabled,}
                )
 
-    def flush_to_query_ready(self):
+    def flush_to_query_ready(self) -> None:
         # if the last message isn't empty or ReadyForQuery, read all remaining messages
         if self._message is None \
                 or isinstance(self._message, messages.ReadyForQuery):
@@ -628,7 +641,7 @@ class Cursor(object):
         return [convert(value)
                 for convert, value in zip(self._deserializers, row_data.values)]
 
-    def object_to_string(self, py_obj, is_copy_data, is_collection=False):
+    def object_to_string(self, py_obj: Any, is_copy_data: bool, is_collection: bool = False) -> str:
         """Return the SQL representation of the object as a string"""
         if type(py_obj) in self._sql_literal_adapters and not is_copy_data:
             adapter = self._sql_literal_adapters[type(py_obj)]
@@ -701,7 +714,7 @@ class Cursor(object):
                 raise TypeError(msg)
 
     # noinspection PyArgumentList
-    def format_operation_with_parameters(self, operation, parameters, is_copy_data=False):
+    def format_operation_with_parameters(self, operation: str, parameters: Union[List[Any], Tuple[Any], Dict[str, Any]], is_copy_data: bool = False) -> str:
         if isinstance(parameters, dict):
             if parameters and ':' not in operation and os.environ.get('VERTICA_PYTHON_IGNORE_NAMED_PARAMETER_CHECK') != '1':
                 raise ValueError(f'Invalid SQL: {operation}'
@@ -735,7 +748,7 @@ class Cursor(object):
 
         return operation
 
-    def format_quote(self, param, is_copy_data, is_collection):
+    def format_quote(self, param: str, is_copy_data: bool, is_collection: bool) -> str:
         if is_collection: # COPY COLLECTIONENCLOSE
             s = list(param)
             for i, c in enumerate(param):
@@ -751,10 +764,9 @@ class Cursor(object):
         else:
             return u"'{0}'".format(param.replace(u"'", u"''"))
 
-    def _execute_simple_query(self, query):
+    def _execute_simple_query(self, query: str) -> None:
         """
         Send the query to the server using the simple query protocol.
-        Return True if this query contained no SQL (e.g. the string "--comment")
         """
         self._logger.info(u'Execute simple query: [{}]'.format(query))
 
@@ -763,7 +775,7 @@ class Cursor(object):
 
         # The first response could be a number of things:
         #   ErrorResponse: Something went wrong on the server.
-        #   EmptyQueryResponse: The query being executed is empty.
+        #   EmptyQueryResponse: The query being executed is empty. (e.g. the string "--comment")
         #   RowDescription: This is the "normal" case when executing a query.
         #                   It marks the start of the results.
         #   CommandComplete: This occurs when executing DDL/transactions.
@@ -779,7 +791,7 @@ class Cursor(object):
             elif isinstance(self._message, messages.VerifyFiles):
                 self._handle_copy_local_protocol()
 
-    def _handle_copy_local_protocol(self):
+    def _handle_copy_local_protocol(self) -> None:
         if self.connection.options['disable_copy_local']:
             msg = 'COPY LOCAL operation is disabled.'
             self.connection.write(messages.CopyError(msg))
@@ -936,7 +948,7 @@ class Cursor(object):
         self.connection.write(messages.Sync())
         raise errors.QueryError.from_error_response(msg, self.operation)
 
-    def _prepare(self, query):
+    def _prepare(self, query: str) -> None:
         """
         Send the query to be prepared to the server. The server will parse the
         query and return some metadata.

@@ -71,6 +71,7 @@ from ..compat import as_text
 from ..vertica import messages
 from ..vertica.column import Column
 from ..vertica.deserializer import Deserializer
+from ..vertica.messages.message import BackendMessage
 
 
 # A note regarding support for temporary files:
@@ -198,7 +199,7 @@ class Cursor(object):
     def callproc(self, procname, parameters=None) -> NoReturn:
         raise errors.NotSupportedError('Cursor.callproc() is not implemented')
 
-    def close(self):
+    def close(self) -> None:
         """Close the cursor now."""
         self._logger.info('Close the cursor')
         if not self.closed() and self.prepared_sql:
@@ -457,6 +458,7 @@ class Cursor(object):
             'to cancel the current database operation.')
 
     def iterate(self) -> Generator[Union[List[Any], OrderedDict[str, Any]], None, None]:
+        """Yield the next record from the current statement result set."""
         row = self.fetchone()
         while row:
             yield row
@@ -601,7 +603,7 @@ class Cursor(object):
                 self._message = message
                 self._handle_copy_local_protocol()
 
-    def flush_to_end_of_result(self):
+    def flush_to_end_of_result(self) -> None:
         # if the last message isn't empty or END_OF_RESULT_RESPONSES,
         # read messages until it is
         if (self._message is None or
@@ -626,7 +628,7 @@ class Cursor(object):
         else:
             raise TypeError('Unrecognized cursor_type: {0}'.format(self.cursor_type))
 
-    def format_row_as_dict(self, row_data):
+    def format_row_as_dict(self, row_data) -> OrderedDict[str, Any]:
         if self._disable_sqldata_converter:
             return OrderedDict((descr.name, value)
                     for descr, value in zip(self.description, row_data.values))
@@ -635,7 +637,7 @@ class Cursor(object):
             for descr, convert, value in zip(self.description, self._deserializers, row_data.values)
         )
 
-    def format_row_as_array(self, row_data):
+    def format_row_as_array(self, row_data) -> List[Any]:
         if self._disable_sqldata_converter:
             return row_data.values
         return [convert(value)
@@ -889,7 +891,7 @@ class Cursor(object):
         # Note: Sending an empty list of files will make server kill the session.
         return file_list
 
-    def _send_copy_data(self, stream, buffer_size):
+    def _send_copy_data(self, stream, buffer_size) -> None:
         # Send zero or more CopyData messages, forming a stream of input data
         while True:
             chunk = stream.read(buffer_size)
@@ -897,7 +899,7 @@ class Cursor(object):
                 break
             self.connection.write(messages.CopyData(chunk, self.unicode_error))
 
-    def _send_copy_file_data(self):
+    def _send_copy_file_data(self) -> None:
         filename = self._message.filename
         self._logger.info('Sending {} data to server'.format(filename))
 
@@ -909,7 +911,7 @@ class Cursor(object):
             self._send_copy_data(f, self.buffer_size)
         self.connection.write(messages.EndOfBatchRequest())
 
-    def _read_copy_data_response(self, is_stdin_copy: bool = False):
+    def _read_copy_data_response(self, is_stdin_copy: bool = False) -> bool:
         """Returns True if the server wants us to load more data, False if we are done."""
         self._message = self.connection.read_expected_message(END_OF_BATCH_RESPONSES)
         # Check for rejections during this load
@@ -944,7 +946,7 @@ class Cursor(object):
                                       type(self._message).__name__))
         return False
 
-    def _error_handler(self, msg):
+    def _error_handler(self, msg: BackendMessage) -> NoReturn:
         self.connection.write(messages.Sync())
         raise errors.QueryError.from_error_response(msg, self.operation)
 
@@ -988,7 +990,7 @@ class Cursor(object):
 
         self._logger.info('Finish preparing the statement')
 
-    def _execute_prepared_statement(self, list_of_parameter_values):
+    def _execute_prepared_statement(self, list_of_parameter_values: Sequence[Any]) -> None:
         """
         Send multiple statement parameter sets to the server using the extended
         query protocol. The server would bind and execute each set of parameter
@@ -1033,7 +1035,7 @@ class Cursor(object):
         if isinstance(self._message, messages.ErrorResponse):
             raise errors.QueryError.from_error_response(self._message, self.prepared_sql)
 
-    def _close_prepared_statement(self):
+    def _close_prepared_statement(self) -> None:
         """
         Close the prepared statement on the server.
         """

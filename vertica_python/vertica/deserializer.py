@@ -21,23 +21,30 @@ from dateutil import tz
 from dateutil.relativedelta import relativedelta
 from decimal import Context, Decimal
 from struct import unpack
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 from uuid import UUID
 
 from .. import errors
 from ..compat import as_str, as_bytes
 from ..datatypes import VerticaType
-from ..vertica.column import FormatCode
+from ..vertica.column import FormatCode, Column
 
 
 class Deserializer(object):
-    def get_row_deserializers(self, columns, custom_converters, context):
+    def get_row_deserializers(self,
+                              columns: List[Column],
+                              custom_converters: Dict[int, Callable[[bytes, Dict[str, Any]], Any]],
+                              context: Dict[str, Any]) -> List[Callable[[Optional[bytes]], Any]]:
         result = [None] * len(columns)
         for idx, col in enumerate(columns):
             result[idx] = self.get_column_deserializer(col, custom_converters, context)
         return result
 
-    def get_column_deserializer(self, col, custom_converters, context):
-        """Return a function that inputs a column's raw data and returns a Python object"""
+    def get_column_deserializer(self,
+                                col: Column,
+                                custom_converters: Dict[int, Callable[[bytes, Dict[str, Any]], Any]],
+                                context: Dict[str, Any]) -> Callable[[Optional[bytes]], Any]:
+        """Return a function that inputs a column's raw data and returns a Python object."""
         if col.type_code in custom_converters:
             f = custom_converters[col.type_code]
         else:
@@ -45,7 +52,7 @@ class Deserializer(object):
         if f is None:  # skip conversion
             return lambda data: data
 
-        def deserializer(data):
+        def deserializer(data: Optional[bytes]):
             if data is None: # null
                 return None
             return f(data, ctx={'column': col, **context})
@@ -64,7 +71,7 @@ TIMETZ_RE = re.compile(
 TZ_RE = re.compile(r"(?ix) ^([-+]) (\d+) (?: : (\d+) )? (?: : (\d+) )? $")
 SECONDS_PER_DAY = 86400
 
-def load_bool_binary(val:bytes, ctx) -> bool:
+def load_bool_binary(val: bytes, ctx: Dict[str, Any]) -> bool:
     """
     Parses binary representation of a BOOLEAN type.
     :param val: a byte - b'\x01' for True, b'\x00' for False
@@ -73,7 +80,7 @@ def load_bool_binary(val:bytes, ctx) -> bool:
     """
     return val == b'\x01'
 
-def load_int8_binary(val: bytes, ctx) -> int:
+def load_int8_binary(val: bytes, ctx: Dict[str, Any]) -> int:
     """
     Parses binary representation of a INTEGER type.
     :param val: bytes - a 64-bit integer.
@@ -82,7 +89,7 @@ def load_int8_binary(val: bytes, ctx) -> int:
     """
     return unpack("!q", val)[0]
 
-def load_float8_binary(val: bytes, ctx) -> float:
+def load_float8_binary(val: bytes, ctx: Dict[str, Any]) -> float:
     """
     Parses binary representation of a FLOAT type.
     :param val: bytes - a float encoded in IEEE-754 format.
@@ -91,7 +98,7 @@ def load_float8_binary(val: bytes, ctx) -> float:
     """
     return unpack("!d", val)[0]
 
-def load_numeric_binary(val: bytes, ctx) -> Decimal:
+def load_numeric_binary(val: bytes, ctx: Dict[str, Any]) -> Decimal:
     """
     Parses binary representation of a NUMERIC type.
     :param val: bytes
@@ -106,7 +113,7 @@ def load_numeric_binary(val: bytes, ctx) -> Decimal:
     # The numeric value is (unscaledVal * 10^(-scale))
     return Decimal(unscaledVal).scaleb(-scale, context=Context(prec=precision))
 
-def load_varchar_text(val: bytes, ctx) -> str:
+def load_varchar_text(val: bytes, ctx: Dict[str, Any]) -> str:
     """
     Parses text/binary representation of a CHAR / VARCHAR / LONG VARCHAR type.
     :param val: bytes
@@ -115,7 +122,7 @@ def load_varchar_text(val: bytes, ctx) -> str:
     """
     return val.decode('utf-8', ctx['unicode_error'])
 
-def load_date_text(val: bytes, ctx) -> date:
+def load_date_text(val: bytes, ctx: Dict[str, Any]) -> date:
     """
     Parses text representation of a DATE type.
     :param val: bytes
@@ -131,7 +138,7 @@ def load_date_text(val: bytes, ctx) -> date:
     except ValueError:
         raise errors.NotSupportedError('Dates after year 9999 are not supported by datetime.date. Got: {0}'.format(s))
 
-def load_date_binary(val: bytes, ctx) -> date:
+def load_date_binary(val: bytes, ctx: Dict[str, Any]) -> date:
     """
     Parses binary representation of a DATE type.
     :param val: bytes
@@ -149,7 +156,7 @@ def load_date_binary(val: bytes, ctx) -> date:
         raise errors.NotSupportedError('Dates after year 9999 are not supported by datetime.date. Got: Julian day number {0}'.format(jdn))
     return date.fromordinal(days)
 
-def load_time_text(val: bytes, ctx) -> time:
+def load_time_text(val: bytes, ctx: Dict[str, Any]) -> time:
     """
     Parses text representation of a TIME type.
     :param val: bytes
@@ -161,7 +168,7 @@ def load_time_text(val: bytes, ctx) -> time:
         return datetime.strptime(val, '%H:%M:%S').time()
     return datetime.strptime(val, '%H:%M:%S.%f').time()
 
-def load_time_binary(val: bytes, ctx) -> time:
+def load_time_binary(val: bytes, ctx: Dict[str, Any]) -> time:
     """
     Parses binary representation of a TIME type.
     :param val: bytes
@@ -180,7 +187,7 @@ def load_time_binary(val: bytes, ctx) -> time:
     except ValueError:
         raise errors.NotSupportedError("Time not supported by datetime.time. Got: hour={}".format(hour))
 
-def load_timetz_text(val: bytes, ctx) -> time:
+def load_timetz_text(val: bytes, ctx: Dict[str, Any]) -> time:
     """
     Parses text representation of a TIMETZ type.
     :param val: bytes
@@ -212,7 +219,7 @@ def load_timetz_text(val: bytes, ctx) -> time:
 
     return time(int(hr), int(mi), int(sec), us, tz.tzoffset(None, tz_offset))
 
-def load_timetz_binary(val: bytes, ctx) -> time:
+def load_timetz_binary(val: bytes, ctx: Dict[str, Any]) -> time:
     """
     Parses binary representation of a TIMETZ type.
     :param val: bytes
@@ -223,7 +230,7 @@ def load_timetz_binary(val: bytes, ctx) -> time:
     #   - Upper 40 bits contain the number of microseconds since midnight in the UTC time zone.
     #   - Lower 24 bits contain time zone as the UTC offset in seconds.
     v = load_int8_binary(val, ctx)
-    tz_offset = SECONDS_PER_DAY - (v & 0xffffff) # in seconds
+    tz_offset = SECONDS_PER_DAY - (v & 0xffffff)  # in seconds
     msecs = v >> 24
     # shift to given time zone
     msecs += tz_offset * 1000000
@@ -233,7 +240,7 @@ def load_timetz_binary(val: bytes, ctx) -> time:
     hour, minute = divmod(msecs, 60)
     return time(hour, minute, second, fraction, tz.tzoffset(None, tz_offset))
 
-def load_timestamp_text(val: bytes, ctx) -> datetime:
+def load_timestamp_text(val: bytes, ctx: Dict[str, Any]) -> datetime:
     """
     Parses text representation of a TIMESTAMP type.
     :param val: bytes
@@ -249,7 +256,7 @@ def load_timestamp_text(val: bytes, ctx) -> datetime:
     except ValueError:
         raise errors.NotSupportedError('Timestamps after year 9999 are not supported by datetime.datetime. Got: {0}'.format(s))
 
-def load_timestamp_binary(val: bytes, ctx) -> datetime:
+def load_timestamp_binary(val: bytes, ctx: Dict[str, Any]) -> datetime:
     """
     Parses binary representation of a TIMESTAMP type.
     :param val: bytes
@@ -267,7 +274,7 @@ def load_timestamp_binary(val: bytes, ctx) -> datetime:
         else:
             raise errors.NotSupportedError('Timestamps after year 9999 are not supported by datetime.datetime.')
 
-def load_timestamptz_text(val: bytes, ctx) -> datetime:
+def load_timestamptz_text(val: bytes, ctx: Dict[str, Any]) -> datetime:
     """
     Parses text representation of a TIMESTAMPTZ type.
     :param val: bytes
@@ -287,7 +294,7 @@ def load_timestamptz_text(val: bytes, ctx) -> datetime:
     t = load_timetz_text(dt[1], ctx)
     return datetime.combine(d, t)
 
-def load_timestamptz_binary(val: bytes, ctx) -> datetime:
+def load_timestamptz_binary(val: bytes, ctx: Dict[str, Any]) -> datetime:
     """
     Parses binary representation of a TIMESTAMPTZ type.
     :param val: bytes
@@ -312,7 +319,7 @@ def load_timestamptz_binary(val: bytes, ctx) -> datetime:
         else:  # year might be over 9999
             raise errors.NotSupportedError('TimestampTzs after year 9999 are not supported by datetime.datetime.')
 
-def load_interval_text(val: bytes, ctx) -> relativedelta:
+def load_interval_text(val: bytes, ctx: Dict[str, Any]) -> relativedelta:
     """
     Parses text representation of a INTERVAL day-time type.
     :param val: bytes
@@ -361,7 +368,7 @@ def load_interval_text(val: bytes, ctx) -> relativedelta:
 
     return relativedelta(days=parts[0], hours=parts[1], minutes=parts[2], seconds=parts[3], microseconds=parts[4])
 
-def load_interval_binary(val: bytes, ctx) -> relativedelta:
+def load_interval_binary(val: bytes, ctx: Dict[str, Any]) -> relativedelta:
     """
     Parses binary representation of a INTERVAL day-time type.
     :param val: bytes
@@ -372,7 +379,7 @@ def load_interval_binary(val: bytes, ctx) -> relativedelta:
     msecs = load_int8_binary(val, ctx)
     return relativedelta(microseconds=msecs)
 
-def load_intervalYM_text(val: bytes, ctx) -> relativedelta:
+def load_intervalYM_text(val: bytes, ctx: Dict[str, Any]) -> relativedelta:
     """
     Parses text representation of a INTERVAL YEAR TO MONTH / INTERVAL YEAR / INTERVAL MONTH type.
     :param val: bytes
@@ -398,7 +405,7 @@ def load_intervalYM_text(val: bytes, ctx) -> relativedelta:
         else:   # Interval Month
             return relativedelta(months=interval)
 
-def load_intervalYM_binary(val: bytes, ctx) -> relativedelta:
+def load_intervalYM_binary(val: bytes, ctx: Dict[str, Any]) -> relativedelta:
     """
     Parses binary representation of a INTERVAL YEAR TO MONTH / INTERVAL YEAR / INTERVAL MONTH type.
     :param val: bytes
@@ -409,7 +416,7 @@ def load_intervalYM_binary(val: bytes, ctx) -> relativedelta:
     months = load_int8_binary(val, ctx)
     return relativedelta(months=months)
 
-def load_uuid_binary(val: bytes, ctx) -> UUID:
+def load_uuid_binary(val: bytes, ctx: Dict[str, Any]) -> UUID:
     """
     Parses binary representation of a UUID type.
     :param val: bytes
@@ -419,7 +426,7 @@ def load_uuid_binary(val: bytes, ctx) -> UUID:
     # 16-byte value in big-endian order interpreted as UUID
     return UUID(bytes=bytes(val))
 
-def load_varbinary_text(s: bytes, ctx) -> bytes:
+def load_varbinary_text(s: bytes, ctx: Dict[str, Any]) -> bytes:
     """
     Parses text representation of a BINARY / VARBINARY / LONG VARBINARY type.
     :param s: bytes
@@ -443,7 +450,7 @@ def load_varbinary_text(s: bytes, ctx) -> bytes:
         buf.append(c)
     return b''.join(buf)
 
-def load_array_text(val: bytes, ctx):
+def load_array_text(val: bytes, ctx: Dict[str, Any]) -> Union[str, List[Any]]:
     """
     Parses text/binary representation of an ARRAY type.
     :param val: bytes
@@ -457,7 +464,7 @@ def load_array_text(val: bytes, ctx):
     json_data = json.loads(v)
     return parse_array(json_data, ctx)
 
-def load_set_text(val: bytes, ctx):
+def load_set_text(val: bytes, ctx: Dict[str, Any]) -> Set[Any]:
     """
     Parses text/binary representation of a SET type.
     :param val: bytes
@@ -466,7 +473,7 @@ def load_set_text(val: bytes, ctx):
     """
     return set(load_array_text(val, ctx))
 
-def parse_array(json_data, ctx):
+def parse_array(json_data: List[Any], ctx: Dict[str, Any]) -> List[Any]:
     if not isinstance(json_data, list):
         raise TypeError('Expected a list, got {}'.format(json_data))
     # An array has only one child, all elements in the array are the same type.
@@ -485,7 +492,7 @@ def parse_array(json_data, ctx):
         parsed_array[idx] = parse_json_element(element, child_ctx)
     return parsed_array
 
-def load_row_text(val: bytes, ctx):
+def load_row_text(val: bytes, ctx: Dict[str, Any]) -> Union[str, Dict[str, Any]]:
     """
     Parses text/binary representation of a ROW type.
     :param val: bytes
@@ -499,7 +506,7 @@ def load_row_text(val: bytes, ctx):
     json_data = json.loads(v)
     return parse_row(json_data, ctx)
 
-def parse_row(json_data, ctx):
+def parse_row(json_data: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(json_data, dict):
         raise TypeError('Expected a dict, got {}'.format(json_data))
     # A row has one or more child fields
@@ -520,7 +527,7 @@ def parse_row(json_data, ctx):
         parsed_row[key] = parse_json_element(element, child_ctx)
     return parsed_row
 
-def parse_json_element(element, ctx):
+def parse_json_element(element: Any, ctx: Dict[str, Any]) -> Any:
     type_code = ctx['column'].type_code
     if type_code in (VerticaType.BOOL, VerticaType.INT8,
                      VerticaType.CHAR, VerticaType.VARCHAR, VerticaType.LONGVARCHAR):

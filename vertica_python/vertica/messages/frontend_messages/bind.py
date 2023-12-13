@@ -57,8 +57,8 @@ BACKSLASH_ESCAPE = b'\\134'
 class Bind(BulkFrontendMessage):
     message_id = b'B'
 
-    def __init__(self, portal_name, prepared_statement_name, parameter_values,
-                 parameter_type_oids, binary_transfer):
+    def __init__(self, portal_name: str, prepared_statement_name: str, parameter_values,
+                 parameter_type_oids, binary_transfer: bool) -> None:
         BulkFrontendMessage.__init__(self)
         self._portal_name = portal_name
         self._prepared_statement_name = prepared_statement_name

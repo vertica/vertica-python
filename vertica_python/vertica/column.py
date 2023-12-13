@@ -34,9 +34,9 @@
 # THE SOFTWARE.
 
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
-from collections import namedtuple
+from typing import Optional, NamedTuple
 
 from ..datatypes import getDisplaySize, getPrecision, getScale
 from ..compat import as_str, as_text
@@ -49,12 +49,18 @@ class FormatCode(object):
     BINARY = 1
 
 
-ColumnTuple = namedtuple('Column', ['name', 'type_code', 'display_size', 'internal_size',
-                                    'precision', 'scale', 'null_ok'])
+class ColumnTuple(NamedTuple):
+    name: str
+    type_code: int
+    display_size: Optional[int]
+    internal_size: int
+    precision: Optional[int]
+    scale: Optional[int]
+    null_ok: bool
 
 
 class Column(object):
-    def __init__(self, col):
+    def __init__(self, col) -> None:
         # Describe one query result column
         self.name = col['name']
         self.type_code = col['data_type_oid']
@@ -74,7 +80,7 @@ class Column(object):
         self.props = ColumnTuple(self.name, self.type_code, self.display_size, self.internal_size,
                                  self.precision, self.scale, self.null_ok)
 
-    def add_child_column(self, col):
+    def add_child_column(self, col: Column) -> None:
         """
         Complex types involve multiple columns arranged in a hierarchy of parents and children.
         Each parent column stores references to child columns in a list.
@@ -83,7 +89,7 @@ class Column(object):
             self.child_columns = []
         self.child_columns.append(col)
 
-    def debug_info(self):
+    def debug_info(self) -> str:
         childs = ""
         if self.child_columns:
             c = ", ".join([col.debug_info() for col in self.child_columns])

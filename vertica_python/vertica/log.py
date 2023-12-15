@@ -34,10 +34,12 @@
 # THE SOFTWARE.
 
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 import logging
-from typing import Union
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Union
 from ..os_utils import ensure_dir_exists
 
 class VerticaLogging(object):

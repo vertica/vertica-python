@@ -40,7 +40,7 @@ To begin a session, the frontend opens a connection to the backend and sends a
 Startup message.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 import platform
 import os

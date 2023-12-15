@@ -34,10 +34,12 @@
 # THE SOFTWARE.
 
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from datetime import date, datetime, time, timezone
-from typing import Optional
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Optional
 
 
 # noinspection PyPep8Naming

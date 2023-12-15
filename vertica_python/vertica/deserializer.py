@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 import json
 import re
@@ -21,13 +21,17 @@ from dateutil import tz
 from dateutil.relativedelta import relativedelta
 from decimal import Context, Decimal
 from struct import unpack
-from typing import Any, Callable, Dict, List, Optional, Set, Union
 from uuid import UUID
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Any, Callable, Dict, List, Optional, Set, Union
+    from ..vertica.column import Column
 
 from .. import errors
 from ..compat import as_str, as_bytes
 from ..datatypes import VerticaType
-from ..vertica.column import FormatCode, Column
+from ..vertica.column import FormatCode
 
 
 class Deserializer(object):

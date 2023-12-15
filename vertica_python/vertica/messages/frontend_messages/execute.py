@@ -46,7 +46,7 @@ Currently, Vertica backend will ignore this result-row count and send all the
 rows regardless of what you put here.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from struct import pack
 

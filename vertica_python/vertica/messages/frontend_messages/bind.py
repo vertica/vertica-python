@@ -42,7 +42,7 @@ to parameter placeholders present in an existing prepared statement.
 The response is either BindComplete or ErrorResponse.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from struct import pack
 

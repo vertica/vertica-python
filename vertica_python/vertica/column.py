@@ -36,7 +36,9 @@
 
 from __future__ import print_function, division, absolute_import, annotations
 
-from typing import Optional, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
+if TYPE_CHECKING:
+    from typing import Optional
 
 from ..datatypes import getDisplaySize, getPrecision, getScale
 from ..compat import as_str, as_text

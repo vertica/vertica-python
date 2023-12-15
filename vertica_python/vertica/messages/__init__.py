@@ -34,7 +34,7 @@
 # THE SOFTWARE.
 
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from ..messages import backend_messages
 from ..messages.backend_messages import *

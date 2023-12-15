@@ -43,7 +43,7 @@ command except Sync, if the frontend wishes to examine the results of that
 command before issuing more commands.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from ..message import BulkFrontendMessage
 

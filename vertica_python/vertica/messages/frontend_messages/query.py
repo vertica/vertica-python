@@ -42,7 +42,7 @@ one or more response messages depending on the contents of the query command
 string, and finally a ReadyForQuery message.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from struct import pack
 

@@ -46,7 +46,7 @@ error message would be something like
   "Cannot insert multiple commands into a prepared statement"
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from struct import pack
 

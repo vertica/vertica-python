@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 import errno
 import os

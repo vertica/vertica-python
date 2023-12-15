@@ -633,7 +633,7 @@ class Connection(object):
         """Returns True if the TCP socket is a SSL socket."""
         return self.socket is not None and isinstance(self.socket, ssl.SSLSocket)
 
-    def write(self, message, vsocket=None) -> None:
+    def write(self, message: FrontendMessage, vsocket: Optional[Union[socket.socket, ssl.SSLSocket]] = None) -> None:
         if not isinstance(message, FrontendMessage):
             raise TypeError("invalid message: ({0})".format(message))
         if vsocket is None:
@@ -670,14 +670,14 @@ class Connection(object):
         self.close()
         self.startup_connection()
 
-    def is_asynchronous_message(self, message) -> bool:
+    def is_asynchronous_message(self, message: BackendMessage) -> bool:
         # Check if it is an asynchronous response message
         # Note: ErrorResponse is a subclass of NoticeResponse
         return (isinstance(message, messages.ParameterStatus) or
             (isinstance(message, messages.NoticeResponse) and
              not isinstance(message, messages.ErrorResponse)))
 
-    def handle_asynchronous_message(self, message) -> None:
+    def handle_asynchronous_message(self, message: Union[messages.ParameterStatus, messages.NoticeResponse]) -> None:
         if isinstance(message, messages.ParameterStatus):
             if message.name == 'protocol_version':
                 message.value = int(message.value)
@@ -700,7 +700,7 @@ class Connection(object):
             s.extend(char)
         return s
 
-    def read_message(self):
+    def read_message(self) -> BackendMessage:
         while True:
             try:
                 type_ = self.read_bytes(1)

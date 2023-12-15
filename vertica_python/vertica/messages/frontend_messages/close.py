@@ -43,7 +43,7 @@ The response is either CloseComplete or ErrorResponse. It is not an error to
 issue Close against a nonexistent statement or portal name.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from struct import pack
 

@@ -50,7 +50,7 @@ going to the backend from Python text string into UTF-8, and to convert data
 coming from the backend from UTF-8 into Python text string.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from abc import ABCMeta
 from struct import pack
@@ -96,7 +96,7 @@ class BackendMessage(Message):
     _message_id_map = {}
 
     @classmethod
-    def from_type(cls, type_, data, **kwargs):
+    def from_type(cls, type_, data, **kwargs) -> BackendMessage:
         klass = cls._message_id_map.get(type_)
         if klass is not None:
             return klass(data, **kwargs)

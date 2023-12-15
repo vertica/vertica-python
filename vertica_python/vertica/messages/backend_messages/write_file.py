@@ -24,7 +24,7 @@ RETURNREJECTED parameters instead, this message is a series of row numbers
 saying which rows in the load were rejected.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from struct import unpack_from
 

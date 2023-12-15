@@ -40,8 +40,11 @@ RowDescription message describes the column layout of the rows that will be
 returned in response to a SELECT, FETCH, etc query.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import List
 from struct import unpack, unpack_from, calcsize
 
 from ..message import BackendMessage
@@ -144,7 +147,7 @@ class RowDescription(BackendMessage):
                 child_column = Column(metadata)
                 column.add_child_column(child_column)
 
-    def get_description(self):
+    def get_description(self) -> List[Column]:
         # return a list of Column objects for Cursor.description
         return self.fields
 

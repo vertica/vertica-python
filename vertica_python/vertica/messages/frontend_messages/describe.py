@@ -47,7 +47,7 @@ response is a CommandDescription message describing the type of command to be
 executed and any semantically-equivalent COPY statement.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from struct import pack
 

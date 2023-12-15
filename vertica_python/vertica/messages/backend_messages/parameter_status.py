@@ -50,7 +50,7 @@ simply ignore ParameterStatus for parameters that it does not understand or care
 about.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from struct import unpack
 

@@ -34,9 +34,12 @@
 # THE SOFTWARE.
 
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, annotations
 
 from datetime import date, datetime, time, timezone
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Optional
 
 
 # noinspection PyPep8Naming
@@ -298,7 +301,7 @@ COMPLEX_ELEMENT_TYPE = {
 }
 
 def getTypeName(data_type_oid: int, type_modifier: int) -> str:
-    """Returns the base type name according to data_type_oid and type_modifier"""
+    """Returns the base type name according to data_type_oid and type_modifier."""
     if data_type_oid in TYPENAME:
         return TYPENAME[data_type_oid]
     elif data_type_oid in (VerticaType.INTERVAL, VerticaType.INTERVALYM):
@@ -310,12 +313,12 @@ def getTypeName(data_type_oid: int, type_modifier: int) -> str:
     else:
         return "Unknown"
 
-def getComplexElementType(data_type_oid: int):
-    """For 1D ARRAY or SET, returns the type of its elements"""
+def getComplexElementType(data_type_oid: int) -> Optional[int]:
+    """For 1D ARRAY or SET, returns the type of its elements."""
     return COMPLEX_ELEMENT_TYPE.get(data_type_oid)
 
-def getIntervalRange(data_type_oid: int, type_modifier: int):
-    """Extracts an interval's range from the bits set in its type_modifier"""
+def getIntervalRange(data_type_oid: int, type_modifier: int) -> str:
+    """Extracts an interval's range from the bits set in its type_modifier."""
 
     if data_type_oid not in (VerticaType.INTERVAL, VerticaType.INTERVALYM):
         raise ValueError("Invalid data type OID: {}".format(data_type_oid))
@@ -361,7 +364,7 @@ def getIntervalRange(data_type_oid: int, type_modifier: int):
             return "Day to Second"
 
 
-def getIntervalLeadingPrecision(data_type_oid: int, type_modifier: int):
+def getIntervalLeadingPrecision(data_type_oid: int, type_modifier: int) -> int:
     """
     Returns the leading precision for an interval, which is the largest number
     of digits that can fit in the leading field of the interval.
@@ -394,7 +397,7 @@ def getIntervalLeadingPrecision(data_type_oid: int, type_modifier: int):
         raise ValueError("Invalid interval range: {}".format(interval_range))
 
 
-def getPrecision(data_type_oid: int, type_modifier: int):
+def getPrecision(data_type_oid: int, type_modifier: int) -> Optional[int]:
     """
     Returns the precision for the given Vertica type with consideration of
     the type modifier.
@@ -423,22 +426,23 @@ def getPrecision(data_type_oid: int, type_modifier: int):
         return None  # None if no meaningful values can be provided
 
 
-def getScale(data_type_oid: int, type_modifier: int):
+def getScale(data_type_oid: int, type_modifier: int) -> Optional[int]:
     """
     Returns the scale for the given Vertica type with consideration of
-    the type modifier.
+    the type modifier. Returns None if no meaningful values can be provided.
     """
 
     if data_type_oid == VerticaType.NUMERIC:
         return 15 if type_modifier == -1 else (type_modifier - 4) & 0xFF
     else:
-        return None  # None if no meaningful values can be provided
+        return None
 
 
-def getDisplaySize(data_type_oid: int, type_modifier: int):
+def getDisplaySize(data_type_oid: int, type_modifier: int) -> Optional[int]:
     """
     Returns the column display size for the given Vertica type with
     consideration of the type modifier.
+    Returns None if no meaningful values can be provided.
 
     The display size of a column is the maximum number of characters needed to
     display data in character form.

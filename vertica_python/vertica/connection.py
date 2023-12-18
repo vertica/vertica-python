@@ -687,7 +687,9 @@ class Connection(object):
             if getattr(self, 'notice_handler', None) is not None:
                 self.notice_handler(message)
             else:
-                notice = f'[{message.severity}] {message.message}'
+                notice = f'{message.severity} {message.error_code}: {message.message}'
+                if message.hint is not None:
+                    notice += f'\nHINT: {message.hint}'
                 warnings.warn(notice)
                 self._logger.warning(message.error_message())
 

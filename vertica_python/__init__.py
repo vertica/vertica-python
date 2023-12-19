@@ -56,7 +56,7 @@ __all__ = ['Connection', 'PROTOCOL_VERSION', 'version_info', 'apilevel', 'thread
            'OperationalError', 'ProgrammingError']
 
 # The version number of this library.
-version_info = (1, 3, 7)
+version_info = (1, 3, 8)
 __version__ = '.'.join(map(str, version_info))
 
 # The protocol version (3.15) implemented in this library.

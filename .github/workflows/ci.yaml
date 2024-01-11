@@ -24,7 +24,7 @@ jobs:
           docker run -d -p 8080:8080 \
             --name keycloak --network my-network \
             -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin \
-            quay.io/keycloak/keycloak:21.0.1 start-dev
+            quay.io/keycloak/keycloak:23.0.4 start-dev
           docker container ls
 
       - name: Set up a Vertica server docker container

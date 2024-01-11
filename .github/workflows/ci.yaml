@@ -32,7 +32,7 @@ jobs:
         run: |
           docker run -d -p 5433:5433 -p 5444:5444 \
             --name vertica_docker --network my-network \
-            vertica/vertica-ce:23.4.0-0
+            vertica/vertica-ce:24.1.0-0
           echo "Vertica startup ..."
           until docker exec vertica_docker test -f /data/vertica/VMart/agent_start.out; do \
             echo "..."; \

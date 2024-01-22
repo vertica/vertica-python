@@ -464,7 +464,7 @@ class Cursor(object):
             yield row
             row = self.fetchone()
 
-    def copy(self, sql: str, data: IO[AnyStr], **kwargs: Any) -> None:
+    def copy(self, sql: str, data: Union[IO[AnyStr], bytes, str], **kwargs: Any) -> None:
         """
         Execute a "COPY FROM STDIN" SQL.
 

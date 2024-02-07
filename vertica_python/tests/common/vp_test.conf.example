@@ -18,4 +18,9 @@ VP_TEST_LOG_DIR=mylog/vp_tox_tests_log
 # OAuth authentication information
 #VP_TEST_OAUTH_USER=<can be ignored if VP_TEST_DATABASE is set>
 #VP_TEST_OAUTH_ACCESS_TOKEN=******
+#VP_TEST_OAUTH_REFRESH_TOKEN=******
+#VP_TEST_OAUTH_CLIENT_ID=vertica
+#VP_TEST_OAUTH_CLIENT_SECRET=******
+#VP_TEST_OAUTH_TOKEN_URL=http://hostname:8080/realms/test/protocol/openid-connect/token
+#VP_TEST_OAUTH_DISCOVERY_URL=http://hostname:8080/realms/test/.well-known/openid-configuration
 

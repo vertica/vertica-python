@@ -57,6 +57,7 @@ import vertica_python
 from .. import errors
 from ..vertica import messages
 from ..vertica.cursor import Cursor
+from ..vertica.oauth_manager import OAuthManager
 from ..vertica.messages.message import BackendMessage, FrontendMessage
 from ..vertica.messages.frontend_messages import CancelRequest
 from ..vertica.log import VerticaLogging
@@ -73,6 +74,7 @@ DEFAULT_LOG_PATH = 'vertica_python.log'
 DEFAULT_BINARY_TRANSFER = False
 DEFAULT_REQUEST_COMPLEX_TYPES = True
 DEFAULT_OAUTH_ACCESS_TOKEN = ''
+DEFAULT_OAUTH_REFRESH_TOKEN = ''
 DEFAULT_WORKLOAD = ''
 try:
     DEFAULT_USER = getpass.getuser()
@@ -265,6 +267,7 @@ class Connection(object):
         self.transaction_status = None
         self.socket = None
         self.socket_as_file = None
+        self.oauth_manager = None
 
         options = options or {}
         self.options = parse_dsn(options['dsn']) if 'dsn' in options else {}
@@ -286,16 +289,8 @@ class Connection(object):
 
         self.options.setdefault('host', DEFAULT_HOST)
         self.options.setdefault('port', DEFAULT_PORT)
-        if 'user' not in self.options:
-            if DEFAULT_USER:
-                self.options['user'] = DEFAULT_USER
-            else:
-                msg = 'Connection option "user" is required'
-                self._logger.error(msg)
-                raise KeyError(msg)
         self.options.setdefault('database', DEFAULT_DATABASE)
         self.options.setdefault('password', DEFAULT_PASSWORD)
-        self.options.setdefault('oauth_access_token', DEFAULT_OAUTH_ACCESS_TOKEN)
         self.options.setdefault('autocommit', DEFAULT_AUTOCOMMIT)
         self.options.setdefault('session_label', _generate_session_label())
         self.options.setdefault('backup_server_node', DEFAULT_BACKUP_SERVER_NODE)
@@ -308,6 +303,28 @@ class Connection(object):
 
         self.address_list = _AddressList(self.options['host'], self.options['port'],
                                          self.options['backup_server_node'], self._logger)
+
+        # OAuth authentication setup
+        self.options.setdefault('oauth_access_token', DEFAULT_OAUTH_ACCESS_TOKEN)
+        self.options.setdefault('oauth_refresh_token', DEFAULT_OAUTH_REFRESH_TOKEN)
+        for option in ('oauth_access_token', 'oauth_refresh_token'):
+            if not isinstance(self.options[option], str):
+                raise TypeError(f'The value of connection option "{option}" should be a str')
+        self.oauth_access_token = self.options['oauth_access_token']
+        if len(self.options['oauth_refresh_token']) > 0:
+            self.oauth_manager = OAuthManager(self.options['oauth_refresh_token'])
+            self.oauth_manager.set_config(self.options.get('oauth_config', {}))
+
+        # user is required for non-OAuth connections
+        if 'user' not in self.options:
+            if len(self.oauth_access_token) > 0 or len(self.options['oauth_refresh_token']) > 0:
+                self.options['user'] = ''
+            elif DEFAULT_USER:
+                self.options['user'] = DEFAULT_USER
+            else:
+                msg = 'Connection option "user" is required'
+                self._logger.error(msg)
+                raise KeyError(msg)
 
         # we only support one cursor per connection
         self.options.setdefault('unicode_error', None)
@@ -337,7 +354,11 @@ class Connection(object):
         self._logger.info('Connecting as user "{}" to database "{}" on host "{}" with port {}'.format(
                      self.options['user'], self.options['database'],
                      self.options['host'], self.options['port']))
-        self.startup_connection()
+
+        while True:
+            need_retry = self.startup_connection()
+            if not need_retry:
+                break
 
         # Complex types metadata is returned since protocol version 3.12
         self.complex_types_enabled = self.parameters.get('protocol_version', 0) >= (3 << 16 | 12) and \
@@ -854,7 +875,7 @@ class Connection(object):
             self._logger.error(msg)
             raise errors.KerberosError(msg)
 
-    def startup_connection(self) -> None:
+    def startup_connection(self) -> bool:
         user = self.options['user']
         database = self.options['database']
         session_label = self.options['session_label']
@@ -863,9 +884,8 @@ class Connection(object):
         autocommit = self.options['autocommit']
         binary_transfer = self.options['binary_transfer']
         request_complex_types = self.options['request_complex_types']
-        oauth_access_token = self.options['oauth_access_token']
         workload = self.options['workload']
-        if len(oauth_access_token) > 0:
+        if len(self.oauth_access_token) > 0 or len(self.options['oauth_refresh_token']) > 0:
             auth_category = 'OAuth'
         elif self.kerberos_is_set:
             auth_category = 'Kerberos'
@@ -875,7 +895,7 @@ class Connection(object):
             auth_category = ''
 
         self.write(messages.Startup(user, database, session_label, os_user_name, autocommit, binary_transfer, 
-                                    request_complex_types, oauth_access_token, workload, auth_category))
+                                    request_complex_types, self.oauth_access_token, workload, auth_category))
 
         while True:
             message = self.read_message()
@@ -895,7 +915,13 @@ class Connection(object):
                 elif message.code == messages.Authentication.GSS:
                     self.make_GSS_authentication()
                 elif message.code == messages.Authentication.OAUTH:
-                    self.write(messages.Password(oauth_access_token, message.code))
+                    if self.oauth_manager:
+                        self.oauth_manager.set_config(message.config, not_set_only=True)
+                    # If access token is not set, will attempt to set a new one by using token refresh
+                    if len(self.oauth_access_token) == 0 and self.oauth_manager and not self.oauth_manager.refresh_attempted:
+                        self._logger.info("Issuing an OAuth access token using a refresh token")
+                        self.oauth_access_token = self.oauth_manager.do_token_refresh()
+                    self.write(messages.Password(self.oauth_access_token, message.code))
                 else:
                     self.write(messages.Password(password, message.code,
                                                  {'user': user,
@@ -908,8 +934,17 @@ class Connection(object):
                 break
             elif isinstance(message, messages.ErrorResponse):
                 self._logger.error(message.error_message())
+                # If this is an OAuth connection and the first connection failed, refresh the access token and try again
+                if message.sqlstate == '28000' and self.oauth_manager and not self.oauth_manager.refresh_attempted:
+                    if message.error_code in ('2248', '3781', '4131'):
+                        raise errors.ConnectionError("Did not receive proper OAuth Authentication response from server. Please upgrade to the latest Vertica server for OAuth Support.")
+                    self.close_socket()
+                    self._logger.info("Issuing a new OAuth access token using a refresh token")
+                    self.oauth_access_token = self.oauth_manager.do_token_refresh()
+                    return True
                 raise errors.ConnectionError(message.error_message())
             else:
                 msg = "Received unexpected startup message: {0}".format(message)
                 self._logger.error(msg)
                 raise errors.MessageError(msg)
+        return False

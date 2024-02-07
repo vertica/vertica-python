@@ -56,6 +56,11 @@ default_configs = {
     'password': '',
     'database': '',
     'oauth_access_token': '',
+    'oauth_refresh_token': '',
+    'oauth_client_id': '',
+    'oauth_client_secret': '',
+    'oauth_token_url': '',
+    'oauth_discovery_url': '',
     'oauth_user': '',
 }
 

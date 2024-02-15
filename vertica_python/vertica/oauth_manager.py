@@ -80,7 +80,12 @@ class OAuthManager:
             # TODO handle self.validate_cert_hostname
             response = requests.post(self.token_url, headers=headers, data=params, verify=False)
             response.raise_for_status()
-            return response.json()["access_token"]
+            json_response = response.json()
+            # If refresh token rotation is used, like in OTDS, we will get both our new valid access token as well as
+            # a new refresh token to use the next time we need to invoke token refresh.
+            if 'refresh_token' in json_response:
+                self.refresh_token = json_response["refresh_token"]
+            return response.json()["access_token"], self.refresh_token
         except requests.exceptions.HTTPError as err:
             msg = f'{err_msg}\n{err}\n{response.json()}'
             raise OAuthTokenRefreshError(msg)

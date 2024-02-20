@@ -474,6 +474,14 @@ class Connection(object):
         """Returns True if the connection is closed."""
         return not self.opened()
 
+    def get_current_refresh_token(self) -> str:
+        """Returns the current refresh token.
+
+        This may be different from the user supplied token if token refresh
+        was required and token rotation is in effect
+        """
+        return self.oauth_refresh_token
+
     def __str__(self) -> str:
         safe_options = {key: value for key, value in self.options.items() if key != 'password'}
 

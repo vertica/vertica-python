@@ -474,6 +474,14 @@ class Connection(object):
         """Returns True if the connection is closed."""
         return not self.opened()
 
+    def get_current_refresh_token(self) -> str:
+        """Returns the current refresh token.
+
+        This may be different from the user supplied token if token refresh
+        was required and token rotation is in effect
+        """
+        return self.oauth_refresh_token
+
     def __str__(self) -> str:
         safe_options = {key: value for key, value in self.options.items() if key != 'password'}
 
@@ -920,7 +928,7 @@ class Connection(object):
                     # If access token is not set, will attempt to set a new one by using token refresh
                     if len(self.oauth_access_token) == 0 and self.oauth_manager and not self.oauth_manager.refresh_attempted:
                         self._logger.info("Issuing an OAuth access token using a refresh token")
-                        self.oauth_access_token = self.oauth_manager.do_token_refresh()
+                        self.oauth_access_token, self.oauth_refresh_token = self.oauth_manager.do_token_refresh()
                     self.write(messages.Password(self.oauth_access_token, message.code))
                 else:
                     self.write(messages.Password(password, message.code,
@@ -940,7 +948,7 @@ class Connection(object):
                         raise errors.ConnectionError("Did not receive proper OAuth Authentication response from server. Please upgrade to the latest Vertica server for OAuth Support.")
                     self.close_socket()
                     self._logger.info("Issuing a new OAuth access token using a refresh token")
-                    self.oauth_access_token = self.oauth_manager.do_token_refresh()
+                    self.oauth_access_token, self.oauth_refresh_token = self.oauth_manager.do_token_refresh()
                     return True
                 raise errors.ConnectionError(message.error_message())
             else:

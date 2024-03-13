@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2023 Open Text.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,10 +55,7 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
     def setUpClass(cls):
         config_list = ['log_dir', 'log_level', 'host', 'port',
                        'user', 'password', 'database',
-                       'oauth_access_token', 'oauth_refresh_token',
-                       'oauth_client_secret', 'oauth_client_id',
-                       'oauth_token_url', 'oauth_discovery_url',
-                       'oauth_user',]
+                       'oauth_access_token', 'oauth_user',]
         cls.test_config = cls._load_test_config(config_list)
 
         # Test logger
@@ -79,11 +76,6 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
         }
         cls._oauth_info = {
             'access_token': cls.test_config['oauth_access_token'],
-            'refresh_token': cls.test_config['oauth_refresh_token'],
-            'client_secret': cls.test_config['oauth_client_secret'],
-            'client_id': cls.test_config['oauth_client_id'],
-            'token_url': cls.test_config['oauth_token_url'],
-            'discovery_url': cls.test_config['oauth_discovery_url'],
             'user': cls.test_config['oauth_user'],
         }
         cls.db_node_num = cls._get_node_num()

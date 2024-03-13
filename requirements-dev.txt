@@ -2,6 +2,5 @@ pytest
 pytest-timeout
 python-dateutil
 six
-requests
 tox
 #kerberos

@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2023 Open Text.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -59,8 +59,7 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         'python-dateutil>=1.5',
-        'six>=1.10.0',
-        'requests>=2.26.0'
+        'six>=1.10.0'
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",

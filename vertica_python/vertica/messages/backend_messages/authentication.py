@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2023 Open Text.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,7 +35,7 @@
 
 from __future__ import print_function, division, absolute_import, annotations
 
-from struct import unpack, unpack_from
+from struct import unpack
 
 from ..message import BackendMessage
 from .... import errors
@@ -78,29 +78,6 @@ class Authentication(BackendMessage):
             self.usersalt = unpack('!{0}s'.format(userSaltLen), other[8:])[0]
         elif self.code in [self.GSS_CONTINUE]:
             self.auth_data = other
-        elif self.code == self.OAUTH:
-            self.config = {}
-            num_of_fields = other.count(b'\x00')
-            # Since protocol v3.15
-            if num_of_fields >= 3:
-                pos = 0
-                auth_url = unpack_from("!{0}sx".format(other.find(b'\x00', pos) - pos), other, pos)[0]
-                pos += len(auth_url) + 1
-                self.config['auth_url'] = auth_url.decode('utf-8')
-                token_url =  unpack_from("!{0}sx".format(other.find(b'\x00', pos) - pos), other, pos)[0]
-                pos += len(token_url) + 1
-                self.config['token_url'] = token_url.decode('utf-8')
-                client_id =  unpack_from("!{0}sx".format(other.find(b'\x00', pos) - pos), other, pos)[0]
-                pos += len(client_id) + 1
-                self.config['client_id'] = client_id.decode('utf-8')
-            # Since protocol v3.16
-            if num_of_fields == 5:
-                scope = unpack_from("!{0}sx".format(other.find(b'\x00', pos) - pos), other, pos)[0]
-                pos += len(scope) + 1
-                self.config['scope'] = scope.decode('utf-8')
-                validate_hostname = unpack_from("!{0}sx".format(other.find(b'\x00', pos) - pos), other, pos)[0]
-                pos += len(validate_hostname) + 1
-                self.config['validate_hostname'] = validate_hostname.decode('utf-8')
 
     def __str__(self):
         return "Authentication: type={}".format(self.code)

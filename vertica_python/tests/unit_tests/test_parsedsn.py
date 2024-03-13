@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2023 Open Text.
+# Copyright (c) 2018-2024 Open Text.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,7 +42,6 @@ class ParseDSNTestCase(VerticaPythonUnitTestCase):
                'session_label=vpclient&unicode_error=strict&'
                'log_path=/home/admin/vClient.log&log_level=DEBUG&'
                'oauth_access_token=GciOiJSUzI1NiI&'
-               'oauth_refresh_token=1WS5TLhonGfARN5&'
                'workload=python_test_workload&'
                'kerberos_service_name=krb_service&kerberos_host_name=krb_host')
         expected = {'database': 'db1', 'host': 'localhost', 'user': 'john',
@@ -50,7 +49,6 @@ class ParseDSNTestCase(VerticaPythonUnitTestCase):
                     'session_label': 'vpclient', 'unicode_error': 'strict',
                     'log_path': '/home/admin/vClient.log',
                     'oauth_access_token': 'GciOiJSUzI1NiI',
-                    'oauth_refresh_token': '1WS5TLhonGfARN5',
                     'workload': 'python_test_workload',
                     'kerberos_service_name': 'krb_service',
                     'kerberos_host_name': 'krb_host'}

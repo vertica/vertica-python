@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2023 Open Text.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,7 +57,6 @@ import vertica_python
 from .. import errors
 from ..vertica import messages
 from ..vertica.cursor import Cursor
-from ..vertica.oauth_manager import OAuthManager
 from ..vertica.messages.message import BackendMessage, FrontendMessage
 from ..vertica.messages.frontend_messages import CancelRequest
 from ..vertica.log import VerticaLogging
@@ -74,7 +73,6 @@ DEFAULT_LOG_PATH = 'vertica_python.log'
 DEFAULT_BINARY_TRANSFER = False
 DEFAULT_REQUEST_COMPLEX_TYPES = True
 DEFAULT_OAUTH_ACCESS_TOKEN = ''
-DEFAULT_OAUTH_REFRESH_TOKEN = ''
 DEFAULT_WORKLOAD = ''
 try:
     DEFAULT_USER = getpass.getuser()
@@ -267,7 +265,6 @@ class Connection(object):
         self.transaction_status = None
         self.socket = None
         self.socket_as_file = None
-        self.oauth_manager = None
 
         options = options or {}
         self.options = parse_dsn(options['dsn']) if 'dsn' in options else {}
@@ -306,18 +303,12 @@ class Connection(object):
 
         # OAuth authentication setup
         self.options.setdefault('oauth_access_token', DEFAULT_OAUTH_ACCESS_TOKEN)
-        self.options.setdefault('oauth_refresh_token', DEFAULT_OAUTH_REFRESH_TOKEN)
-        for option in ('oauth_access_token', 'oauth_refresh_token'):
-            if not isinstance(self.options[option], str):
-                raise TypeError(f'The value of connection option "{option}" should be a str')
-        self.oauth_access_token = self.options['oauth_access_token']
-        if len(self.options['oauth_refresh_token']) > 0:
-            self.oauth_manager = OAuthManager(self.options['oauth_refresh_token'])
-            self.oauth_manager.set_config(self.options.get('oauth_config', {}))
+        if not isinstance(self.options['oauth_access_token'], str):
+            raise TypeError(f'The value of connection option "oauth_access_token" should be a str')
 
         # user is required for non-OAuth connections
         if 'user' not in self.options:
-            if len(self.oauth_access_token) > 0 or len(self.options['oauth_refresh_token']) > 0:
+            if len(self.options['oauth_access_token']) > 0:
                 self.options['user'] = ''
             elif DEFAULT_USER:
                 self.options['user'] = DEFAULT_USER
@@ -355,10 +346,7 @@ class Connection(object):
                      self.options['user'], self.options['database'],
                      self.options['host'], self.options['port']))
 
-        while True:
-            need_retry = self.startup_connection()
-            if not need_retry:
-                break
+        self.startup_connection()
 
         # Complex types metadata is returned since protocol version 3.12
         self.complex_types_enabled = self.parameters.get('protocol_version', 0) >= (3 << 16 | 12) and \
@@ -473,14 +461,6 @@ class Connection(object):
     def closed(self) -> bool:
         """Returns True if the connection is closed."""
         return not self.opened()
-
-    def get_current_refresh_token(self) -> str:
-        """Returns the current refresh token.
-
-        This may be different from the user supplied token if token refresh
-        was required and token rotation is in effect
-        """
-        return self.oauth_refresh_token
 
     def __str__(self) -> str:
         safe_options = {key: value for key, value in self.options.items() if key != 'password'}
@@ -883,7 +863,7 @@ class Connection(object):
             self._logger.error(msg)
             raise errors.KerberosError(msg)
 
-    def startup_connection(self) -> bool:
+    def startup_connection(self) -> None:
         user = self.options['user']
         database = self.options['database']
         session_label = self.options['session_label']
@@ -892,8 +872,9 @@ class Connection(object):
         autocommit = self.options['autocommit']
         binary_transfer = self.options['binary_transfer']
         request_complex_types = self.options['request_complex_types']
+        oauth_access_token = self.options['oauth_access_token']
         workload = self.options['workload']
-        if len(self.oauth_access_token) > 0 or len(self.options['oauth_refresh_token']) > 0:
+        if len(oauth_access_token) > 0:
             auth_category = 'OAuth'
         elif self.kerberos_is_set:
             auth_category = 'Kerberos'
@@ -903,7 +884,7 @@ class Connection(object):
             auth_category = ''
 
         self.write(messages.Startup(user, database, session_label, os_user_name, autocommit, binary_transfer, 
-                                    request_complex_types, self.oauth_access_token, workload, auth_category))
+                                    request_complex_types, oauth_access_token, workload, auth_category))
 
         while True:
             message = self.read_message()
@@ -923,13 +904,7 @@ class Connection(object):
                 elif message.code == messages.Authentication.GSS:
                     self.make_GSS_authentication()
                 elif message.code == messages.Authentication.OAUTH:
-                    if self.oauth_manager:
-                        self.oauth_manager.set_config(message.config, not_set_only=True)
-                    # If access token is not set, will attempt to set a new one by using token refresh
-                    if len(self.oauth_access_token) == 0 and self.oauth_manager and not self.oauth_manager.refresh_attempted:
-                        self._logger.info("Issuing an OAuth access token using a refresh token")
-                        self.oauth_access_token, self.oauth_refresh_token = self.oauth_manager.do_token_refresh()
-                    self.write(messages.Password(self.oauth_access_token, message.code))
+                    self.write(messages.Password(oauth_access_token, message.code))
                 else:
                     self.write(messages.Password(password, message.code,
                                                  {'user': user,
@@ -942,17 +917,8 @@ class Connection(object):
                 break
             elif isinstance(message, messages.ErrorResponse):
                 self._logger.error(message.error_message())
-                # If this is an OAuth connection and the first connection failed, refresh the access token and try again
-                if message.sqlstate == '28000' and self.oauth_manager and not self.oauth_manager.refresh_attempted:
-                    if message.error_code in ('2248', '3781', '4131'):
-                        raise errors.ConnectionError("Did not receive proper OAuth Authentication response from server. Please upgrade to the latest Vertica server for OAuth Support.")
-                    self.close_socket()
-                    self._logger.info("Issuing a new OAuth access token using a refresh token")
-                    self.oauth_access_token, self.oauth_refresh_token = self.oauth_manager.do_token_refresh()
-                    return True
                 raise errors.ConnectionError(message.error_message())
             else:
                 msg = "Received unexpected startup message: {0}".format(message)
                 self._logger.error(msg)
                 raise errors.MessageError(msg)
-        return False

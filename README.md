@@ -104,8 +104,6 @@ with vertica_python.connect(**conn_info) as connection:
 | log_level | See [Logging](#logging). |
 | log_path | See [Logging](#logging). |
 | oauth_access_token | See [OAuth Authentication](#oauth-authentication). <br>**_Default_**: "" |
-| oauth_refresh_token | See [OAuth Authentication](#oauth-authentication). <br>**_Default_**: "" |
-| oauth_config | See [OAuth Authentication](#oauth-authentication). <br>**_Default_**: {} |
 | request_complex_types | See [SQL Data conversion to Python objects](#sql-data-conversion-to-python-objects). <br>**_Default_**: True |
 | session_label | Sets a label for the connection on the server. This value appears in the client_label column of the _v_monitor.sessions_ system table. <br>**_Default_**: an auto-generated label with format of `vertica-python-{version}-{random_uuid}` |
 | ssl | See [TLS/SSL](#tlsssl). <br>**_Default_**: False (disabled) |
@@ -261,7 +259,7 @@ with vertica_python.connect(**conn_info) as conn:
 ```
 
 #### OAuth Authentication
-To authenticate via OAuth, one way is to provide an `oauth_access_token` that authorizes a user to the database. 
+To authenticate via OAuth, provide an `oauth_access_token` that authorizes a user to the database.
 ```python
 import vertica_python
 
@@ -274,35 +272,6 @@ conn_info = {'host': '127.0.0.1',
 with vertica_python.connect(**conn_info) as conn:
     # do things
 ```
-In cases where `oauth_access_token` is not set or introspection fails (e.g. when the access token expires), the client can do a token refresh when both `oauth_refresh_token` and `oauth_config` are set. The client will retrieve a new access token from the identity provider and use it to connect with the database.
-```python
-import vertica_python
-
-conn_info = {'host': '127.0.0.1',
-             'port': 5433,
-             'database': 'a_database',
-             # OAuth refresh token and configurations
-             'oauth_refresh_token': 'xxxxxx',
-             'oauth_config': {
-                 'client_secret': 'wK3SqFbExDS',
-                 'client_id': 'vertica',
-                 'token_url': 'https://example.com:8443/realms/master/protocol/openid-connect/token',
-             }
-}
-
-with vertica_python.connect(**conn_info) as conn:
-    # do things
-```
-The following table lists the `oauth_config` parameters used to configure OAuth token refresh:
-
-| Parameter     |  Description |
-| ------------- | ------------- |
-| client_id     | The client ID of the client application registered in the identity provider. |
-| client_secret | The client secret of the client application registered in the identity provider.|
-| token_url     | The endpoint to which token refresh requests are sent. The format for this depends on your provider. For examples, see the [Keycloak](https://www.keycloak.org/docs/latest/securing_apps/#token-endpoint) and [Okta](https://developer.okta.com/docs/reference/api/oidc/#token) documentation.|
-| discovery_url | Also known as the [OpenID Provider Configuration Document](https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationRequest), this endpoint contains a list of all other endpoints supported by the identity provider. If set, *token_url* do not need to be specified.<br>If you set both *discovery_url* and *token_url*, then *token_url* takes precedence.|
-| scope         | The requested OAuth scopes, delimited with spaces. These scopes define the extent of access to the resource server (in this case, Vertica) granted to the client by the access token. For details, see the [OAuth documentation](https://www.oauth.com/oauth2-servers/scope/defining-scopes/). |
-
 
 #### Logging
 Logging is disabled by default if neither ```log_level``` or ```log_path``` are set. Passing value to at least one of those options to enable logging.

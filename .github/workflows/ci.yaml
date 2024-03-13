@@ -75,7 +75,6 @@ jobs:
               --data-urlencode "client_secret=${CLIENT_SECRET}" \
               --data-urlencode 'grant_type=password' -o oauth.json
           cat oauth.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["access_token"])' > access_token.txt
-          cat oauth.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["refresh_token"])' > refresh_token.txt
 
           docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "CREATE AUTHENTICATION v_oauth METHOD 'oauth' HOST '0.0.0.0/0';"
           docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "ALTER AUTHENTICATION v_oauth SET client_id = '${CLIENT_ID}';"
@@ -97,10 +96,5 @@ jobs:
         run: |
           export VP_TEST_USER=dbadmin
           export VP_TEST_OAUTH_ACCESS_TOKEN=`cat access_token.txt`
-          export VP_TEST_OAUTH_REFRESH_TOKEN=`cat refresh_token.txt`
           export VP_TEST_OAUTH_USER=${USER}
-          export VP_TEST_OAUTH_CLIENT_ID=${CLIENT_ID}
-          export VP_TEST_OAUTH_CLIENT_SECRET=${CLIENT_SECRET}
-          export VP_TEST_OAUTH_TOKEN_URL="http://`hostname`:8080/realms/${REALM}/protocol/openid-connect/token"
-          export VP_TEST_OAUTH_DISCOVERY_URL="http://`hostname`:8080/realms/${REALM}/.well-known/openid-configuration"
           tox -e py

@@ -103,15 +103,6 @@ class KerberosError(ConnectionError):
 class SSLNotSupported(ConnectionError):
     pass
 
-class OAuthConfigurationError(ConnectionError):
-    pass
-
-class OAuthEndpointDiscoveryError(ConnectionError):
-    pass
-
-class OAuthTokenRefreshError(ConnectionError):
-    pass
-
 class MessageError(InternalError):
     pass
 

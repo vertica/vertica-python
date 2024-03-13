@@ -15,7 +15,6 @@
 from __future__ import print_function, division, absolute_import, annotations
 
 from .base import VerticaPythonIntegrationTestCase
-from ...errors import OAuthTokenRefreshError
 
 
 class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
@@ -29,10 +28,6 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
         self._conn_info['password'] = self._password
         if 'oauth_access_token' in self._conn_info:
             del self._conn_info['oauth_access_token']
-        if 'oauth_refresh_token' in self._conn_info:
-            del self._conn_info['oauth_refresh_token']
-        if 'oauth_config' in self._conn_info:
-            del self._conn_info['oauth_config']
         super(AuthenticationTestCase, self).tearDown()
 
     def test_SHA512(self):
@@ -128,68 +123,6 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
             cur.execute("SELECT authentication_method FROM sessions WHERE session_id=(SELECT current_session())")
             res = cur.fetchone()
             self.assertEqual(res[0], 'OAuth')
-
-    def _test_oauth_refresh(self, access_token):
-        self.require_protocol_at_least(3 << 16 | 11)
-        if not self._oauth_info['refresh_token']:
-            self.skipTest('OAuth refresh token not set')
-        if not (self._oauth_info['client_secret'] and self._oauth_info['client_id'] and self._oauth_info['token_url']):
-            self.skipTest('One or more OAuth config (client_id, client_secret, token_url) not set')
-        if not self._oauth_info['user'] and not self._conn_info['database']:
-            self.skipTest('Both database and oauth_user are not set')
-
-        if access_token is not None:
-            self._conn_info['oauth_access_token'] = access_token
-        self._conn_info['user'] = self._oauth_info['user']
-        self._conn_info['oauth_refresh_token'] = self._oauth_info['refresh_token']
-        self._conn_info['oauth_config'] = {
-                'client_secret': self._oauth_info['client_secret'],
-                'client_id': self._oauth_info['client_id'],
-                'token_url': self._oauth_info['token_url'],
-        }
-        with self._connect() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT authentication_method FROM sessions WHERE session_id=(SELECT current_session())")
-            res = cur.fetchone()
-            self.assertEqual(res[0], 'OAuth')
-
-    def test_oauth_token_refresh_with_access_token_not_set(self):
-        self._test_oauth_refresh(access_token=None)
-
-    def test_oauth_token_refresh_with_invalid_access_token(self):
-        self._test_oauth_refresh(access_token='invalid_value')
-
-    def test_oauth_token_refresh_with_empty_access_token(self):
-        self._test_oauth_refresh(access_token='')
-
-    def test_oauth_token_refresh_with_discovery_url(self):
-        self.require_protocol_at_least(3 << 16 | 11)
-        if not self._oauth_info['refresh_token']:
-            self.skipTest('OAuth refresh token not set')
-        if not (self._oauth_info['client_secret'] and self._oauth_info['client_id'] and self._oauth_info['discovery_url']):
-            self.skipTest('One or more OAuth config (client_id, client_secret, discovery_url) not set')
-        if not self._oauth_info['user'] and not self._conn_info['database']:
-            self.skipTest('Both database and oauth_user are not set')
-
-        self._conn_info['user'] = self._oauth_info['user']
-        self._conn_info['oauth_refresh_token'] = self._oauth_info['refresh_token']
-        msg = 'Token URL or Discovery URL must be set.'
-        self.assertConnectionFail(err_type=OAuthTokenRefreshError, err_msg=msg)
-
-        self._conn_info['oauth_config'] = {
-                'client_secret': self._oauth_info['client_secret'],
-                'client_id': self._oauth_info['client_id'],
-                'discovery_url': self._oauth_info['discovery_url'],
-        }
-        with self._connect() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT authentication_method FROM sessions WHERE session_id=(SELECT current_session())")
-            res = cur.fetchone()
-            self.assertEqual(res[0], 'OAuth')
-
-        # Token URL takes precedence over Discovery URL
-        self._conn_info['oauth_config']['token_url'] = 'invalid_value'
-        self.assertConnectionFail(err_type=OAuthTokenRefreshError, err_msg='Failed getting OAuth access token from a refresh token.')
 
 
 exec(AuthenticationTestCase.createPrepStmtClass())

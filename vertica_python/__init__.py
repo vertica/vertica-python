@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2023 Open Text.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,7 +47,7 @@ from .errors import (
 
 # Main module for this library.
 __author__ = 'Vertica'
-__copyright__ = 'Copyright (c) 2018-2023 Open Text.'
+__copyright__ = 'Copyright (c) 2018-2024 Open Text.'
 __license__ = 'Apache 2.0'
 
 __all__ = ['Connection', 'PROTOCOL_VERSION', 'version_info', 'apilevel', 'threadsafety',

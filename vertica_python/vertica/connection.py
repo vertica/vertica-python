@@ -74,6 +74,7 @@ DEFAULT_BINARY_TRANSFER = False
 DEFAULT_REQUEST_COMPLEX_TYPES = True
 DEFAULT_OAUTH_ACCESS_TOKEN = ''
 DEFAULT_WORKLOAD = ''
+DEFAULT_TLSMODE = 'prefer'
 try:
     DEFAULT_USER = getpass.getuser()
 except Exception as e:
@@ -504,6 +505,8 @@ class Connection(object):
             # enable SSL
             ssl_options = self.options.get('ssl')
             self._logger.debug('SSL option is {0}'.format('enabled' if ssl_options else 'disabled'))
+            # If TLSmode option and SSL option are set, TLSmode option takes precedence.
+            tlsmode_options = self.options.get('tlsmode')
             if ssl_options:
                 raw_socket = self.enable_ssl(raw_socket, ssl_options)
         except:

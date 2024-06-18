@@ -109,7 +109,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         self._conn_info['ssl'] = False
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'None')
 
     def test_option_default_server_disable(self):
@@ -143,7 +143,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         self._conn_info['ssl'] = True
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
         # Option 2
@@ -153,7 +153,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         self._conn_info['ssl'] = ssl_context
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
     def test_TLSMode_verify_ca(self):
@@ -168,7 +168,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
 
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
     def test_TLSMode_verify_full(self):
@@ -183,7 +183,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         self._conn_info['ssl'] = ssl_context
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
     def test_mutual_TLS(self):
@@ -199,7 +199,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         self._conn_info['ssl'] = ssl_context
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Mutual')
 
 

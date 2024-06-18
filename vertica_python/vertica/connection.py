@@ -60,6 +60,7 @@ from ..vertica.cursor import Cursor
 from ..vertica.messages.message import BackendMessage, FrontendMessage
 from ..vertica.messages.frontend_messages import CancelRequest
 from ..vertica.log import VerticaLogging
+from ..vertica.tlsmode import TLSMode
 
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 5433
@@ -503,12 +504,27 @@ class Connection(object):
                 raw_socket = self.balance_load(raw_socket)
 
             # enable SSL
-            ssl_options = self.options.get('ssl')
-            self._logger.debug('SSL option is {0}'.format('enabled' if ssl_options else 'disabled'))
-            # If TLSmode option and SSL option are set, TLSmode option takes precedence.
             tlsmode_options = self.options.get('tlsmode')
-            if ssl_options:
-                raw_socket = self.enable_ssl(raw_socket, ssl_options)
+            ssl_options = self.options.get('ssl')
+            # If TLSmode option and SSL option are set, TLSmode option takes precedence.
+            ssl_context = None
+            if tlsmode_options is not None:
+                tlsmode = TLSMode(tlsmode_options)
+            elif ssl_options is not None:
+                if isinstance(ssl_options, ssl.SSLContext):
+                    ssl_context = ssl_options
+                    tlsmode = TLSMode.REQUIRE  # placeholder
+                elif isinstance(ssl_options, bool):
+                    tlsmode = TLSMode.REQUIRE if ssl_options else TLSMode.DISABLE
+                else:
+                    raise TypeError('The value of connection option "ssl" should be a bool or ssl.SSLContext object')
+            else:
+                tlsmode = TLSMode(DEFAULT_TLSMODE)
+            self._logger.debug(f'Connection TLS Mode is {tlsmode.name}')
+            if tlsmode.requests_encryption():
+                if ssl_context is None:
+                    ssl_context = tlsmode.get_sslcontext()
+                raw_socket = self.enable_ssl(raw_socket, ssl_context, force=tlsmode.requires_encryption())
         except:
             self._logger.debug('Close the socket')
             raw_socket.close()
@@ -571,7 +587,8 @@ class Connection(object):
 
     def enable_ssl(self,
                    raw_socket: socket.socket,
-                   ssl_options: Union[ssl.SSLContext, bool]) -> ssl.SSLSocket:
+                   ssl_context: ssl.SSLContext,
+                   force: bool) -> Union[socket.socket, ssl.SSLSocket]:
         # Send SSL request and read server response
         self._logger.debug('=> %s', messages.SslRequest())
         raw_socket.sendall(messages.SslRequest().get_message())
@@ -580,26 +597,22 @@ class Connection(object):
         if response == b'S':
             self._logger.info('Enabling SSL')
             try:
-                if isinstance(ssl_options, ssl.SSLContext):
-                    server_host = self.address_list.peek_host()
-                    if server_host is None:   # This should not happen
-                        msg = 'Cannot get the connected server host while enabling SSL'
-                        self._logger.error(msg)
-                        raise errors.ConnectionError(msg)
-                    raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=server_host)
-                else:
-                    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                    ssl_context.check_hostname = False
-                    ssl_context.verify_mode = ssl.CERT_NONE
-                    raw_socket = ssl_context.wrap_socket(raw_socket)
+                server_host = self.address_list.peek_host()
+                if server_host is None:   # This should not happen
+                    msg = 'Cannot get the connected server host while enabling SSL'
+                    self._logger.error(msg)
+                    raise errors.ConnectionError(msg)
+                raw_socket = ssl_context.wrap_socket(raw_socket, server_hostname=server_host)
             except ssl.CertificateError as e:
                 raise errors.ConnectionError(str(e))
             except ssl.SSLError as e:
                 raise errors.ConnectionError(str(e))
-        else:
-            err_msg = "SSL requested but not supported by server"
+        elif force:
+            err_msg = "SSL requested but disabled on the server"
             self._logger.error(err_msg)
             raise errors.SSLNotSupported(err_msg)
+        else:
+            self._logger.info('TLS is not configured on the server. Proceeding with an unencrypted channel.')
         return raw_socket
 
     def establish_socket_connection(self, address_list: _AddressList) -> socket.socket:

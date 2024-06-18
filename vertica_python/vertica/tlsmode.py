@@ -15,6 +15,7 @@
 
 from __future__ import print_function, division, absolute_import, annotations
 
+import ssl
 from enum import Enum
 
 class TLSMode(Enum):
@@ -29,4 +30,18 @@ class TLSMode(Enum):
 
     def requires_encryption(self) -> bool:
         return self not in (TLSMode.DISABLE, TLSMode.PREFER)
+
+    def verify_certificate(self) -> bool:
+        return self in (TLSMode.VERIFY_CA, TLSMode.VERIFY_FULL)
+
+    def verify_hostname(self) -> bool:
+        return self == TLSMode.VERIFY_FULL
+
+    def get_sslcontext(self, cafile=None) -> ssl.SSLContext:
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context.check_hostname = self.verify_hostname()
+        ssl_context.verify_mode = ssl.CERT_REQUIRED if self.verify_certificate() else ssl.CERT_NONE
+        if cafile:
+            ssl_context.load_verify_locations(cafile=cafile)
+        return ssl_context
 

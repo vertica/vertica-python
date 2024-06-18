@@ -24,7 +24,11 @@ from .base import VerticaPythonIntegrationTestCase
 
 
 class TlsTestCase(VerticaPythonIntegrationTestCase):
+    SSL_STATE_SQL = 'SELECT ssl_state FROM sessions WHERE session_id=current_session()'
+
     def tearDown(self):
+        if 'tlsmode' in self._conn_info:
+            del self._conn_info['tlsmode']
         if 'ssl' in self._conn_info:
             del self._conn_info['ssl']
         with self._connect() as conn:
@@ -108,11 +112,28 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
             self.assertEqual(res[0], 'None')
 
+    def test_option_default_server_disable(self):
+        # TLS is disabled on the server
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'None')
+
+    def test_option_default_server_enable(self):
+        # Setting certificates with TLS configuration
+        self._generate_and_set_certificates()
+
+        # TLS is enabled on the server
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'Server')
+
     def test_TLSMode_require_server_disable(self):
         # Requires that the server use TLS. If the TLS connection attempt fails, the client rejects the connection.
         self._conn_info['ssl'] = True
         self.assertConnectionFail(err_type=errors.SSLNotSupported,
-                err_msg='SSL requested but not supported by server')
+                err_msg='SSL requested but disabled on the server')
 
     def test_TLSMode_require(self):
         # Setting certificates with TLS configuration

@@ -42,7 +42,7 @@ class ParseDSNTestCase(VerticaPythonUnitTestCase):
                'session_label=vpclient&unicode_error=strict&'
                'log_path=/home/admin/vClient.log&log_level=DEBUG&'
                'oauth_access_token=GciOiJSUzI1NiI&'
-               'workload=python_test_workload&'
+               'workload=python_test_workload&tlsmode=verify-ca&'
                'kerberos_service_name=krb_service&kerberos_host_name=krb_host')
         expected = {'database': 'db1', 'host': 'localhost', 'user': 'john',
                     'password': 'pwd', 'port': 5433, 'log_level': 'DEBUG',
@@ -50,6 +50,7 @@ class ParseDSNTestCase(VerticaPythonUnitTestCase):
                     'log_path': '/home/admin/vClient.log',
                     'oauth_access_token': 'GciOiJSUzI1NiI',
                     'workload': 'python_test_workload',
+                    'tlsmode': 'verify-ca',
                     'kerberos_service_name': 'krb_service',
                     'kerberos_host_name': 'krb_host'}
         parsed = parse_dsn(dsn)

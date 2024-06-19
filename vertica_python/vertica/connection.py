@@ -594,30 +594,28 @@ class Connection(object):
         raw_socket.sendall(messages.SslRequest().get_message())
         response = raw_socket.recv(1)
         self._logger.debug('<= SslResponse: %s', response)
-        exception = None
         if response == b'S':
-            self._logger.info('Enabling SSL')
+            self._logger.info('Enabling TLS')
             try:
                 server_host = self.address_list.peek_host()
                 if server_host is None:   # This should not happen
-                    msg = 'Cannot get the connected server host while enabling SSL'
+                    msg = 'Cannot get the connected server host while enabling TLS'
                     self._logger.error(msg)
                     raise errors.ConnectionError(msg)
                 raw_socket = ssl_context.wrap_socket(raw_socket, server_hostname=server_host)
             except ssl.CertificateError as e:
-                exception = errors.ConnectionError(str(e))
+                raise errors.ConnectionError(str(e))
             except ssl.SSLError as e:
-                exception = errors.ConnectionError(str(e))
-        else:
+                raise errors.ConnectionError(str(e))
+        elif force:
             err_msg = "SSL requested but disabled on the server"
-            exception = errors.SSLNotSupported(err_msg)
-
-        if exception is not None:
-            self._logger.error(str(e))
-            if force:
-                raise exception
-            else:
-                self._logger.warning('Cannot enable TLS. Proceeding with an unencrypted channel.')
+            self._logger.error(err_msg)
+            raise errors.SSLNotSupported(err_msg)
+        else:
+            msg = 'TLS is not configured on the server. Proceeding with an unencrypted channel.'
+            hint = "\nHINT: Set connection option 'tlsmode' to 'disable' to explicitly create a non-TLS connection."
+            warnings.warn(msg + hint)
+            self._logger.warning(msg)
         return raw_socket
 
     def establish_socket_connection(self, address_list: _AddressList) -> socket.socket:

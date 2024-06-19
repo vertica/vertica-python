@@ -27,10 +27,9 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
     SSL_STATE_SQL = 'SELECT ssl_state FROM sessions WHERE session_id=current_session()'
 
     def tearDown(self):
-        if 'tlsmode' in self._conn_info:
-            del self._conn_info['tlsmode']
-        if 'ssl' in self._conn_info:
-            del self._conn_info['ssl']
+        # Use a non-TLS connection here so cleanup can happen
+        # even if mutual mode is configured
+        self._conn_info['tlsmode'] = 'disable'
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("ALTER TLS CONFIGURATION server CERTIFICATE NULL TLSMODE 'DISABLE'")
@@ -42,6 +41,10 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
                 cur.execute("DROP KEY IF EXISTS vp_client_key CASCADE")
             cur.execute("DROP KEY IF EXISTS vp_server_key CASCADE")
             cur.execute("DROP KEY IF EXISTS vp_CA_key CASCADE")
+        if 'tlsmode' in self._conn_info:
+            del self._conn_info['tlsmode']
+        if 'ssl' in self._conn_info:
+            del self._conn_info['ssl']
         super(TlsTestCase, self).tearDown()
 
     def _generate_and_set_certificates(self, mutual_mode=False):

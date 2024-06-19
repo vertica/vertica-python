@@ -91,7 +91,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
                 # This CA certificate is used to verify client certificates
                 cur.execute('ALTER TLS CONFIGURATION server CERTIFICATE vp_server_cert ADD CA CERTIFICATES vp_CA_cert')
                 # Enable TLS. Connection succeeds if Vertica verifies that the client certificate is from a trusted CA.
-                # If the client does not present a client certificate, the connection uses plaintext.
+                # If the client does not present a client certificate, the connection is rejected.
                 cur.execute("ALTER TLS CONFIGURATION server TLSMODE 'VERIFY_CA'")
 
             else:
@@ -107,6 +107,9 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
 
             return vp_CA_cert
 
+    ######################################################
+    #### Test 'ssl' and 'tlsmode' options are not set ####
+    ######################################################
 
     def test_option_default_server_disable(self):
         # TLS is disabled on the server
@@ -125,12 +128,21 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
-    def test_TLSMode_disable(self):
+    #######################################################
+    #### Test 'ssl' and 'tlsmode' options are both set ####
+    #######################################################
+
+    def test_tlsmode_over_ssl(self):
         self._conn_info['tlsmode'] = 'disable'
+        self._conn_info['ssl'] = True
         with self._connect() as conn:
             cur = conn.cursor()
             res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'None')
+
+    ###############################################
+    #### Test 'ssl' option with boolean values ####
+    ###############################################
 
     def test_ssl_false(self):
         self._conn_info['ssl'] = False
@@ -155,6 +167,35 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
+    ###############################
+    #### Test 'tlsmode' option ####
+    ###############################
+
+    def test_TLSMode_disable(self):
+        self._conn_info['tlsmode'] = 'disable'
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'None')
+
+    def test_TLSMode_prefer_server_disable(self):
+        # TLS is disabled on the server
+        self._conn_info['tlsmode'] = 'prefer'
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'None')
+
+    def test_TLSMode_prefer_server_enable(self):
+        # Setting certificates with TLS configuration
+        self._generate_and_set_certificates()
+
+        self._conn_info['tlsmode'] = 'prefer'
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'Server')
+
     def test_TLSMode_require_server_disable(self):
         # Requires that the server use TLS. If the TLS connection attempt fails, the client rejects the connection.
         self._conn_info['tlsmode'] = 'require'
@@ -171,6 +212,10 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
+    ######################################################
+    #### Test 'ssl' option with ssl.SSLContext object ####
+    ######################################################
+
     def test_sslcontext_require(self):
         # Setting certificates with TLS configuration
         self._generate_and_set_certificates()
@@ -184,7 +229,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
-    def test_TLSMode_verify_ca(self):
+    def test_sslcontext_verify_ca(self):
         # Setting certificates with TLS configuration
         CA_cert = self._generate_and_set_certificates()
 
@@ -199,7 +244,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
-    def test_TLSMode_verify_full(self):
+    def test_sslcontext_verify_full(self):
         # Setting certificates with TLS configuration
         CA_cert = self._generate_and_set_certificates()
 
@@ -214,7 +259,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
-    def test_mutual_TLS(self):
+    def test_sslcontext_mutual_TLS(self):
         # Setting certificates with TLS configuration
         CA_cert = self._generate_and_set_certificates(mutual_mode=True)
 

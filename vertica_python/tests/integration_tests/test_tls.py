@@ -108,13 +108,6 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             return vp_CA_cert
 
 
-    def test_TLSMode_disable(self):
-        self._conn_info['ssl'] = False
-        with self._connect() as conn:
-            cur = conn.cursor()
-            res = self._query_and_fetchone(self.SSL_STATE_SQL)
-            self.assertEqual(res[0], 'None')
-
     def test_option_default_server_disable(self):
         # TLS is disabled on the server
         with self._connect() as conn:
@@ -132,24 +125,56 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
-    def test_TLSMode_require_server_disable(self):
+    def test_TLSMode_disable(self):
+        self._conn_info['tlsmode'] = 'disable'
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'None')
+
+    def test_ssl_false(self):
+        self._conn_info['ssl'] = False
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'None')
+
+    def test_ssl_true_server_disable(self):
         # Requires that the server use TLS. If the TLS connection attempt fails, the client rejects the connection.
         self._conn_info['ssl'] = True
         self.assertConnectionFail(err_type=errors.SSLNotSupported,
                 err_msg='SSL requested but disabled on the server')
 
-    def test_TLSMode_require(self):
+    def test_ssl_true_server_enable(self):
         # Setting certificates with TLS configuration
         self._generate_and_set_certificates()
 
-        # Option 1
         self._conn_info['ssl'] = True
         with self._connect() as conn:
             cur = conn.cursor()
             res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
-        # Option 2
+    def test_TLSMode_require_server_disable(self):
+        # Requires that the server use TLS. If the TLS connection attempt fails, the client rejects the connection.
+        self._conn_info['tlsmode'] = 'require'
+        self.assertConnectionFail(err_type=errors.SSLNotSupported,
+                err_msg='SSL requested but disabled on the server')
+
+    def test_TLSMode_require_server_enable(self):
+        # Setting certificates with TLS configuration
+        self._generate_and_set_certificates()
+
+        self._conn_info['tlsmode'] = 'require'
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'Server')
+
+    def test_sslcontext_require(self):
+        # Setting certificates with TLS configuration
+        self._generate_and_set_certificates()
+
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE

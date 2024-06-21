@@ -212,6 +212,17 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
+    def test_TLSMode_verify_ca(self):
+        # Setting certificates with TLS configuration
+        CA_cert = self._generate_and_set_certificates()
+
+        self._conn_info['tlsmode'] = 'verify_ca'
+        self._conn_info['tls_cafile'] = 'p'
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'Server')
+
     ######################################################
     #### Test 'ssl' option with ssl.SSLContext object ####
     ######################################################

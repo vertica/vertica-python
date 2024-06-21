@@ -503,7 +503,7 @@ class Connection(object):
             if load_balance_options:
                 raw_socket = self.balance_load(raw_socket)
 
-            # enable SSL
+            # enable TLS
             tlsmode_options = self.options.get('tlsmode')
             ssl_options = self.options.get('ssl')
             # If TLSmode option and SSL option are set, TLSmode option takes precedence.
@@ -523,7 +523,8 @@ class Connection(object):
             self._logger.debug(f'Connection TLS Mode is {tlsmode.name}')
             if tlsmode.requests_encryption():
                 if ssl_context is None:
-                    ssl_context = tlsmode.get_sslcontext()
+                    cafile = self.options.get('tls_cafile')
+                    ssl_context = tlsmode.get_sslcontext(cafile=cafile)
                 raw_socket = self.enable_ssl(raw_socket, ssl_context, force=tlsmode.requires_encryption())
         except:
             self._logger.debug('Close the socket')

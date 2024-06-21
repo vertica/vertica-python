@@ -39,6 +39,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             if hasattr(self, 'client_key'):
                 os.remove(self.client_key.name)
                 cur.execute("DROP KEY IF EXISTS vp_client_key CASCADE")
+            os.remove(self.CA_cert.name)
             cur.execute("DROP KEY IF EXISTS vp_server_key CASCADE")
             cur.execute("DROP KEY IF EXISTS vp_CA_key CASCADE")
         if 'tlsmode' in self._conn_info:
@@ -59,6 +60,8 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
                     "VALID FOR 3650 EXTENSIONS 'nsComment' = 'Self-signed root CA cert' KEY vp_CA_key")
             cur.execute("SELECT certificate_text FROM CERTIFICATES WHERE name='vp_CA_cert'")
             vp_CA_cert = cur.fetchone()[0]
+            with NamedTemporaryFile(delete=False) as self.CA_cert:
+                    self.CA_cert.write(vp_CA_cert.encode())
 
             # Generate a server private key
             cur.execute("CREATE KEY vp_server_key TYPE 'RSA' LENGTH 4096")
@@ -217,7 +220,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         CA_cert = self._generate_and_set_certificates()
 
         self._conn_info['tlsmode'] = 'verify_ca'
-        self._conn_info['tls_cafile'] = 'p'
+        self._conn_info['tls_cafile'] = self.CA_cert.name
         with self._connect() as conn:
             cur = conn.cursor()
             res = self._query_and_fetchone(self.SSL_STATE_SQL)

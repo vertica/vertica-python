@@ -39,7 +39,8 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             if hasattr(self, 'client_key'):
                 os.remove(self.client_key.name)
                 cur.execute("DROP KEY IF EXISTS vp_client_key CASCADE")
-            os.remove(self.CA_cert.name)
+            if hasattr(self, 'CA_cert'):
+                os.remove(self.CA_cert.name)
             cur.execute("DROP KEY IF EXISTS vp_server_key CASCADE")
             cur.execute("DROP KEY IF EXISTS vp_CA_key CASCADE")
         if 'tlsmode' in self._conn_info:

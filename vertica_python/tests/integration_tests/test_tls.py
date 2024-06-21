@@ -220,7 +220,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         # Setting certificates with TLS configuration
         CA_cert = self._generate_and_set_certificates()
 
-        self._conn_info['tlsmode'] = 'verify_ca'
+        self._conn_info['tlsmode'] = 'verify-ca'
         self._conn_info['tls_cafile'] = self.CA_cert.name
         with self._connect() as conn:
             cur = conn.cursor()

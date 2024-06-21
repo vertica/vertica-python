@@ -40,8 +40,11 @@ class TLSMode(Enum):
     def get_sslcontext(self, cafile=None) -> ssl.SSLContext:
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_context.check_hostname = self.verify_hostname()
-        ssl_context.verify_mode = ssl.CERT_REQUIRED if self.verify_certificate() else ssl.CERT_NONE
-        if cafile:
-            ssl_context.load_verify_locations(cafile=cafile)
+        if self.verify_certificate():
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
+            if cafile:
+                ssl_context.load_verify_locations(cafile=cafile)
+        else:
+            ssl_context.verify_mode = ssl.CERT_NONE
         return ssl_context
 

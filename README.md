@@ -109,6 +109,7 @@ with vertica_python.connect(**conn_info) as connection:
 | ssl | See [TLS/SSL](#tlsssl). <br>**_Default_**: False (disabled) |
 | tlsmode | See [TLS/SSL](#tlsssl). <br>**_Default_**: "prefer" |
 | tls_cafile | The name of a file containing SSL certificate authority (CA) certificate(s). <br>See [TLS/SSL](#tlsssl). |
+| tls_certfile | The name of a file containing client's certificate(s). <br>See [TLS/SSL](#tlsssl). |
 | unicode_error | See [UTF-8 encoding issues](#utf-8-encoding-issues). <br>**_Default_**: 'strict' (throw error on invalid UTF-8 results) |
 | use_prepared_statements | See [Passing parameters to SQL queries](#passing-parameters-to-sql-queries). <br>**_Default_**: False |
 | workload | Sets the workload name associated with this session. Valid values are workload names that already exist in a workload routing rule on the server. If a workload name that doesn't exist is entered, the server will reject it and it will be set to the default. <br>**_Default_**: "" |

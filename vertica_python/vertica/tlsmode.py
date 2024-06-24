@@ -58,7 +58,8 @@ class TLSMode(Enum):
             ssl_context.verify_mode = ssl.CERT_NONE
             if cafile or certfile or keyfile:
                 ignore_cert_msg = ("Ignore TLS certificate files and skip certificates"
-                        " validation as tlsmode is not 'verify-ca' or 'verify-full'.")
+                        f" validation as tlsmode is not '{TLSMode.VERIFY_CA.value}'"
+                        f" or '{TLSMode.VERIFY_FULL.value}'.")
                 warnings.warn(ignore_cert_msg)
         return ssl_context
 

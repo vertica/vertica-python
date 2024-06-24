@@ -524,7 +524,9 @@ class Connection(object):
             if tlsmode.requests_encryption():
                 if ssl_context is None:
                     cafile = self.options.get('tls_cafile')
-                    ssl_context = tlsmode.get_sslcontext(cafile=cafile)
+                    certfile = self.options.get('tls_certfile')
+                    keyfile = self.options.get('tls_keyfile')
+                    ssl_context = tlsmode.get_sslcontext(cafile, certfile, keyfile)
                 raw_socket = self.enable_ssl(raw_socket, ssl_context, force=tlsmode.requires_encryption())
         except:
             self._logger.debug('Close the socket')

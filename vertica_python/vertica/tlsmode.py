@@ -17,6 +17,10 @@ from __future__ import print_function, division, absolute_import, annotations
 
 import ssl
 from enum import Enum
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Optional
+
 
 class TLSMode(Enum):
     DISABLE = 'disable'
@@ -37,7 +41,9 @@ class TLSMode(Enum):
     def verify_hostname(self) -> bool:
         return self == TLSMode.VERIFY_FULL
 
-    def get_sslcontext(self, cafile=None) -> ssl.SSLContext:
+    def get_sslcontext(self, cafile: Optional[str] = None,
+                       certfile: Optional[str] = None,
+                       keyfile: Optional[str] = None) -> ssl.SSLContext:
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_context.check_hostname = self.verify_hostname()
         if self.verify_certificate():
@@ -46,5 +52,8 @@ class TLSMode(Enum):
                 ssl_context.load_verify_locations(cafile=cafile)
         else:
             ssl_context.verify_mode = ssl.CERT_NONE
+        # mutual mode
+        if certfile or keyfile:
+            ssl_context.load_cert_chain(certfile=certfile, keyfile=keyfile)
         return ssl_context
 

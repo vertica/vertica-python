@@ -227,6 +227,30 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
+    def test_TLSMode_verify_full(self):
+        # Setting certificates with TLS configuration
+        CA_cert = self._generate_and_set_certificates()
+
+        self._conn_info['tlsmode'] = 'verify-full'
+        self._conn_info['tls_cafile'] = self.CA_cert.name
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'Server')
+
+    def test_TLSMode_mutual_TLS(self):
+        # Setting certificates with TLS configuration
+        CA_cert = self._generate_and_set_certificates(mutual_mode=True)
+
+        self._conn_info['tlsmode'] = 'verify-full'
+        self._conn_info['tls_cafile'] = self.CA_cert.name  # CA certificate used to verify server certificate
+        self._conn_info['tls_certfile'] = self.client_cert.name  # client certificate
+        self._conn_info['tls_keyfile'] = self.client_key.name  # private key used for the client certificate
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'Mutual')
+
     ######################################################
     #### Test 'ssl' option with ssl.SSLContext object ####
     ######################################################

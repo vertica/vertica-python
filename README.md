@@ -106,10 +106,11 @@ with vertica_python.connect(**conn_info) as connection:
 | oauth_access_token | See [OAuth Authentication](#oauth-authentication). <br>**_Default_**: "" |
 | request_complex_types | See [SQL Data conversion to Python objects](#sql-data-conversion-to-python-objects). <br>**_Default_**: True |
 | session_label | Sets a label for the connection on the server. This value appears in the client_label column of the _v_monitor.sessions_ system table. <br>**_Default_**: an auto-generated label with format of `vertica-python-{version}-{random_uuid}` |
-| ssl | See [TLS/SSL](#tlsssl). <br>**_Default_**: False (disabled) |
-| tlsmode | See [TLS/SSL](#tlsssl). <br>**_Default_**: "prefer" |
+| ssl | See [TLS/SSL](#tlsssl). <br>**_Default_**: None (tlsmode="prefer") |
+| tlsmode | Controls whether the connection to the server uses TLS encryption. <br>See [TLS/SSL](#tlsssl). <br>**_Default_**: "prefer" |
 | tls_cafile | The name of a file containing SSL certificate authority (CA) certificate(s). <br>See [TLS/SSL](#tlsssl). |
 | tls_certfile | The name of a file containing client's certificate(s). <br>See [TLS/SSL](#tlsssl). |
+| tls_keyfile | The name of a file containing client's private key. <br>See [TLS/SSL](#tlsssl). |
 | unicode_error | See [UTF-8 encoding issues](#utf-8-encoding-issues). <br>**_Default_**: 'strict' (throw error on invalid UTF-8 results) |
 | use_prepared_statements | See [Passing parameters to SQL queries](#passing-parameters-to-sql-queries). <br>**_Default_**: False |
 | workload | Sets the workload name associated with this session. Valid values are workload names that already exist in a workload routing rule on the server. If a workload name that doesn't exist is entered, the server will reject it and it will be set to the default. <br>**_Default_**: "" |
@@ -144,22 +145,61 @@ with vertica_python.connect(dsn=connection_str, **additional_info) as conn:
 ```
 
 #### TLS/SSL
-You can pass `True` to `ssl` to enable TLS/SSL connection (equivalent to TLSMode=require).
 
+There are two options to control client-server TLS: `tlsmode` and `ssl`. If both are set, `tlsmode` takes precedence.
+
+`ssl` can be a bool or a `ssl.SSLContext` object. Here is the value mapping between `ssl` (exclude `ssl.SSLContext`) and `tlsmode`:
+
+| `tlsmode` |  `ssl` | Description |
+| ------------- | ------------- | ---|
+| 'disable'     | False | only try a non-TLS connection. |
+| 'prefer'      | (not set) | (Default) first try a TLS connection; if TLS is disabled on the server, then fallback to a non-TLS connection. <br>Note: If TLS is enabled on the server and TLS connection fails, the client rejects the connection. |
+| 'require'     | True |  connects using TLS without verifying certificates. If the TLS connection attempt fails, the client rejects the connection. |
+| 'verify-ca'   || connects using TLS and confirms that the server certificate has been signed by the certificate authority. |
+| 'verify-full' ||connects using TLS, confirms that the server certificate has been signed by the certificate authority, and verifies that the host name matches the name provided in the server certificate. |
+
+When `tlsmode` is 'verify-ca' or 'verify-full', these options take certificate/key files: `tls_cafile`, `tls_certfile` and `tls_keyfile`. Otherwise, these options are ignored.
+
+`tlsmode` example:
 ```python
-import vertica_python
-
 # [TLSMode: require]
+import vertica_python
 conn_info = {'host': '127.0.0.1',
-             'port': 5433,
              'user': 'some_user',
-             'password': 'some_password',
              'database': 'a_database',
-             'ssl': True}
+             'tlsmode': 'require'}
+connection = vertica_python.connect(**conn_info)
+```
+```python
+# [TLSMode: verify-ca]
+import vertica_python
+conn_info = {'host': '127.0.0.1',
+             'user': 'some_user',
+             'database': 'a_database',
+             'tlsmode': 'verify-ca',
+             'tls_cafile': '/path/to/ca_file.pem' # CA certificate used to verify server certificate
+            }
 connection = vertica_python.connect(**conn_info)
 ```
 
-You can pass an `ssl.SSLContext` to `ssl` to customize the SSL connection options. Server mode TLS examples:
+```python
+# [TLSMode: verify-full] + Mutual Mode
+import vertica_python
+
+conn_info = {'host': '127.0.0.1',
+             'user': 'some_user',
+             'database': 'a_database',
+             'tlsmode': 'verify-full',
+             'tls_cafile' = '/path/to/ca_file.pem'  # CA certificate used to verify server certificate
+             'tls_certfile' = '/path/to/client.pem',  # (for mutual mode) client certificate
+             'tls_keyfile' = '/path/to/client.key'  # (for mutual mode) client private key
+            }
+connection = vertica_python.connect(**conn_info)
+```
+
+You can pass an `ssl.SSLContext` object to `ssl` to customize the underlying SSL connection options. See more on SSL options [here](https://docs.python.org/3/library/ssl.html).
+
+Server mode TLS examples:
 
 ```python
 import vertica_python
@@ -174,7 +214,6 @@ ssl_context.verify_mode = ssl.CERT_NONE
 conn_info = {'host': '127.0.0.1',
              'port': 5433,
              'user': 'some_user',
-             'password': 'some_password',
              'database': 'a_database',
              'ssl': ssl_context}
 connection = vertica_python.connect(**conn_info)
@@ -190,7 +229,6 @@ ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem') # CA certificat
 conn_info = {'host': '127.0.0.1',
              'port': 5433,
              'user': 'some_user',
-             'password': 'some_password',
              'database': 'a_database',
              'ssl': ssl_context}
 connection = vertica_python.connect(**conn_info)
@@ -207,7 +245,6 @@ ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem') # CA certificat
 conn_info = {'host': '127.0.0.1',
              'port': 5433,
              'user': 'some_user',
-             'password': 'some_password',
              'database': 'a_database',
              'ssl': ssl_context}
 connection = vertica_python.connect(**conn_info)
@@ -233,13 +270,12 @@ ssl_context.load_cert_chain(certfile='/path/to/client.pem', keyfile='/path/to/cl
 conn_info = {'host': '127.0.0.1',
              'port': 5433,
              'user': 'some_user',
-             'password': 'some_password',
              'database': 'a_database',
              'ssl': ssl_context}
 connection = vertica_python.connect(**conn_info)
 ```
 
-See more on SSL options [here](https://docs.python.org/3/library/ssl.html).
+
 
 #### Kerberos Authentication
 In order to use Kerberos authentication, install [dependencies](#using-kerberos-authentication) first, and it is the user's responsibility to ensure that an Ticket-Granting Ticket (TGT) is available and valid. Whether a TGT is available can be easily determined by running the `klist` command. If no TGT is available, then it first must be obtained by running the `kinit` command or by logging in. You can pass in optional arguments to customize the authentication. The arguments are `kerberos_service_name`, which defaults to "vertica", and `kerberos_host_name`, which defaults to the value of argument `host`. For example,

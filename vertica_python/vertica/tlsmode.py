@@ -16,6 +16,7 @@
 from __future__ import print_function, division, absolute_import, annotations
 
 import ssl
+import warnings
 from enum import Enum
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -50,10 +51,14 @@ class TLSMode(Enum):
             ssl_context.verify_mode = ssl.CERT_REQUIRED
             if cafile:
                 ssl_context.load_verify_locations(cafile=cafile)
+            # mutual mode
+            if certfile or keyfile:
+                ssl_context.load_cert_chain(certfile=certfile, keyfile=keyfile)
         else:
             ssl_context.verify_mode = ssl.CERT_NONE
-        # mutual mode
-        if certfile or keyfile:
-            ssl_context.load_cert_chain(certfile=certfile, keyfile=keyfile)
+            if cafile or certfile or keyfile:
+                ignore_cert_msg = ("Ignore TLS certificate files and skip certificates"
+                        " validation as tlsmode is not 'verify-ca' or 'verify-full'.")
+                warnings.warn(ignore_cert_msg)
         return ssl_context
 

@@ -43,10 +43,10 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
                 os.remove(self.CA_cert.name)
             cur.execute("DROP KEY IF EXISTS vp_server_key CASCADE")
             cur.execute("DROP KEY IF EXISTS vp_CA_key CASCADE")
-        if 'tlsmode' in self._conn_info:
-            del self._conn_info['tlsmode']
-        if 'ssl' in self._conn_info:
-            del self._conn_info['ssl']
+
+        for key in ('tlsmode', 'ssl', 'tls_cafile', 'tls_certfile', 'tls_keyfile'):
+            if key in self._conn_info:
+                del self._conn_info[key]
         super(TlsTestCase, self).tearDown()
 
     def _generate_and_set_certificates(self, mutual_mode=False):

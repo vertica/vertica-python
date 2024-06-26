@@ -156,7 +156,7 @@ There are two options to control client-server TLS: `tlsmode` and `ssl`. If both
 | 'prefer'      | (not set) | (Default) first try a TLS connection; if TLS is disabled on the server, then fallback to a non-TLS connection. <br>Note: If TLS is enabled on the server and TLS connection fails, the client rejects the connection. |
 | 'require'     | True |  connects using TLS without verifying certificates. If the TLS connection attempt fails, the client rejects the connection. |
 | 'verify-ca'   || connects using TLS and confirms that the server certificate has been signed by the certificate authority. |
-| 'verify-full' ||connects using TLS, confirms that the server certificate has been signed by the certificate authority, and verifies that the host name matches the name provided in the server certificate. |
+| 'verify-full' || connects using TLS, confirms that the server certificate has been signed by the certificate authority, and verifies that the host name matches the name provided in the server certificate. |
 
 When `tlsmode` is 'verify-ca' or 'verify-full', these options take certificate/key files: `tls_cafile`, `tls_certfile` and `tls_keyfile`. Otherwise, these options are ignored.
 

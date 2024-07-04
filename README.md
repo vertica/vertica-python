@@ -108,7 +108,7 @@ with vertica_python.connect(**conn_info) as connection:
 | session_label | Sets a label for the connection on the server. This value appears in the client_label column of the _v_monitor.sessions_ system table. <br>**_Default_**: an auto-generated label with format of `vertica-python-{version}-{random_uuid}` |
 | ssl | See [TLS/SSL](#tlsssl). <br>**_Default_**: None (tlsmode="prefer") |
 | tlsmode | Controls whether the connection to the server uses TLS encryption. <br>See [TLS/SSL](#tlsssl). <br>**_Default_**: "prefer" |
-| tls_cafile | The name of a file containing SSL certificate authority (CA) certificate(s). <br>See [TLS/SSL](#tlsssl). |
+| tls_cafile | The name of a file containing trusted SSL certificate authority (CA) certificate(s). <br>See [TLS/SSL](#tlsssl). |
 | tls_certfile | The name of a file containing client's certificate(s). <br>See [TLS/SSL](#tlsssl). |
 | tls_keyfile | The name of a file containing client's private key. <br>See [TLS/SSL](#tlsssl). |
 | unicode_error | See [UTF-8 encoding issues](#utf-8-encoding-issues). <br>**_Default_**: 'strict' (throw error on invalid UTF-8 results) |
@@ -155,8 +155,8 @@ There are two options to control client-server TLS: `tlsmode` and `ssl`. If both
 | 'disable'     | False | only try a non-TLS connection. |
 | 'prefer'      | (not set) | (Default) first try a TLS connection; if TLS is disabled on the server, then fallback to a non-TLS connection. <br>Note: If TLS is enabled on the server and TLS connection fails, the client rejects the connection. |
 | 'require'     | True |  connects using TLS without verifying certificates. If the TLS connection attempt fails, the client rejects the connection. |
-| 'verify-ca'   || connects using TLS and confirms that the server certificate has been signed by the certificate authority. |
-| 'verify-full' || connects using TLS, confirms that the server certificate has been signed by the certificate authority, and verifies that the host name matches the name provided in the server certificate. |
+| 'verify-ca'   || connects using TLS and confirms that the server certificate has been signed by a trusted certificate authority. |
+| 'verify-full' || connects using TLS, confirms that the server certificate has been signed by a trusted certificate authority, and verifies that the host name matches the name provided in the server certificate. |
 
 When `tlsmode` is 'verify-ca' or 'verify-full', these options take certificate/key files: `tls_cafile`, `tls_certfile` and `tls_keyfile`. Otherwise, these options are ignored.
 

@@ -496,6 +496,8 @@ class Connection(object):
 
         # modify the socket connection based on client connection options
         try:
+            ssl_context, force = self._generate_ssl_context()
+
             # enable load balancing
             load_balance_options = self.options.get('connection_load_balance')
             self._logger.debug('Connection load balance option is {0}'.format(
@@ -504,30 +506,8 @@ class Connection(object):
                 raw_socket = self.balance_load(raw_socket)
 
             # enable TLS
-            tlsmode_options = self.options.get('tlsmode')
-            ssl_options = self.options.get('ssl')
-            # If TLSmode option and SSL option are set, TLSmode option takes precedence.
-            ssl_context = None
-            if tlsmode_options is not None:
-                tlsmode = TLSMode(tlsmode_options)
-            elif ssl_options is not None:
-                if isinstance(ssl_options, ssl.SSLContext):
-                    ssl_context = ssl_options
-                    tlsmode = TLSMode.REQUIRE  # placeholder
-                elif isinstance(ssl_options, bool):
-                    tlsmode = TLSMode.REQUIRE if ssl_options else TLSMode.DISABLE
-                else:
-                    raise TypeError('The value of connection option "ssl" should be a bool or ssl.SSLContext object')
-            else:
-                tlsmode = TLSMode(DEFAULT_TLSMODE)
-            self._logger.debug(f'Connection TLS Mode is {tlsmode.name}')
-            if tlsmode.requests_encryption():
-                if ssl_context is None:
-                    cafile = self.options.get('tls_cafile')
-                    certfile = self.options.get('tls_certfile')
-                    keyfile = self.options.get('tls_keyfile')
-                    ssl_context = tlsmode.get_sslcontext(cafile, certfile, keyfile)
-                raw_socket = self.enable_ssl(raw_socket, ssl_context, force=tlsmode.requires_encryption())
+            if ssl_context is not None:
+                raw_socket = self.enable_ssl(raw_socket, ssl_context, force=force)
         except:
             self._logger.debug('Close the socket')
             raw_socket.close()
@@ -535,6 +515,35 @@ class Connection(object):
 
         self.socket = raw_socket
         return self.socket
+
+    def _generate_ssl_context(self):
+        tlsmode_options = self.options.get('tlsmode')
+        ssl_options = self.options.get('ssl')
+        # If TLSmode option and SSL option are set, TLSmode option takes precedence.
+        ssl_context = None
+        if tlsmode_options is not None:
+            tlsmode = TLSMode(tlsmode_options)
+        elif ssl_options is not None:
+            if isinstance(ssl_options, ssl.SSLContext):
+                ssl_context = ssl_options
+                tlsmode = TLSMode.REQUIRE  # placeholder
+            elif isinstance(ssl_options, bool):
+                tlsmode = TLSMode.REQUIRE if ssl_options else TLSMode.DISABLE
+            else:
+                raise TypeError('The value of connection option "ssl" should be a bool or ssl.SSLContext object')
+        else:
+            tlsmode = TLSMode(DEFAULT_TLSMODE)
+        self._logger.debug(f'Connection TLS Mode is {tlsmode.name}')
+
+        if tlsmode.requests_encryption():
+            if ssl_context is None:
+                cafile = self.options.get('tls_cafile')
+                certfile = self.options.get('tls_certfile')
+                keyfile = self.options.get('tls_keyfile')
+                ssl_context = tlsmode.get_sslcontext(cafile, certfile, keyfile)
+            return ssl_context, tlsmode.requires_encryption()
+        else:
+            return None, False
 
     def _socket_as_file(self):
         if self.socket_as_file is None:

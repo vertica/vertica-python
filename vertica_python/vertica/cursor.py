@@ -154,7 +154,6 @@ class Cursor(object):
         self.operation = None
         self.prepared_sql = None  # last statement been prepared
         self.prepared_name = "s0"
-        self.error = None
         self._sql_literal_adapters = {}
         self._disable_sqldata_converter = False
         self._sqldata_converters = {}
@@ -527,9 +526,6 @@ class Cursor(object):
                      f'SQL: {sql}')
             else:
                 raise errors.MessageError(f'Unexpected message: {message}')
-
-        if self.error is not None:
-            raise self.error
 
     def object_to_sql_literal(self, py_obj: Any) -> str:
         """Returns the SQL literal string converted from a Python object."""

@@ -24,9 +24,12 @@ from .base import VerticaPythonIntegrationTestCase
 
 
 class TlsTestCase(VerticaPythonIntegrationTestCase):
+    SSL_STATE_SQL = 'SELECT ssl_state FROM sessions WHERE session_id=current_session()'
+
     def tearDown(self):
-        if 'ssl' in self._conn_info:
-            del self._conn_info['ssl']
+        # Use a non-TLS connection here so cleanup can happen
+        # even if mutual mode is configured
+        self._conn_info['tlsmode'] = 'disable'
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("ALTER TLS CONFIGURATION server CERTIFICATE NULL TLSMODE 'DISABLE'")
@@ -36,8 +39,14 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             if hasattr(self, 'client_key'):
                 os.remove(self.client_key.name)
                 cur.execute("DROP KEY IF EXISTS vp_client_key CASCADE")
+            if hasattr(self, 'CA_cert'):
+                os.remove(self.CA_cert.name)
             cur.execute("DROP KEY IF EXISTS vp_server_key CASCADE")
             cur.execute("DROP KEY IF EXISTS vp_CA_key CASCADE")
+
+        for key in ('tlsmode', 'ssl', 'tls_cafile', 'tls_certfile', 'tls_keyfile'):
+            if key in self._conn_info:
+                del self._conn_info[key]
         super(TlsTestCase, self).tearDown()
 
     def _generate_and_set_certificates(self, mutual_mode=False):
@@ -52,6 +61,8 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
                     "VALID FOR 3650 EXTENSIONS 'nsComment' = 'Self-signed root CA cert' KEY vp_CA_key")
             cur.execute("SELECT certificate_text FROM CERTIFICATES WHERE name='vp_CA_cert'")
             vp_CA_cert = cur.fetchone()[0]
+            with NamedTemporaryFile(delete=False) as self.CA_cert:
+                    self.CA_cert.write(vp_CA_cert.encode())
 
             # Generate a server private key
             cur.execute("CREATE KEY vp_server_key TYPE 'RSA' LENGTH 4096")
@@ -84,7 +95,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
                 # This CA certificate is used to verify client certificates
                 cur.execute('ALTER TLS CONFIGURATION server CERTIFICATE vp_server_cert ADD CA CERTIFICATES vp_CA_cert')
                 # Enable TLS. Connection succeeds if Vertica verifies that the client certificate is from a trusted CA.
-                # If the client does not present a client certificate, the connection uses plaintext.
+                # If the client does not present a client certificate, the connection is rejected.
                 cur.execute("ALTER TLS CONFIGURATION server TLSMODE 'VERIFY_CA'")
 
             else:
@@ -100,42 +111,164 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
 
             return vp_CA_cert
 
+    ######################################################
+    #### Test 'ssl' and 'tlsmode' options are not set ####
+    ######################################################
 
-    def test_TLSMode_disable(self):
-        self._conn_info['ssl'] = False
+    def test_option_default_server_disable(self):
+        # TLS is disabled on the server
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'None')
 
-    def test_TLSMode_require_server_disable(self):
-        # Requires that the server use TLS. If the TLS connection attempt fails, the client rejects the connection.
-        self._conn_info['ssl'] = True
-        self.assertConnectionFail(err_type=errors.SSLNotSupported,
-                err_msg='SSL requested but not supported by server')
-
-    def test_TLSMode_require(self):
+    def test_option_default_server_enable(self):
         # Setting certificates with TLS configuration
         self._generate_and_set_certificates()
 
-        # Option 1
+        # TLS is enabled on the server
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'Server')
+
+    #######################################################
+    #### Test 'ssl' and 'tlsmode' options are both set ####
+    #######################################################
+
+    def test_tlsmode_over_ssl(self):
+        self._conn_info['tlsmode'] = 'disable'
         self._conn_info['ssl'] = True
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'None')
+
+    ###############################################
+    #### Test 'ssl' option with boolean values ####
+    ###############################################
+
+    def test_ssl_false(self):
+        self._conn_info['ssl'] = False
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'None')
+
+    def test_ssl_true_server_disable(self):
+        # Requires that the server use TLS. If the TLS connection attempt fails, the client rejects the connection.
+        self._conn_info['ssl'] = True
+        self.assertConnectionFail(err_type=errors.SSLNotSupported,
+                err_msg='SSL requested but disabled on the server')
+
+    def test_ssl_true_server_enable(self):
+        # Setting certificates with TLS configuration
+        self._generate_and_set_certificates()
+
+        self._conn_info['ssl'] = True
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
-        # Option 2
+    ###############################
+    #### Test 'tlsmode' option ####
+    ###############################
+
+    def test_TLSMode_disable(self):
+        self._conn_info['tlsmode'] = 'disable'
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'None')
+
+    def test_TLSMode_prefer_server_disable(self):
+        # TLS is disabled on the server
+        self._conn_info['tlsmode'] = 'prefer'
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'None')
+
+    def test_TLSMode_prefer_server_enable(self):
+        # Setting certificates with TLS configuration
+        self._generate_and_set_certificates()
+
+        self._conn_info['tlsmode'] = 'prefer'
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'Server')
+
+    def test_TLSMode_require_server_disable(self):
+        # Requires that the server use TLS. If the TLS connection attempt fails, the client rejects the connection.
+        self._conn_info['tlsmode'] = 'require'
+        self.assertConnectionFail(err_type=errors.SSLNotSupported,
+                err_msg='SSL requested but disabled on the server')
+
+    def test_TLSMode_require_server_enable(self):
+        # Setting certificates with TLS configuration
+        self._generate_and_set_certificates()
+
+        self._conn_info['tlsmode'] = 'require'
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'Server')
+
+    def test_TLSMode_verify_ca(self):
+        # Setting certificates with TLS configuration
+        CA_cert = self._generate_and_set_certificates()
+
+        self._conn_info['tlsmode'] = 'verify-ca'
+        self._conn_info['tls_cafile'] = self.CA_cert.name
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'Server')
+
+    def test_TLSMode_verify_full(self):
+        # Setting certificates with TLS configuration
+        CA_cert = self._generate_and_set_certificates()
+
+        self._conn_info['tlsmode'] = 'verify-full'
+        self._conn_info['tls_cafile'] = self.CA_cert.name
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'Server')
+
+    def test_TLSMode_mutual_TLS(self):
+        # Setting certificates with TLS configuration
+        CA_cert = self._generate_and_set_certificates(mutual_mode=True)
+
+        self._conn_info['tlsmode'] = 'verify-full'
+        self._conn_info['tls_cafile'] = self.CA_cert.name  # CA certificate used to verify server certificate
+        self._conn_info['tls_certfile'] = self.client_cert.name  # client certificate
+        self._conn_info['tls_keyfile'] = self.client_key.name  # private key used for the client certificate
+        with self._connect() as conn:
+            cur = conn.cursor()
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            self.assertEqual(res[0], 'Mutual')
+
+    ######################################################
+    #### Test 'ssl' option with ssl.SSLContext object ####
+    ######################################################
+
+    def test_sslcontext_require(self):
+        # Setting certificates with TLS configuration
+        self._generate_and_set_certificates()
+
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
         self._conn_info['ssl'] = ssl_context
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
-    def test_TLSMode_verify_ca(self):
+    def test_sslcontext_verify_ca(self):
         # Setting certificates with TLS configuration
         CA_cert = self._generate_and_set_certificates()
 
@@ -147,10 +280,10 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
 
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
-    def test_TLSMode_verify_full(self):
+    def test_sslcontext_verify_full(self):
         # Setting certificates with TLS configuration
         CA_cert = self._generate_and_set_certificates()
 
@@ -162,10 +295,10 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         self._conn_info['ssl'] = ssl_context
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
-    def test_mutual_TLS(self):
+    def test_sslcontext_mutual_TLS(self):
         # Setting certificates with TLS configuration
         CA_cert = self._generate_and_set_certificates(mutual_mode=True)
 
@@ -178,7 +311,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         self._conn_info['ssl'] = ssl_context
         with self._connect() as conn:
             cur = conn.cursor()
-            res = self._query_and_fetchone('SELECT ssl_state FROM sessions WHERE session_id=(SELECT current_session())')
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Mutual')
 
 

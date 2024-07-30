@@ -50,7 +50,7 @@ going to the backend from Python text string into UTF-8, and to convert data
 coming from the backend from UTF-8 into Python text string.
 """
 
-from __future__ import print_function, division, absolute_import, annotations
+from __future__ import annotations
 
 from abc import ABCMeta
 from struct import pack

@@ -40,7 +40,7 @@ In the copy-in protocol, the frontend can terminate the cycle by sending a
 CopyFail message, which will cause the COPY SQL statement to fail with an error.
 """
 
-from __future__ import print_function, division, absolute_import, annotations
+from __future__ import annotations
 
 from struct import pack
 

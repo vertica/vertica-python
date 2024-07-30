@@ -21,7 +21,7 @@ the frontend is expecting an acknowledgment and possibly rejected row
 descriptions from the backend.
 """
 
-from __future__ import print_function, division, absolute_import, annotations
+from __future__ import annotations
 
 from ..message import BulkFrontendMessage
 

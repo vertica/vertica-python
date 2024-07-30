@@ -43,7 +43,7 @@ run this statement instead to achieve better performance when loading many
 batches of parameters.
 """
 
-from __future__ import print_function, division, absolute_import, annotations
+from __future__ import annotations
 
 from struct import unpack
 

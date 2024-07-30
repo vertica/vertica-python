@@ -47,7 +47,7 @@ In the future, Vertica may change to restore semantics more similar to those
 intended by Postgres.
 """
 
-from __future__ import print_function, division, absolute_import, annotations
+from __future__ import annotations
 
 from ..message import BackendMessage
 

@@ -40,7 +40,7 @@ RowDescription message describes the column layout of the rows that will be
 returned in response to a SELECT, FETCH, etc query.
 """
 
-from __future__ import print_function, division, absolute_import, annotations
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:

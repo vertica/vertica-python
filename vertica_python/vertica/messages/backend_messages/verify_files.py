@@ -23,7 +23,7 @@ The client has to verify that these files exist and are readable
 before running the copy.
 """
 
-from __future__ import print_function, division, absolute_import, annotations
+from __future__ import annotations
 
 from struct import unpack_from
 

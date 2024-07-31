@@ -46,7 +46,7 @@ If the cancellation fails (e.g. the server has finished processing the command),
 then there will be no visible result at all.
 """
 
-from __future__ import print_function, division, absolute_import, annotations
+from __future__ import annotations
 
 from struct import pack
 

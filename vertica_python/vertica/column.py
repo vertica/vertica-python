@@ -34,7 +34,7 @@
 # THE SOFTWARE.
 
 
-from __future__ import print_function, division, absolute_import, annotations
+from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 if TYPE_CHECKING:

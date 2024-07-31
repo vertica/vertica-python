@@ -41,7 +41,7 @@ The ReadyForQuery message is the same one that the backend will issue after each
 command cycle.
 """
 
-from __future__ import print_function, division, absolute_import, annotations
+from __future__ import annotations
 
 from struct import unpack
 

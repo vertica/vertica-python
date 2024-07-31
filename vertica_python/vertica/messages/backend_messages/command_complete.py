@@ -40,7 +40,7 @@ The server prompt that indicates a command has completed. The command tag
 string is the name of the command that was run.
 """
 
-from __future__ import print_function, division, absolute_import, annotations
+from __future__ import annotations
 
 import re
 import warnings

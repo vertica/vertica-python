@@ -34,7 +34,7 @@
 # THE SOFTWARE.
 
 
-from __future__ import print_function, division, absolute_import, annotations
+from __future__ import annotations
 
 from datetime import date, datetime, time, timezone
 from typing import TYPE_CHECKING

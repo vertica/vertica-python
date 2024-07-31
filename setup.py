@@ -59,7 +59,6 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         'python-dateutil>=1.5',
-        'six>=1.10.0'
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",

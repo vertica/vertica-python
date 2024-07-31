@@ -58,7 +58,7 @@ from struct import pack
 from ..messages import *
 
 
-class Message(object):
+class Message:
     __metaclass__ = ABCMeta
 
     def __init__(self):

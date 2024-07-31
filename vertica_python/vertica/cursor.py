@@ -136,7 +136,7 @@ END_OF_BATCH_RESPONSES = (messages.WriteFile, messages.EndOfBatchResponse)
 DEFAULT_BUFFER_SIZE = 131072
 
 
-class Cursor(object):
+class Cursor:
     # NOTE: this is used in executemany and is here for pandas compatibility
     _insert_statement = re.compile(RE_BASIC_INSERT_STAT, re.U | re.I)
 

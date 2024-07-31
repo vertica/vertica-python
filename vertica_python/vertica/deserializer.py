@@ -34,7 +34,7 @@ from ..datatypes import VerticaType
 from ..vertica.column import FormatCode
 
 
-class Deserializer(object):
+class Deserializer:
     def get_row_deserializers(self,
                               columns: List[Column],
                               custom_converters: Dict[int, Callable[[bytes, Dict[str, Any]], Any]],

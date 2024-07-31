@@ -59,7 +59,7 @@ class SqlLiteralTestCase(VerticaPythonUnitTestCase):
         self.assertEqual(cursor.object_to_sql_literal(p), "(11,22,33)")
 
     def test_register_adapters(self):
-        class Point(object):
+        class Point:
             def __init__(self, x, y):
                 self.x = x
                 self.y = y

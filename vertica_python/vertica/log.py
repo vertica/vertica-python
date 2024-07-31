@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from typing import Union
 from ..os_utils import ensure_dir_exists
 
-class VerticaLogging(object):
+class VerticaLogging:
 
     @classmethod
     def setup_logging(cls, logger_name: str, logfile: str,

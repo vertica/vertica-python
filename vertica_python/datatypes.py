@@ -84,7 +84,7 @@ def Binary(string):
     return Bytea(string)
 
 
-class VerticaType(object):
+class VerticaType:
     UNKNOWN = 4
     BOOL = 5
     INT8 = 6

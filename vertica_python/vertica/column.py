@@ -46,7 +46,7 @@ from ..compat import as_str, as_text
 
 # Data of a particular SQL data type might be transmitted in either "text" format or "binary" format.
 # The desired format for any column is specified by a format code.
-class FormatCode(object):
+class FormatCode:
     TEXT = 0
     BINARY = 1
 
@@ -61,7 +61,7 @@ class ColumnTuple(NamedTuple):
     null_ok: bool
 
 
-class Column(object):
+class Column:
     def __init__(self, col) -> None:
         # Describe one query result column
         self.name = col['name']

@@ -63,8 +63,6 @@ The compatibility module also provides the following types:
 * `real_types`
 """
 
-import six as _six
-
 
 def as_bytes(bytes_or_text, encoding='utf-8'):
     """Converts either bytes or unicode to `bytes`, using utf-8 encoding for text.
@@ -76,7 +74,7 @@ def as_bytes(bytes_or_text, encoding='utf-8'):
     Raises:
       TypeError: If `bytes_or_text` is not a binary or unicode string.
     """
-    if isinstance(bytes_or_text, _six.text_type):
+    if isinstance(bytes_or_text, str):
         return bytes_or_text.encode(encoding)
     elif isinstance(bytes_or_text, bytearray):
         return bytes(bytes_or_text)
@@ -97,7 +95,7 @@ def as_text(bytes_or_text, encoding='utf-8'):
     Raises:
       TypeError: If `bytes_or_text` is not a binary or unicode string.
     """
-    if isinstance(bytes_or_text, _six.text_type):
+    if isinstance(bytes_or_text, str):
         return bytes_or_text
     elif isinstance(bytes_or_text, (bytes, bytearray)):
         return bytes_or_text.decode(encoding)
@@ -106,10 +104,7 @@ def as_text(bytes_or_text, encoding='utf-8'):
 
 
 # Convert an object to a `str` in both Python 2 and 3.
-if _six.PY2:
-    as_str = as_bytes
-else:
-    as_str = as_text
+as_str = as_text
 
 
 def as_str_any(value):
@@ -126,7 +121,7 @@ def as_str_any(value):
 
 
 # Either bytes or text.
-bytes_or_text_types = (bytes, bytearray, _six.text_type)
+bytes_or_text_types = (bytes, bytearray, str)
 
 _allowed_symbols = [
     'as_str',

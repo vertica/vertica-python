@@ -142,7 +142,7 @@ class _AddressEntry(NamedTuple):
     data: Any
 
 
-class _AddressList(object):
+class _AddressList:
     def __init__(self, host: str, port: Union[int, str],
                  backup_nodes: List[Union[str, Tuple[str, Union[int, str]]]],
                  logger: logging.Logger) -> None:
@@ -258,7 +258,7 @@ def _generate_session_label() -> str:
     )
 
 
-class Connection(object):
+class Connection:
     def __init__(self, options: Optional[Dict[str, Any]] = None) -> None:
         self.parameters: Dict[str, Union[str, int]] = {}
         self.session_id = None

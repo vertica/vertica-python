@@ -716,7 +716,7 @@ cur.executemany("INSERT INTO table (a, b) VALUES (%s, %s)", [[100, value]], use_
 ##### Register new SQL literal adapters
 It is possible to adapt new Python types to SQL literals via `Cursor.register_sql_literal_adapter(py_class_or_type, adapter_function)` function. Example:
 ```python
-class Point(object):
+class Point:
     def __init__(self, x, y):
         self.x = x
         self.y = y

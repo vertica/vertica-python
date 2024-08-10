@@ -776,16 +776,16 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
     def test_execute_parameters(self):
         with self._connect() as conn:
             cur = conn.cursor()
-            all_chars = u"".join(chr(i) for i in range(1, 128))
-            backslash_data = u"\\backslash\\ \\data\\\\"
+            all_chars = "".join(chr(i) for i in range(1, 128))
+            backslash_data = "\\backslash\\ \\data\\\\"
             cur.execute("SELECT :a, :b", parameters={"a": all_chars, "b": backslash_data})
             self.assertEqual([all_chars, backslash_data], cur.fetchone())
 
     def test_execute_percent_parameters(self):
         with self._connect() as conn:
             cur = conn.cursor()
-            all_chars = u"".join(chr(i) for i in range(1, 128))
-            backslash_data = u"\\backslash\\ \\data\\\\"
+            all_chars = "".join(chr(i) for i in range(1, 128))
+            backslash_data = "\\backslash\\ \\data\\\\"
             cur.execute("SELECT %s, %s", parameters=[all_chars, backslash_data])
             self.assertEqual([all_chars, backslash_data], cur.fetchone())
 
@@ -898,16 +898,16 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
 
         # Check rejected files
         with open(rej1, 'r', encoding='utf-8') as f:
-            self.assertEqual(f.read(), u'x\u00f1,bla\n')
+            self.assertEqual(f.read(), 'x\u00f1,bla\n')
         with open(except1, 'r', encoding='utf-8') as f:
             content = f.read()
-            self.assertTrue(u"Invalid integer format 'x\u00f1' for column 1 (a)" in content)
+            self.assertTrue("Invalid integer format 'x\u00f1' for column 1 (a)" in content)
         with open(rej2, 'r', encoding='utf-8') as f:
-            self.assertEqual(f.read(), u'10,kkkkkkkkkkkk\nxx,corge\n')
+            self.assertEqual(f.read(), '10,kkkkkkkkkkkk\nxx,corge\n')
         with open(except2, 'r', encoding='utf-8') as f:
             content = f.read()
-            self.assertTrue(u"The 12-byte value is too long for type Varchar(9), column 2 (b)" in content)
-            self.assertTrue(u"Invalid integer format 'xx' for column 1 (a)" in content)
+            self.assertTrue("The 12-byte value is too long for type Varchar(9), column 2 (b)" in content)
+            self.assertTrue("Invalid integer format 'xx' for column 1 (a)" in content)
 
         # Delete data files
         try:
@@ -1004,18 +1004,18 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
 
         # Check rejected files
         with open(rej1, 'r', encoding='utf-8') as f:
-            self.assertEqual(f.read(), u'x\u00f1,bla\n5,aaaaaaaaaa\n')
+            self.assertEqual(f.read(), 'x\u00f1,bla\n5,aaaaaaaaaa\n')
         with open(except1, 'r', encoding='utf-8') as f:
             content = f.read()
-            self.assertTrue(u"Invalid integer format 'x\u00f1' for column 1 (a)" in content)
-            self.assertTrue(u"The 10-byte value is too long for type Varchar(9), column 2 (b)" in content)
+            self.assertTrue("Invalid integer format 'x\u00f1' for column 1 (a)" in content)
+            self.assertTrue("The 10-byte value is too long for type Varchar(9), column 2 (b)" in content)
         with open(rej2, 'r', encoding='utf-8') as f:
-            self.assertEqual(f.read(), u'10,kkkkkkkkkkkk\nxx,corge\nf,quux\n')
+            self.assertEqual(f.read(), '10,kkkkkkkkkkkk\nxx,corge\nf,quux\n')
         with open(except2, 'r', encoding='utf-8') as f:
             content = f.read()
-            self.assertTrue(u"The 12-byte value is too long for type Varchar(9), column 2 (b)" in content)
-            self.assertTrue(u"Invalid integer format 'xx' for column 1 (a)" in content)
-            self.assertTrue(u"Invalid integer format 'f' for column 1 (a)" in content)
+            self.assertTrue("The 12-byte value is too long for type Varchar(9), column 2 (b)" in content)
+            self.assertTrue("Invalid integer format 'xx' for column 1 (a)" in content)
+            self.assertTrue("Invalid integer format 'f' for column 1 (a)" in content)
 
         # Delete files
         try:
@@ -1059,7 +1059,7 @@ class SimpleQueryTestCase(VerticaPythonIntegrationTestCase):
             cur.execute("SELECT rejected_data, rejected_reason FROM test_loader_rejects ORDER BY row_number ASC")
             self.assertListOfListsEqual(cur.fetchall(),
                 [['5,aaaaaaaaaa', 'The 10-byte value is too long for type Varchar(9), column 2 (b)'],
-                 [u'x\u00f1,bla', u"Invalid integer format 'x\u00f1' for column 1 (a)"]])
+                 ['x\u00f1,bla', "Invalid integer format 'x\u00f1' for column 1 (a)"]])
 
             cur.execute("SELECT * FROM {0} ORDER BY a ASC".format(self._table))
             self.assertListOfListsEqual(cur.fetchall(), [[None, 'baz'], [1, 'foo'], [2, 'bar'], [4, None]])
@@ -1141,7 +1141,7 @@ class SimpleQueryExecutemanyTestCase(VerticaPythonIntegrationTestCase):
         self._test_executemany(table, [(1, 'aa'), (2, 'bb')])
 
     def test_executemany_utf8(self):
-        self._test_executemany(self._table, [(1, u'a\xfc'), (2, u'bb')])
+        self._test_executemany(self._table, [(1, 'a\xfc'), (2, 'bb')])
 
     # test for #292
     def test_executemany_autocommit(self):
@@ -1283,8 +1283,8 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
             self.assertListOfListsEqual(res, [[1, 'varchar']])
 
     def test_executemany(self):
-        values = ((None, 'foo'), [1, 'aa'], (2, None), [2, u'a\xfc'])
-        expected = [[None, 'foo'], [1, 'aa'], [2, None], [2, u'a\xfc']]
+        values = ((None, 'foo'), [1, 'aa'], (2, None), [2, 'a\xfc'])
+        expected = [[None, 'foo'], [1, 'aa'], [2, None], [2, 'a\xfc']]
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("CREATE TABLE {} (a int, b varchar)".format(self._table))
@@ -1312,7 +1312,7 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
             self.assertIsNone(cur.fetchone())
             self.assertTrue(cur.nextset())
 
-            self.assertListOfListsEqual(cur.fetchall(), [[2, u'a\xfc'], [2, None]])
+            self.assertListOfListsEqual(cur.fetchall(), [[2, 'a\xfc'], [2, None]])
             self.assertIsNone(cur.fetchone())
             self.assertTrue(cur.nextset())
 
@@ -1353,8 +1353,8 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
             self.assertListOfListsEqual(res, [values])
 
     def test_bind_binary(self):
-        values = [b'binary data', b'\\backslash data\\', u'\\backslash data\\',
-                  u'\u00f1 encoding', 'raw data', 'long varbinary data', None]
+        values = [b'binary data', b'\\backslash data\\', '\\backslash data\\',
+                  '\u00f1 encoding', 'raw data', 'long varbinary data', None]
         expected = [[b'binary data\x00\x00\x00', b'\\backslash data\\',
                      b'\\backslash data\\', b'\xc3\xb1 encoding',
                      b'raw data', b'long varbinary data', None]]
@@ -1398,9 +1398,9 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
 
     def test_bind_character(self):
         values = ['char data', b'raw varchar data',
-                  u'long varbinary data \u00f1', None, None, None]
+                  'long varbinary data \u00f1', None, None, None]
         expected = [['char data ', 'raw varchar data',
-                     u'long varbinary data \u00f1', None, None, None]]
+                     'long varbinary data \u00f1', None, None, None]]
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("""CREATE TABLE {} (

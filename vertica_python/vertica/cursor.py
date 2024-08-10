@@ -125,12 +125,12 @@ file_type = tuple(
 )
 
 
-RE_NAME_BASE = u"[0-9a-zA-Z_][\\w\\d\\$_]*"
-RE_NAME = u'(("{0}")|({0}))'.format(RE_NAME_BASE)
+RE_NAME_BASE = "[0-9a-zA-Z_][\\w\\d\\$_]*"
+RE_NAME = '(("{0}")|({0}))'.format(RE_NAME_BASE)
 RE_BASIC_INSERT_STAT = (
-    u"\\s*INSERT\\s+INTO\\s+(?P<target>({0}\\.)?{0})"
-    u"\\s*\\(\\s*(?P<variables>{0}(\\s*,\\s*{0})*)\\s*\\)"
-    u"\\s+VALUES\\s*\\(\\s*(?P<values>(.|\\s)*)\\s*\\)").format(RE_NAME)
+    "\\s*INSERT\\s+INTO\\s+(?P<target>({0}\\.)?{0})"
+    "\\s*\\(\\s*(?P<variables>{0}(\\s*,\\s*{0})*)\\s*\\)"
+    "\\s+VALUES\\s*\\(\\s*(?P<values>(.|\\s)*)\\s*\\)").format(RE_NAME)
 END_OF_RESULT_RESPONSES = (messages.CommandComplete, messages.PortalSuspended)
 END_OF_BATCH_RESPONSES = (messages.WriteFile, messages.EndOfBatchResponse)
 DEFAULT_BUFFER_SIZE = 131072
@@ -320,9 +320,9 @@ class Cursor:
                 data = "\n".join(seq_of_values)
 
                 copy_statement = (
-                    u"COPY {0} ({1}) FROM STDIN "
-                    u"ENCLOSED BY '''' "  # '/r' will have trouble if ENCLOSED BY is not set
-                    u"ENFORCELENGTH ABORT ON ERROR{2}").format(target, variables,
+                    "COPY {0} ({1}) FROM STDIN "
+                    "ENCLOSED BY '''' "  # '/r' will have trouble if ENCLOSED BY is not set
+                    "ENFORCELENGTH ABORT ON ERROR{2}").format(target, variables,
                     " NO COMMIT" if not self.connection.autocommit else '')
 
                 self.copy(copy_statement, data)
@@ -491,7 +491,7 @@ class Cursor:
         else:
             raise TypeError("Not valid type of data {0}".format(type(data)))
 
-        self._logger.info(u'Execute COPY statement: [{}]'.format(sql))
+        self._logger.info('Execute COPY statement: [{}]'.format(sql))
         # Execute a `COPY FROM STDIN` SQL statement
         self.connection.write(messages.Query(sql))
 
@@ -726,7 +726,7 @@ class Cursor:
 
                 # Using a regex with word boundary to correctly handle params with similar names
                 # such as :s and :start
-                match_str = u":{0}\\b".format(key)
+                match_str = ":{0}\\b".format(key)
                 operation = re.sub(match_str, lambda _: value, operation, flags=re.U)
 
         elif isinstance(parameters, (tuple, list)):
@@ -751,21 +751,21 @@ class Cursor:
             for i, c in enumerate(param):
                 if c in '\\\n\"':
                     s[i] = "\\" + c
-            return u'"{0}"'.format(u"".join(s))
+            return '"{0}"'.format("".join(s))
         elif is_copy_data: # COPY ENCLOSED BY
             s = list(param)
             for i, c in enumerate(param):
                 if c in '\\|\n\'':
                     s[i] = "\\" + c
-            return u"'{0}'".format(u"".join(s))
+            return "'{0}'".format("".join(s))
         else:
-            return u"'{0}'".format(param.replace(u"'", u"''"))
+            return "'{0}'".format(param.replace("'", "''"))
 
     def _execute_simple_query(self, query: str) -> None:
         """
         Send the query to the server using the simple query protocol.
         """
-        self._logger.info(u'Execute simple query: [{}]'.format(query))
+        self._logger.info('Execute simple query: [{}]'.format(query))
 
         # All of the statements in the query are sent here in a single message
         self.connection.write(messages.Query(query))
@@ -950,7 +950,7 @@ class Cursor:
         Send the query to be prepared to the server. The server will parse the
         query and return some metadata.
         """
-        self._logger.info(u'Prepare a statement: [{}]'.format(query))
+        self._logger.info('Prepare a statement: [{}]'.format(query))
 
         # Send Parse message to server
         # We don't need to tell the server the parameter types yet
@@ -1004,7 +1004,7 @@ class Cursor:
             for parameter_values in list_of_parameter_values:
                 if parameter_values is None:
                     parameter_values = ()
-                self._logger.info(u'Bind parameters: {}'.format(parameter_values))
+                self._logger.info('Bind parameters: {}'.format(parameter_values))
                 if len(parameter_values) != parameter_count:
                     msg = ("Invalid number of parameters for {}: {} given, {} expected"
                            .format(parameter_values, len(parameter_values), parameter_count))

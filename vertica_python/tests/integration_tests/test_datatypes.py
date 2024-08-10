@@ -136,10 +136,10 @@ class InsertComplexTypeTestCase(VerticaPythonIntegrationTestCase):
             None, [], [None]], test_executemany=True)
 
     def test_Array_char_type(self):
-        self._test_insert_complex_type('ARRAY[CHAR(3)]', [['a', u'\u16b1', None, 'foo'], None, [], [None]], [['a  ', u'\u16b1', None, 'foo'], None, [], [None]], test_executemany=True)
+        self._test_insert_complex_type('ARRAY[CHAR(3)]', [['a', '\u16b1', None, 'foo'], None, [], [None]], [['a  ', '\u16b1', None, 'foo'], None, [], [None]], test_executemany=True)
 
     def test_Array_varchar_type(self):
-        self._test_insert_complex_type('ARRAY[VARCHAR(10)]', [['', u'\u16b1\nb', None, 'foo'], None, [], [None]], test_executemany=True)
+        self._test_insert_complex_type('ARRAY[VARCHAR(10)]', [['', '\u16b1\nb', None, 'foo'], None, [], [None]], test_executemany=True)
         self._test_insert_complex_type('ARRAY[VARCHAR]', [[chr(i)] for i in range(1, 128)], test_executemany=True)
 
     def test_Array_date_type(self):
@@ -178,10 +178,10 @@ class InsertComplexTypeTestCase(VerticaPythonIntegrationTestCase):
             None, set(), {None}], test_executemany=True)
 
     def test_1DSet_char_type(self):
-        self._test_insert_complex_type('SET[CHAR(3)]', [{'a  ', u'\u16b1', None, 'foo'}, None, set(), {None}], test_executemany=True)
+        self._test_insert_complex_type('SET[CHAR(3)]', [{'a  ', '\u16b1', None, 'foo'}, None, set(), {None}], test_executemany=True)
 
     def test_1DSet_varchar_type(self):
-        self._test_insert_complex_type('SET[VARCHAR(10)]', [{'', u'\u16b1\nb', None, 'foo'}, None, set(), {None}], test_executemany=True)
+        self._test_insert_complex_type('SET[VARCHAR(10)]', [{'', '\u16b1\nb', None, 'foo'}, None, set(), {None}], test_executemany=True)
         self._test_insert_complex_type('SET[VARCHAR]', [{chr(i)} for i in range(1, 128)], test_executemany=True)
 
     def test_1DSet_date_type(self):
@@ -339,16 +339,16 @@ class ComplexTypeTestCase(VerticaPythonIntegrationTestCase):
         self.assertEqual(res[2], None)
 
     def test_1DArray_char_type(self):
-        query = u"SELECT ARRAY['a', '\u16b1b', null, 'foo']::ARRAY[CHAR(3)], ARRAY[]::ARRAY[CHAR(4)], null::ARRAY[CHAR(5)]"
+        query = "SELECT ARRAY['a', '\u16b1b', null, 'foo']::ARRAY[CHAR(3)], ARRAY[]::ARRAY[CHAR(4)], null::ARRAY[CHAR(5)]"
         res = self._query_and_fetchone(query)
-        self.assertEqual(res[0], ['a  ', u'\u16b1', None, 'foo'])
+        self.assertEqual(res[0], ['a  ', '\u16b1', None, 'foo'])
         self.assertEqual(res[1], [])
         self.assertEqual(res[2], None)
 
     def test_1DArray_varchar_type(self):
-        query = u"SELECT ARRAY['', '\u16b1\nb', null, 'foo']::ARRAY[VARCHAR(10),4], ARRAY[]::ARRAY[VARCHAR(4)], null::ARRAY[VARCHAR]"
+        query = "SELECT ARRAY['', '\u16b1\nb', null, 'foo']::ARRAY[VARCHAR(10),4], ARRAY[]::ARRAY[VARCHAR(4)], null::ARRAY[VARCHAR]"
         res = self._query_and_fetchone(query)
-        self.assertEqual(res[0], ['', u'\u16b1\nb', None, 'foo'])
+        self.assertEqual(res[0], ['', '\u16b1\nb', None, 'foo'])
         self.assertEqual(res[1], [])
         self.assertEqual(res[2], None)
 
@@ -564,16 +564,16 @@ class ComplexTypeTestCase(VerticaPythonIntegrationTestCase):
         self.assertEqual(res[2], None)
 
     def test_1DSet_char_type(self):
-        query = u"SELECT SET['a', '\u16b1b', null, 'foo']::SET[CHAR(3)], SET[]::SET[CHAR(4)], null::SET[CHAR(5)]"
+        query = "SELECT SET['a', '\u16b1b', null, 'foo']::SET[CHAR(3)], SET[]::SET[CHAR(4)], null::SET[CHAR(5)]"
         res = self._query_and_fetchone(query)
-        self.assertEqual(res[0], {'a  ', u'\u16b1', None, 'foo'})
+        self.assertEqual(res[0], {'a  ', '\u16b1', None, 'foo'})
         self.assertEqual(res[1], set())
         self.assertEqual(res[2], None)
 
     def test_1DSet_varchar_type(self):
-        query = u"SELECT SET['', '\u16b1\nb', null, 'foo']::SET[VARCHAR(10),4], SET[]::SET[VARCHAR(4)], null::SET[VARCHAR]"
+        query = "SELECT SET['', '\u16b1\nb', null, 'foo']::SET[VARCHAR(10),4], SET[]::SET[VARCHAR(4)], null::SET[VARCHAR]"
         res = self._query_and_fetchone(query)
-        self.assertEqual(res[0], {'', u'\u16b1\nb', None, 'foo'})
+        self.assertEqual(res[0], {'', '\u16b1\nb', None, 'foo'})
         self.assertEqual(res[1], set())
         self.assertEqual(res[2], None)
 
@@ -594,7 +594,7 @@ class ComplexTypeTestCase(VerticaPythonIntegrationTestCase):
     def test_1DSet_timetz_type(self):
         query = "SELECT SET['22:36:33.12345+0630', null, '800-02-03 22:36:33.123456 America/Cayman']::SET[TIMETZ(3)], SET[]::SET[TIMETZ(4)], null::SET[TIMETZ]"
         res = self._query_and_fetchone(query)
-        self.assertEqual(res[0], {time(22, 36, 33, 123000, tzinfo=tzoffset(None, 23400)), None, 
+        self.assertEqual(res[0], {time(22, 36, 33, 123000, tzinfo=tzoffset(None, 23400)), None,
                                   time(22, 36, 33, 123000, tzinfo=tzoffset(None, -19176))})
         self.assertEqual(res[1], set())
         self.assertEqual(res[2], None)

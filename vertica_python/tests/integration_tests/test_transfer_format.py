@@ -37,7 +37,7 @@ class DataTransferFormatTestCase(VerticaPythonIntegrationTestCase):
 
     def _test_equal_value(self, sql_type, data_list, assert_almost_equal=False):
         for data in data_list:
-            query = u"SELECT {}{}".format(data, "::" + sql_type if sql_type else '')
+            query = "SELECT {}{}".format(data, "::" + sql_type if sql_type else '')
             self.text_cursor.execute(query)
             self.binary_cursor.execute(query)
             text_val = self.text_cursor.fetchone()[0]
@@ -67,9 +67,9 @@ class DataTransferFormatTestCase(VerticaPythonIntegrationTestCase):
         self._test_equal_value("DECIMAL", ["123456789.98765"])
 
     def test_char_type(self):
-        self._test_equal_value("CHAR(8)", [u"'\u16b1'"])
-        self._test_equal_value("VARCHAR", [u"'foo\u16b1'"])
-        self._test_equal_value("LONG VARCHAR", [u"'foo \u16b1 bar'"])
+        self._test_equal_value("CHAR(8)", ["'\u16b1'"])
+        self._test_equal_value("VARCHAR", ["'foo\u16b1'"])
+        self._test_equal_value("LONG VARCHAR", ["'foo \u16b1 bar'"])
 
     def test_datetime_type(self):
         self._test_equal_value("DATE", ["'0340-01-20'", "'2001-12-01'", "'9999-12-31'"])
@@ -98,9 +98,9 @@ class DataTransferFormatTestCase(VerticaPythonIntegrationTestCase):
         self._test_equal_value("UUID", ["'00010203-0405-0607-0809-0a0b0c0d0e0f'", "'123e4567-e89b-12d3-a456-426655440a00'"])
 
     def test_binary_type(self):
-        self._test_equal_value("BINARY(2)", [u"'\303\261'"])
-        self._test_equal_value("VARBINARY", [u"'\303\261'"])
-        self._test_equal_value("LONG VARBINARY", [u"'\303\261\303\260'"])
+        self._test_equal_value("BINARY(2)", ["'\303\261'"])
+        self._test_equal_value("VARBINARY", ["'\303\261'"])
+        self._test_equal_value("LONG VARBINARY", ["'\303\261\303\260'"])
 
     def test_array_type(self):
         self._test_equal_value("ARRAY[INT]", ["ARRAY[1,2,3]"])

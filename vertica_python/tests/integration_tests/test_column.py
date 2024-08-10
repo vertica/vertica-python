@@ -40,11 +40,11 @@ from .base import VerticaPythonIntegrationTestCase
 
 class ColumnTestCase(VerticaPythonIntegrationTestCase):
     def test_column_names_query(self):
-        columns = ['isocode', 'name', u'\uFF04']
+        columns = ['isocode', 'name', '\uFF04']
 
         with self._connect() as conn:
             cur = conn.cursor()
-            cur.execute(u"""
+            cur.execute("""
                 SELECT 'US' AS {0}, 'United States' AS {1}, 'USD' AS {2}
                 UNION ALL SELECT 'CA', 'Canada', 'CAD'
                 UNION ALL SELECT 'MX', 'Mexico', 'MXN' """.format(*columns))

@@ -67,7 +67,7 @@ if TYPE_CHECKING:
     T = TypeVar('T')
 
 from .. import errors, os_utils
-from ..compat import as_text
+from ..compat import as_str
 from ..vertica import messages
 from ..vertica.column import Column
 from ..vertica.deserializer import Deserializer
@@ -217,7 +217,7 @@ class Cursor:
 
         self.flush_to_query_ready()
 
-        operation = as_text(operation)
+        operation = as_str(operation)
         self.operation = operation
 
         self.rowcount = -1
@@ -281,7 +281,7 @@ class Cursor:
 
         self.flush_to_query_ready()
 
-        operation = as_text(operation)
+        operation = as_str(operation)
         self.operation = operation
 
         use_prepared = bool(self.connection.options['use_prepared_statements']
@@ -308,12 +308,12 @@ class Cursor:
             #################################################################
             m = self._insert_statement.match(operation)
             if m:
-                target = as_text(m.group('target'))
+                target = as_str(m.group('target'))
 
-                variables = as_text(m.group('variables'))
+                variables = as_str(m.group('variables'))
                 variables = ",".join([variable.strip().strip('"') for variable in variables.split(",")])
 
-                values = as_text(m.group('values'))
+                values = as_str(m.group('values'))
                 values = "|".join([value.strip().strip('"') for value in values.split(",")])
                 seq_of_values = [self.format_operation_with_parameters(values, parameters, is_copy_data=True)
                                  for parameters in seq_of_parameters]
@@ -474,7 +474,7 @@ class Cursor:
         >>                 fs, buffer_size=65536)
         ```
         """
-        sql = as_text(sql)
+        sql = as_str(sql)
         self.operation = sql
 
         if self.closed():
@@ -647,14 +647,14 @@ class Cursor:
             if not isinstance(result, (str, bytes)):
                 raise TypeError("Unexpected return type of {} adapter: {}, expected a string type."
                     .format(type(py_obj), type(result)))
-            return as_text(result)
+            return as_str(result)
 
         if isinstance(py_obj, type(None)):
             return '' if is_copy_data and not is_collection else 'NULL'
         elif isinstance(py_obj, bool):
             return str(py_obj)
         elif isinstance(py_obj, (str, bytes)):
-            return self.format_quote(as_text(py_obj), is_copy_data, is_collection)
+            return self.format_quote(as_str(py_obj), is_copy_data, is_collection)
         elif isinstance(py_obj, (int, Decimal)):
             return str(py_obj)
         elif isinstance(py_obj, float):
@@ -700,7 +700,7 @@ class Cursor:
             # Use the ROW keyword to construct a row value
             return f'ROW({",".join(elements)})'
         elif isinstance(py_obj, (datetime.datetime, datetime.date, datetime.time, UUID)):
-            return self.format_quote(as_text(str(py_obj)), is_copy_data, is_collection)
+            return self.format_quote(str(py_obj), is_copy_data, is_collection)
         else:
             if is_copy_data:
                 return str(py_obj)
@@ -721,7 +721,6 @@ class Cursor:
             for key, param in parameters.items():
                 if not isinstance(key, str):
                     key = str(key)
-                key = as_text(key)
 
                 value = self.object_to_string(param, is_copy_data)
 

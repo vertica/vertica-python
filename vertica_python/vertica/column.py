@@ -41,7 +41,6 @@ if TYPE_CHECKING:
     from typing import Optional
 
 from ..datatypes import getDisplaySize, getPrecision, getScale
-from ..compat import as_str, as_text
 
 
 # Data of a particular SQL data type might be transmitted in either "text" format or "binary" format.
@@ -104,13 +103,10 @@ class Column:
                 ")")
 
     def __str__(self):
-        return as_str(str(self.props))
-
-    def __unicode__(self):
-        return as_text(str(self.props))
+        return str(self.props)
 
     def __repr__(self):
-        return as_str(str(self.props))
+        return str(self.props)
 
     def __iter__(self):
         for prop in self.props:

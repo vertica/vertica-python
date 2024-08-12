@@ -308,12 +308,12 @@ class Cursor:
             #################################################################
             m = self._insert_statement.match(operation)
             if m:
-                target = as_str(m.group('target'))
+                target = m.group('target')
 
-                variables = as_str(m.group('variables'))
+                variables = m.group('variables')
                 variables = ",".join([variable.strip().strip('"') for variable in variables.split(",")])
 
-                values = as_str(m.group('values'))
+                values = m.group('values')
                 values = "|".join([value.strip().strip('"') for value in values.split(",")])
                 seq_of_values = [self.format_operation_with_parameters(values, parameters, is_copy_data=True)
                                  for parameters in seq_of_parameters]

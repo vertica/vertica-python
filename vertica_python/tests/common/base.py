@@ -43,7 +43,6 @@ import inspect
 import getpass
 from configparser import ConfigParser
 
-from ...compat import as_str, as_bytes
 from ...vertica.log import VerticaLogging
 
 
@@ -128,22 +127,6 @@ class VerticaPythonTestCase(unittest.TestCase):
         self.logger.info('\n'+'-'*10+' End '+self.__class__.__name__+"."+self._testMethodName+' '+'-'*10+'\n')
 
     # Common assertions
-    def assertStrEqual(self, first, second, msg=None):
-        first_str = as_str(first)
-        second_str = as_str(second)
-        self.assertEqual(first=first_str, second=second_str, msg=msg)
-
-    def assertBytesEqual(self, first, second, msg=None):
-        first_bytes = as_bytes(first)
-        second_bytes = as_bytes(second)
-        self.assertEqual(first=first_bytes, second=second_bytes, msg=msg)
-
-    def assertResultEqual(self, value, result, msg=None):
-        if isinstance(value, str):
-            self.assertStrEqual(first=value, second=result, msg=msg)
-        else:
-            self.assertEqual(first=value, second=result, msg=msg)
-
     def assertListOfListsEqual(self, list1, list2, msg=None):
         self.assertEqual(len(list1), len(list2), msg=msg)
         for l1, l2 in zip(list1, list2):

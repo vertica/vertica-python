@@ -48,7 +48,7 @@ class UnicodeTestCase(VerticaPythonIntegrationTestCase):
             cur.execute(query)
             res = cur.fetchone()
 
-        self.assertResultEqual(value, res[0])
+        self.assertEqual(value, res[0])
 
     def test_unicode_list_parameter(self):
         values = ['\u00f1', 'foo', 3]
@@ -60,7 +60,7 @@ class UnicodeTestCase(VerticaPythonIntegrationTestCase):
             results = cur.fetchone()
 
         for val, res in zip(values, results):
-            self.assertResultEqual(val, res)
+            self.assertEqual(val, res)
 
     def test_unicode_named_parameter_binding(self):
         values = ['\u16b1', 'foo', 3]
@@ -74,7 +74,7 @@ class UnicodeTestCase(VerticaPythonIntegrationTestCase):
             results = cur.fetchone()
 
         for val, res in zip(values, results):
-            self.assertResultEqual(val, res)
+            self.assertEqual(val, res)
 
     def test_string_query(self):
         value = 'test'
@@ -97,7 +97,7 @@ class UnicodeTestCase(VerticaPythonIntegrationTestCase):
             cur.execute(query, {key: value})
             res = cur.fetchone()
 
-        self.assertResultEqual(value, res[0])
+        self.assertEqual(value, res[0])
 
     # unit test for issue #160
     def test_null_named_parameter_binding(self):
@@ -110,7 +110,7 @@ class UnicodeTestCase(VerticaPythonIntegrationTestCase):
             cur.execute(query, {key: value})
             res = cur.fetchone()
 
-        self.assertResultEqual(value, res[0])
+        self.assertEqual(value, res[0])
 
     # unit test for issue #160
     def test_null_list_parameter(self):
@@ -123,4 +123,4 @@ class UnicodeTestCase(VerticaPythonIntegrationTestCase):
             results = cur.fetchone()
 
         for val, res in zip(values, results):
-            self.assertResultEqual(val, res)
+            self.assertEqual(val, res)

@@ -125,7 +125,7 @@ Examples of running tests:
 tox
 
 # Run tests on specified python versions with `tox -e ENV,ENV`
-tox -e py37,py38
+tox -e py312,py313
 
 # Run specific tests by filename (e.g.) `test_notice.py`
 tox -- vertica_python/tests/unit_tests/test_notice.py

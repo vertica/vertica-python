@@ -56,7 +56,7 @@ setup(
     packages=find_packages(),
     license="Apache License 2.0",
     # 'pip install' will check this and refuse to install the project if the version does not match.
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     install_requires=[
         'python-dateutil>=1.5',
     ],
@@ -66,12 +66,12 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Topic :: Database",
         "Topic :: Database :: Database Engines/Servers",
         "Topic :: Database :: Front-Ends",

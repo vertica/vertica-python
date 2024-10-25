@@ -606,6 +606,10 @@ class Connection:
         raw_socket.sendall(messages.SslRequest().get_message())
         response = raw_socket.recv(1)
         self._logger.debug('<= SslResponse: %s', response)
+        if response == b'':
+            msg = 'Failed to get ssl response from server'
+            self._logger.error(msg)
+            raise errors.ConnectionError(msg)
         if response == b'S':
             self._logger.info('Enabling TLS')
             try:

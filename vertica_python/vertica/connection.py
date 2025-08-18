@@ -524,15 +524,16 @@ class Connection(object):
         if response == b'S':
             self._logger.info('Enabling SSL')
             try:
+                server_host = self.address_list.peek_host()
                 if isinstance(ssl_options, ssl.SSLContext):
-                    server_host = self.address_list.peek_host()
                     if server_host is None:   # This should not happen
                         msg = 'Cannot get the connected server host while enabling SSL'
                         self._logger.error(msg)
                         raise errors.ConnectionError(msg)
                     raw_socket = ssl_options.wrap_socket(raw_socket, server_hostname=server_host)
                 else:
-                    raw_socket = ssl.wrap_socket(raw_socket)
+                    context = ssl.create_default_context()
+                    raw_socket = context.wrap_socket(raw_socket, server_hostname=server_host)
             except ssl.CertificateError as e:
                 raise_from(errors.ConnectionError(str(e)), e)
             except ssl.SSLError as e:

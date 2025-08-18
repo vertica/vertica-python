@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,9 +33,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
-import os
 import hashlib
 from struct import pack
 
@@ -77,7 +76,6 @@ try:
 except ValueError as e:
     raise ValueError(f"Error importing crypt module: {e}") from e
 
-
 class Password(BulkFrontendMessage):
     message_id = b'p'
 
@@ -92,7 +90,6 @@ class Password(BulkFrontendMessage):
             self._auth_method = Authentication.CLEARTEXT_PASSWORD
 
     def encoded_password(self):
-
         if self._auth_method == Authentication.CLEARTEXT_PASSWORD:
             return self._password
         elif self._auth_method == Authentication.CRYPT_PASSWORD:
@@ -115,8 +112,10 @@ class Password(BulkFrontendMessage):
             return prefix + self._password
         elif self._auth_method == Authentication.GSS:
             return self._password
+        elif self._auth_method == Authentication.OAUTH:
+            return self._password
         else:
-            raise ValueError("unsupported authentication method: {0}".format(self._auth_method))
+            raise ValueError(f"unsupported authentication method: {self._auth_method}")
 
     def read_bytes(self):
         encoded_pw = self.encoded_password()

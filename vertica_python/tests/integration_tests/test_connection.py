@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,9 +33,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 import getpass
+import socket
 import uuid
 from .base import VerticaPythonIntegrationTestCase
 
@@ -48,9 +49,14 @@ class ConnectionTestCase(VerticaPythonIntegrationTestCase):
             del self._conn_info['session_label']
         if 'autocommit' in self._conn_info:
             del self._conn_info['autocommit']
+        if 'workload' in self._conn_info:
+            del self._conn_info['workload']
 
     def test_client_os_user_name_metadata(self):
-        value = getpass.getuser()
+        try:
+            value = getpass.getuser()
+        except Exception as e:
+            value = ''
 
         # Metadata client_os_user_name sent from client should be captured into system tables
         query = 'SELECT client_os_user_name FROM v_monitor.current_session'
@@ -66,6 +72,30 @@ class ConnectionTestCase(VerticaPythonIntegrationTestCase):
         self.assertEqual(res[0], value)
 
         query = 'SELECT client_os_user_name FROM v_internal.dc_session_starts WHERE session_id=(SELECT current_session())'
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], value)
+
+    def test_client_os_hostname_metadata(self):
+        self.require_protocol_at_least(3 << 16 | 14)
+        try:
+            value = socket.gethostname()
+        except Exception as e:
+            value = ''
+
+        # Metadata client_os_hostname sent from client should be captured into system tables
+        query = 'SELECT client_os_hostname FROM v_monitor.current_session'
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], value)
+
+        query = 'SELECT client_os_hostname FROM v_monitor.sessions WHERE session_id=(SELECT current_session())'
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], value)
+
+        query = 'SELECT client_os_hostname FROM v_monitor.user_sessions WHERE session_id=(SELECT current_session())'
+        res = self._query_and_fetchone(query)
+        self.assertEqual(res[0], value)
+
+        query = 'SELECT client_os_hostname FROM v_internal.dc_session_starts WHERE session_id=(SELECT current_session())'
         res = self._query_and_fetchone(query)
         self.assertEqual(res[0], value)
 
@@ -106,5 +136,26 @@ class ConnectionTestCase(VerticaPythonIntegrationTestCase):
             # Set with attribute setter
             conn.autocommit = True
             self.assertTrue(conn.autocommit)
+    
+    def test_workload_default(self):
+        self.require_protocol_at_least(3 << 16 | 15)
+        with self._connect() as conn:
+            query = "SHOW WORKLOAD"
+            res = self._query_and_fetchone(query)
+            self.assertEqual(res[1], '')
+    
+    def test_workload_set_property(self):
+        self.require_protocol_at_least(3 << 16 | 15)
+        self._conn_info['workload'] = 'python_test_workload'
+        with self._connect() as conn:
+            # we use dc_client_server_messages to test that the client is working properly.
+            # We do not regularly test on a multi subcluster database and the server will reject this
+            # workload from the startup packet, returning a parameter status message with an empty string.
+            query = ("SELECT contents FROM dc_client_server_messages"
+                     " WHERE session_id = current_session()"
+                     "  AND message_type = '^+'"
+                     "  AND contents LIKE '%workload%'")
+            res = self._query_and_fetchone(query)
+            self.assertEqual(res[0], 'workload: python_test_workload')
 
 exec(ConnectionTestCase.createPrepStmtClass())

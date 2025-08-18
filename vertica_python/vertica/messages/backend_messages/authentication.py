@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 from struct import unpack
 
@@ -48,7 +48,7 @@ class Authentication(BackendMessage):
     KERBEROS_V4 = 1
     KERBEROS_V5 = 2
     CLEARTEXT_PASSWORD = 3
-    CRYPT_PASSWORD = 4
+    CRYPT_PASSWORD = 4  # obsolete
     MD5_PASSWORD = 5
     SCM_CREDENTIAL = 6
     GSS = 7
@@ -56,6 +56,7 @@ class Authentication(BackendMessage):
     CHANGE_PASSWORD = 9
     PASSWORD_CHANGED = 10  # client doesn't do password changing, this should never be seen
     PASSWORD_GRACE = 11
+    OAUTH = 12
     HASH = 65536
     HASH_MD5 = 65536 + 5
     HASH_SHA512 = 65536 + 512

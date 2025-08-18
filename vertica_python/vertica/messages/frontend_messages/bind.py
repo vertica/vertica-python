@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,10 +42,9 @@ to parameter placeholders present in an existing prepared statement.
 The response is either BindComplete or ErrorResponse.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 from struct import pack
-from six import string_types
 
 from ..message import BulkFrontendMessage
 from ....datatypes import VerticaType
@@ -58,8 +57,8 @@ BACKSLASH_ESCAPE = b'\\134'
 class Bind(BulkFrontendMessage):
     message_id = b'B'
 
-    def __init__(self, portal_name, prepared_statement_name, parameter_values,
-                 parameter_type_oids, binary_transfer):
+    def __init__(self, portal_name: str, prepared_statement_name: str, parameter_values,
+                 parameter_type_oids, binary_transfer: bool) -> None:
         BulkFrontendMessage.__init__(self)
         self._portal_name = portal_name
         self._prepared_statement_name = prepared_statement_name
@@ -97,7 +96,7 @@ class Bind(BulkFrontendMessage):
                 # Convert input to string
                 if oid == VerticaType.BOOL:
                     val = '1' if str(val).lower() in ('t', 'true', 'y', 'yes', '1') else '0'
-                elif not isinstance(val, (string_types, bytes)):
+                elif not isinstance(val, (str, bytes)):
                     val = str(val)
                 # Encode string as UTF8 bytes
                 val = val.encode('utf-8') if not isinstance(val, bytes) else val

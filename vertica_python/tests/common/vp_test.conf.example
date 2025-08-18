@@ -14,3 +14,7 @@ VP_TEST_USER=dbadmin
 # Valid VP_TEST_LOG_LEVEL options: 'NOTSET', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 VP_TEST_LOG_LEVEL=DEBUG
 VP_TEST_LOG_DIR=mylog/vp_tox_tests_log
+
+# OAuth authentication information
+#VP_TEST_OAUTH_USER=<can be ignored if VP_TEST_DATABASE is set>
+#VP_TEST_OAUTH_ACCESS_TOKEN=******

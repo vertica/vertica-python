@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,9 +33,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from __future__ import print_function, division, absolute_import
-
-from six import text_type, binary_type
+from __future__ import annotations
 
 from ..message import BulkFrontendMessage
 
@@ -45,9 +43,9 @@ class CopyData(BulkFrontendMessage):
 
     def __init__(self, data, unicode_error='strict'):
         BulkFrontendMessage.__init__(self)
-        if isinstance(data, text_type):
+        if isinstance(data, str):
             self.bytes_ = data.encode(encoding='utf-8', errors=unicode_error)
-        elif isinstance(data, binary_type):
+        elif isinstance(data, bytes):
             self.bytes_ = data
         else:
             raise TypeError("Data should be string or bytes")

@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2022-2024 Open Text.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,44 +12,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
+import json
 import re
 from datetime import date, datetime, time, timedelta
 from dateutil import tz
 from dateutil.relativedelta import relativedelta
 from decimal import Context, Decimal
-from six import PY2
 from struct import unpack
 from uuid import UUID
-if PY2:
-    from binascii import hexlify
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Any, Callable, Dict, List, Optional, Set, Union
+    from ..vertica.column import Column
 
 from .. import errors
-from ..compat import as_str
+from ..compat import as_str, as_bytes
 from ..datatypes import VerticaType
 from ..vertica.column import FormatCode
 
 
-class Deserializer(object):
-    def get_row_deserializers(self, columns, context):
+class Deserializer:
+    def get_row_deserializers(self,
+                              columns: List[Column],
+                              custom_converters: Dict[int, Callable[[bytes, Dict[str, Any]], Any]],
+                              context: Dict[str, Any]) -> List[Callable[[Optional[bytes]], Any]]:
         result = [None] * len(columns)
         for idx, col in enumerate(columns):
-            result[idx] = self.get_column_deserializer(col, context)
+            result[idx] = self.get_column_deserializer(col, custom_converters, context)
         return result
 
-    def get_column_deserializer(self, col, context):
-        """Return a function that inputs a column's raw data and returns a Python object"""
-        f = DEFAULTS.get(col.format_code, {}).get(col.type_code)
+    def get_column_deserializer(self,
+                                col: Column,
+                                custom_converters: Dict[int, Callable[[bytes, Dict[str, Any]], Any]],
+                                context: Dict[str, Any]) -> Callable[[Optional[bytes]], Any]:
+        """Return a function that inputs a column's raw data and returns a Python object."""
+        if col.type_code in custom_converters:
+            f = custom_converters[col.type_code]
+        else:
+            f = DEFAULTS.get(col.format_code, {}).get(col.type_code)
         if f is None:  # skip conversion
             return lambda data: data
 
-        def deserializer(data):
+        def deserializer(data: Optional[bytes]):
             if data is None: # null
                 return None
-            return f(data, ctx={'column': col,
-                                'unicode_error': context['unicode_error'],
-                                'session_tz': context['session_tz']})
+            return f(data, ctx={'column': col, **context})
         return deserializer
 
 
@@ -65,7 +75,7 @@ TIMETZ_RE = re.compile(
 TZ_RE = re.compile(r"(?ix) ^([-+]) (\d+) (?: : (\d+) )? (?: : (\d+) )? $")
 SECONDS_PER_DAY = 86400
 
-def load_bool_binary(val, ctx):
+def load_bool_binary(val: bytes, ctx: Dict[str, Any]) -> bool:
     """
     Parses binary representation of a BOOLEAN type.
     :param val: a byte - b'\x01' for True, b'\x00' for False
@@ -74,7 +84,7 @@ def load_bool_binary(val, ctx):
     """
     return val == b'\x01'
 
-def load_int8_binary(val, ctx):
+def load_int8_binary(val: bytes, ctx: Dict[str, Any]) -> int:
     """
     Parses binary representation of a INTEGER type.
     :param val: bytes - a 64-bit integer.
@@ -83,7 +93,7 @@ def load_int8_binary(val, ctx):
     """
     return unpack("!q", val)[0]
 
-def load_float8_binary(val, ctx):
+def load_float8_binary(val: bytes, ctx: Dict[str, Any]) -> float:
     """
     Parses binary representation of a FLOAT type.
     :param val: bytes - a float encoded in IEEE-754 format.
@@ -92,22 +102,7 @@ def load_float8_binary(val, ctx):
     """
     return unpack("!d", val)[0]
 
-def _int_from_bytes(val):
-    """
-    (Python 2) Convert big-endian signed integer bytes to int.
-    """
-    b = bytearray(val)
-    if len(b) == 0:
-      return 0
-    sign_set = b[0] & 0x80
-    b[0] &= 0x7f  # skip sign bit for negative number
-    n = int(hexlify(b), 16)
-    if sign_set: # if sign bit is set, 2's complement
-        offset = 2**(8 * len(b) - 1)
-        return n - offset
-    return n
-
-def load_numeric_binary(val, ctx):
+def load_numeric_binary(val: bytes, ctx: Dict[str, Any]) -> Decimal:
     """
     Parses binary representation of a NUMERIC type.
     :param val: bytes
@@ -116,25 +111,22 @@ def load_numeric_binary(val, ctx):
     """
     # N-byte signed integer represents the unscaled value of the numeric
     # N is roughly (precision//19+1)*8
-    if PY2:
-        unscaledVal = _int_from_bytes(val)
-    else:
-        unscaledVal = int.from_bytes(val, byteorder='big', signed=True)
+    unscaledVal = int.from_bytes(val, byteorder='big', signed=True)
     precision = ctx['column'].precision
     scale = ctx['column'].scale
     # The numeric value is (unscaledVal * 10^(-scale))
     return Decimal(unscaledVal).scaleb(-scale, context=Context(prec=precision))
 
-def load_varchar_text(val, ctx):
+def load_varchar_text(val: bytes, ctx: Dict[str, Any]) -> str:
     """
     Parses text/binary representation of a CHAR / VARCHAR / LONG VARCHAR type.
     :param val: bytes
     :param ctx: dict
-    :return: (PY2) unicode / (PY3) str
+    :return: str
     """
     return val.decode('utf-8', ctx['unicode_error'])
 
-def load_date_text(val, ctx):
+def load_date_text(val: bytes, ctx: Dict[str, Any]) -> date:
     """
     Parses text representation of a DATE type.
     :param val: bytes
@@ -150,7 +142,7 @@ def load_date_text(val, ctx):
     except ValueError:
         raise errors.NotSupportedError('Dates after year 9999 are not supported by datetime.date. Got: {0}'.format(s))
 
-def load_date_binary(val, ctx):
+def load_date_binary(val: bytes, ctx: Dict[str, Any]) -> date:
     """
     Parses binary representation of a DATE type.
     :param val: bytes
@@ -168,7 +160,7 @@ def load_date_binary(val, ctx):
         raise errors.NotSupportedError('Dates after year 9999 are not supported by datetime.date. Got: Julian day number {0}'.format(jdn))
     return date.fromordinal(days)
 
-def load_time_text(val, ctx):
+def load_time_text(val: bytes, ctx: Dict[str, Any]) -> time:
     """
     Parses text representation of a TIME type.
     :param val: bytes
@@ -180,7 +172,7 @@ def load_time_text(val, ctx):
         return datetime.strptime(val, '%H:%M:%S').time()
     return datetime.strptime(val, '%H:%M:%S.%f').time()
 
-def load_time_binary(val, ctx):
+def load_time_binary(val: bytes, ctx: Dict[str, Any]) -> time:
     """
     Parses binary representation of a TIME type.
     :param val: bytes
@@ -199,7 +191,7 @@ def load_time_binary(val, ctx):
     except ValueError:
         raise errors.NotSupportedError("Time not supported by datetime.time. Got: hour={}".format(hour))
 
-def load_timetz_text(val, ctx):
+def load_timetz_text(val: bytes, ctx: Dict[str, Any]) -> time:
     """
     Parses text representation of a TIMETZ type.
     :param val: bytes
@@ -231,7 +223,7 @@ def load_timetz_text(val, ctx):
 
     return time(int(hr), int(mi), int(sec), us, tz.tzoffset(None, tz_offset))
 
-def load_timetz_binary(val, ctx):
+def load_timetz_binary(val: bytes, ctx: Dict[str, Any]) -> time:
     """
     Parses binary representation of a TIMETZ type.
     :param val: bytes
@@ -241,9 +233,9 @@ def load_timetz_binary(val, ctx):
     # 8-byte value where
     #   - Upper 40 bits contain the number of microseconds since midnight in the UTC time zone.
     #   - Lower 24 bits contain time zone as the UTC offset in seconds.
-    val = load_int8_binary(val, ctx)
-    tz_offset = SECONDS_PER_DAY - (val & 0xffffff) # in seconds
-    msecs = val >> 24
+    v = load_int8_binary(val, ctx)
+    tz_offset = SECONDS_PER_DAY - (v & 0xffffff)  # in seconds
+    msecs = v >> 24
     # shift to given time zone
     msecs += tz_offset * 1000000
     msecs %= SECONDS_PER_DAY * 1000000
@@ -252,7 +244,7 @@ def load_timetz_binary(val, ctx):
     hour, minute = divmod(msecs, 60)
     return time(hour, minute, second, fraction, tz.tzoffset(None, tz_offset))
 
-def load_timestamp_text(val, ctx):
+def load_timestamp_text(val: bytes, ctx: Dict[str, Any]) -> datetime:
     """
     Parses text representation of a TIMESTAMP type.
     :param val: bytes
@@ -268,7 +260,7 @@ def load_timestamp_text(val, ctx):
     except ValueError:
         raise errors.NotSupportedError('Timestamps after year 9999 are not supported by datetime.datetime. Got: {0}'.format(s))
 
-def load_timestamp_binary(val, ctx):
+def load_timestamp_binary(val: bytes, ctx: Dict[str, Any]) -> datetime:
     """
     Parses binary representation of a TIMESTAMP type.
     :param val: bytes
@@ -286,7 +278,7 @@ def load_timestamp_binary(val, ctx):
         else:
             raise errors.NotSupportedError('Timestamps after year 9999 are not supported by datetime.datetime.')
 
-def load_timestamptz_text(val, ctx):
+def load_timestamptz_text(val: bytes, ctx: Dict[str, Any]) -> datetime:
     """
     Parses text representation of a TIMESTAMPTZ type.
     :param val: bytes
@@ -306,7 +298,7 @@ def load_timestamptz_text(val, ctx):
     t = load_timetz_text(dt[1], ctx)
     return datetime.combine(d, t)
 
-def load_timestamptz_binary(val, ctx):
+def load_timestamptz_binary(val: bytes, ctx: Dict[str, Any]) -> datetime:
     """
     Parses binary representation of a TIMESTAMPTZ type.
     :param val: bytes
@@ -331,7 +323,7 @@ def load_timestamptz_binary(val, ctx):
         else:  # year might be over 9999
             raise errors.NotSupportedError('TimestampTzs after year 9999 are not supported by datetime.datetime.')
 
-def load_interval_text(val, ctx):
+def load_interval_text(val: bytes, ctx: Dict[str, Any]) -> relativedelta:
     """
     Parses text representation of a INTERVAL day-time type.
     :param val: bytes
@@ -380,7 +372,7 @@ def load_interval_text(val, ctx):
 
     return relativedelta(days=parts[0], hours=parts[1], minutes=parts[2], seconds=parts[3], microseconds=parts[4])
 
-def load_interval_binary(val, ctx):
+def load_interval_binary(val: bytes, ctx: Dict[str, Any]) -> relativedelta:
     """
     Parses binary representation of a INTERVAL day-time type.
     :param val: bytes
@@ -391,7 +383,7 @@ def load_interval_binary(val, ctx):
     msecs = load_int8_binary(val, ctx)
     return relativedelta(microseconds=msecs)
 
-def load_intervalYM_text(val, ctx):
+def load_intervalYM_text(val: bytes, ctx: Dict[str, Any]) -> relativedelta:
     """
     Parses text representation of a INTERVAL YEAR TO MONTH / INTERVAL YEAR / INTERVAL MONTH type.
     :param val: bytes
@@ -417,7 +409,7 @@ def load_intervalYM_text(val, ctx):
         else:   # Interval Month
             return relativedelta(months=interval)
 
-def load_intervalYM_binary(val, ctx):
+def load_intervalYM_binary(val: bytes, ctx: Dict[str, Any]) -> relativedelta:
     """
     Parses binary representation of a INTERVAL YEAR TO MONTH / INTERVAL YEAR / INTERVAL MONTH type.
     :param val: bytes
@@ -428,7 +420,7 @@ def load_intervalYM_binary(val, ctx):
     months = load_int8_binary(val, ctx)
     return relativedelta(months=months)
 
-def load_uuid_binary(val, ctx):
+def load_uuid_binary(val: bytes, ctx: Dict[str, Any]) -> UUID:
     """
     Parses binary representation of a UUID type.
     :param val: bytes
@@ -438,13 +430,14 @@ def load_uuid_binary(val, ctx):
     # 16-byte value in big-endian order interpreted as UUID
     return UUID(bytes=bytes(val))
 
-def load_varbinary_text(s, ctx):
+def load_varbinary_text(s: bytes, ctx: Dict[str, Any]) -> bytes:
     """
     Parses text representation of a BINARY / VARBINARY / LONG VARBINARY type.
     :param s: bytes
     :param ctx: dict
     :return: bytes
     """
+    s = as_bytes(s)
     buf = []
     i = 0
     while i < len(s):
@@ -452,17 +445,118 @@ def load_varbinary_text(s, ctx):
         if c == b'\\':
             c2 = s[i+1: i+2]
             if c2 == b'\\':  # escaped \
-                if PY2: c = str(c)
                 i += 2
             else:   # A \xxx octal string
-                c = chr(int(str(s[i+1: i+4]), 8)) if PY2 else bytes([int(s[i+1: i+4], 8)])
+                c = bytes([int(s[i+1: i+4], 8)])
                 i += 4
         else:
-            if PY2: c = str(c)
             i += 1
         buf.append(c)
     return b''.join(buf)
 
+def load_array_text(val: bytes, ctx: Dict[str, Any]) -> Union[str, List[Any]]:
+    """
+    Parses text/binary representation of an ARRAY type.
+    :param val: bytes
+    :param ctx: dict
+    :return: list
+    """
+    v = val.decode('utf-8', ctx['unicode_error'])
+    # Some old servers have a bug of sending ARRAY oid without child metadata
+    if not ctx['complex_types_enabled']:
+        return v
+    json_data = json.loads(v)
+    return parse_array(json_data, ctx)
+
+def load_set_text(val: bytes, ctx: Dict[str, Any]) -> Set[Any]:
+    """
+    Parses text/binary representation of a SET type.
+    :param val: bytes
+    :param ctx: dict
+    :return: set
+    """
+    return set(load_array_text(val, ctx))
+
+def parse_array(json_data: List[Any], ctx: Dict[str, Any]) -> List[Any]:
+    if not isinstance(json_data, list):
+        raise TypeError('Expected a list, got {}'.format(json_data))
+    # An array has only one child, all elements in the array are the same type.
+    child_ctx = ctx.copy()
+    child_ctx['column'] = ctx['column'].child_columns[0]
+
+    # Shortcut: return data parsed by the default JSONDecoder
+    if child_ctx['column'].type_code in (VerticaType.BOOL, VerticaType.INT8,
+                    VerticaType.CHAR, VerticaType.VARCHAR, VerticaType.LONGVARCHAR):
+        return json_data
+
+    parsed_array = [None] * len(json_data)
+    for idx, element in enumerate(json_data):
+        if element is None:
+            continue
+        parsed_array[idx] = parse_json_element(element, child_ctx)
+    return parsed_array
+
+def load_row_text(val: bytes, ctx: Dict[str, Any]) -> Union[str, Dict[str, Any]]:
+    """
+    Parses text/binary representation of a ROW type.
+    :param val: bytes
+    :param ctx: dict
+    :return: dict
+    """
+    v = val.decode('utf-8', ctx['unicode_error'])
+    # Some old servers have a bug of sending ROW oid without child metadata
+    if not ctx['complex_types_enabled']:
+        return v
+    json_data = json.loads(v)
+    return parse_row(json_data, ctx)
+
+def parse_row(json_data: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(json_data, dict):
+        raise TypeError('Expected a dict, got {}'.format(json_data))
+    # A row has one or more child fields
+    child_columns = ctx['column'].child_columns
+    if child_columns is None:   # Special case: SELECT ROW();
+        return json_data
+    if len(json_data) != len(child_columns): # This situation should never occur
+        raise ValueError('The metadata does not match the fields in the ROW.')
+    parsed_row = {}
+    for child_column in child_columns:
+        key = child_column.name
+        element = json_data[key]
+        if element is None:
+            parsed_row[key] = None
+            continue
+        child_ctx = ctx.copy()
+        child_ctx['column'] = child_column
+        parsed_row[key] = parse_json_element(element, child_ctx)
+    return parsed_row
+
+def parse_json_element(element: Any, ctx: Dict[str, Any]) -> Any:
+    type_code = ctx['column'].type_code
+    if type_code in (VerticaType.BOOL, VerticaType.INT8,
+                     VerticaType.CHAR, VerticaType.VARCHAR, VerticaType.LONGVARCHAR):
+        return element
+    # "-Infinity", "Infinity", "NaN"
+    if type_code == VerticaType.FLOAT8:
+        return float(element)
+    # element type: str
+    if type_code in (VerticaType.DATE, VerticaType.TIME, VerticaType.TIMETZ,
+                     VerticaType.TIMESTAMP, VerticaType.TIMESTAMPTZ,
+                     VerticaType.INTERVAL, VerticaType.INTERVALYM,
+                     VerticaType.BINARY, VerticaType.VARBINARY,
+                     VerticaType.LONGVARBINARY):
+        return DEFAULTS[FormatCode.TEXT][type_code](element, ctx)
+    elif type_code == VerticaType.NUMERIC:
+        return Decimal(element)
+    elif type_code == VerticaType.UUID:
+        return UUID(element)
+    # element type: list
+    elif type_code == VerticaType.ARRAY:
+        return parse_array(element, ctx)
+    # element type: dict
+    elif type_code == VerticaType.ROW:
+        return parse_row(element, ctx)
+    return element
 
 DEFAULTS = {
     FormatCode.TEXT: {
@@ -485,6 +579,45 @@ DEFAULTS = {
         VerticaType.BINARY: load_varbinary_text,
         VerticaType.VARBINARY: load_varbinary_text,
         VerticaType.LONGVARBINARY: load_varbinary_text,
+        VerticaType.ARRAY: load_array_text,
+        VerticaType.ARRAY1D_BOOL: load_array_text,
+        VerticaType.ARRAY1D_INT8: load_array_text,
+        VerticaType.ARRAY1D_FLOAT8: load_array_text,
+        VerticaType.ARRAY1D_NUMERIC: load_array_text,
+        VerticaType.ARRAY1D_CHAR: load_array_text,
+        VerticaType.ARRAY1D_VARCHAR: load_array_text,
+        VerticaType.ARRAY1D_LONGVARCHAR: load_array_text,
+        VerticaType.ARRAY1D_DATE: load_array_text,
+        VerticaType.ARRAY1D_TIME: load_array_text,
+        VerticaType.ARRAY1D_TIMETZ: load_array_text,
+        VerticaType.ARRAY1D_TIMESTAMP: load_array_text,
+        VerticaType.ARRAY1D_TIMESTAMPTZ: load_array_text,
+        VerticaType.ARRAY1D_INTERVAL: load_array_text,
+        VerticaType.ARRAY1D_INTERVALYM: load_array_text,
+        VerticaType.ARRAY1D_UUID: load_array_text,
+        VerticaType.ARRAY1D_BINARY: load_array_text,
+        VerticaType.ARRAY1D_VARBINARY: load_array_text,
+        VerticaType.ARRAY1D_LONGVARBINARY: load_array_text,
+        VerticaType.SET_BOOL: load_set_text,
+        VerticaType.SET_INT8: load_set_text,
+        VerticaType.SET_FLOAT8: load_set_text,
+        VerticaType.SET_CHAR: load_set_text,
+        VerticaType.SET_VARCHAR: load_set_text,
+        VerticaType.SET_DATE: load_set_text,
+        VerticaType.SET_TIME: load_set_text,
+        VerticaType.SET_TIMESTAMP: load_set_text,
+        VerticaType.SET_TIMESTAMPTZ: load_set_text,
+        VerticaType.SET_TIMETZ: load_set_text,
+        VerticaType.SET_INTERVAL: load_set_text,
+        VerticaType.SET_INTERVALYM: load_set_text,
+        VerticaType.SET_NUMERIC: load_set_text,
+        VerticaType.SET_VARBINARY: load_set_text,
+        VerticaType.SET_UUID: load_set_text,
+        VerticaType.SET_BINARY: load_set_text,
+        VerticaType.SET_LONGVARCHAR: load_set_text,
+        VerticaType.SET_LONGVARBINARY: load_set_text,
+        VerticaType.ROW: load_row_text,
+        VerticaType.MAP: load_row_text,
     },
     FormatCode.BINARY: {
         VerticaType.UNKNOWN: None,
@@ -506,6 +639,45 @@ DEFAULTS = {
         VerticaType.BINARY: None,
         VerticaType.VARBINARY: None,
         VerticaType.LONGVARBINARY: None,
+        VerticaType.ARRAY: load_array_text,
+        VerticaType.ARRAY1D_BOOL: load_array_text,
+        VerticaType.ARRAY1D_INT8: load_array_text,
+        VerticaType.ARRAY1D_FLOAT8: load_array_text,
+        VerticaType.ARRAY1D_NUMERIC: load_array_text,
+        VerticaType.ARRAY1D_CHAR: load_array_text,
+        VerticaType.ARRAY1D_VARCHAR: load_array_text,
+        VerticaType.ARRAY1D_LONGVARCHAR: load_array_text,
+        VerticaType.ARRAY1D_DATE: load_array_text,
+        VerticaType.ARRAY1D_TIME: load_array_text,
+        VerticaType.ARRAY1D_TIMETZ: load_array_text,
+        VerticaType.ARRAY1D_TIMESTAMP: load_array_text,
+        VerticaType.ARRAY1D_TIMESTAMPTZ: load_array_text,
+        VerticaType.ARRAY1D_INTERVAL: load_array_text,
+        VerticaType.ARRAY1D_INTERVALYM: load_array_text,
+        VerticaType.ARRAY1D_UUID: load_array_text,
+        VerticaType.ARRAY1D_BINARY: load_array_text,
+        VerticaType.ARRAY1D_VARBINARY: load_array_text,
+        VerticaType.ARRAY1D_LONGVARBINARY: load_array_text,
+        VerticaType.SET_BOOL: load_set_text,
+        VerticaType.SET_INT8: load_set_text,
+        VerticaType.SET_FLOAT8: load_set_text,
+        VerticaType.SET_CHAR: load_set_text,
+        VerticaType.SET_VARCHAR: load_set_text,
+        VerticaType.SET_DATE: load_set_text,
+        VerticaType.SET_TIME: load_set_text,
+        VerticaType.SET_TIMESTAMP: load_set_text,
+        VerticaType.SET_TIMESTAMPTZ: load_set_text,
+        VerticaType.SET_TIMETZ: load_set_text,
+        VerticaType.SET_INTERVAL: load_set_text,
+        VerticaType.SET_INTERVALYM: load_set_text,
+        VerticaType.SET_NUMERIC: load_set_text,
+        VerticaType.SET_VARBINARY: load_set_text,
+        VerticaType.SET_UUID: load_set_text,
+        VerticaType.SET_BINARY: load_set_text,
+        VerticaType.SET_LONGVARCHAR: load_set_text,
+        VerticaType.SET_LONGVARBINARY: load_set_text,
+        VerticaType.ROW: load_row_text,
+        VerticaType.MAP: load_row_text,
     },
 }
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,10 +40,12 @@ To begin a session, the frontend opens a connection to the backend and sends a
 Startup message.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 import platform
 import os
+import socket
+import warnings
 from struct import pack
 
 # noinspection PyUnresolvedReferences,PyCompatibility
@@ -55,20 +57,30 @@ from ..message import BulkFrontendMessage
 class Startup(BulkFrontendMessage):
     message_id = None
 
-    def __init__(self, user, database, session_label, os_user_name, binary_transfer):
+    def __init__(self, user, database, session_label, os_user_name, autocommit,
+                 binary_transfer, request_complex_types, oauth_access_token,
+                 workload, auth_category):
         BulkFrontendMessage.__init__(self)
 
         try:
             os_platform = platform.platform()
         except Exception as e:
             os_platform = ''
-            print("WARN: Cannot get the OS info: {}".format(str(e)))
+            warnings.warn(f"Cannot get the OS info: {str(e)}")
 
         try:
             pid = str(os.getpid())
         except Exception as e:
             pid = '0'
-            print("WARN: Cannot get the process ID: {}".format(str(e)))
+            warnings.warn(f"Cannot get the process ID: {str(e)}")
+
+        try:
+            os_hostname = socket.gethostname()
+        except Exception as e:
+            os_hostname = ''
+            warnings.warn(f"Cannot get the OS hostname: {str(e)}")
+
+        request_complex_types = 'true' if request_complex_types else 'false'
 
         self.parameters = {
             b'user': user,
@@ -78,9 +90,19 @@ class Startup(BulkFrontendMessage):
             b'client_version': vertica_python.__version__,
             b'client_os': os_platform,
             b'client_os_user_name': os_user_name,
+            b'client_os_hostname': os_hostname,
             b'client_pid': pid,
+            b'autocommit': 'on' if autocommit else 'off',
             b'binary_data_protocol': '1' if binary_transfer else '0', # Defaults to text format '0'
+            b'protocol_features': '{"request_complex_types":' + request_complex_types + '}',
+            b'protocol_compat': 'VER',
+            b'workload': workload,
+            b'auth_category': auth_category,
         }
+
+        if len(oauth_access_token) > 0:
+            # compatibility for protocol version 3.11
+            self.parameters[b'oauth_access_token'] = oauth_access_token
 
     def read_bytes(self):
         # The fixed protocol version is followed by pairs of parameter name and value strings.

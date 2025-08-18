@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 from .base import VerticaPythonIntegrationTestCase
 
@@ -26,6 +26,8 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
     def tearDown(self):
         self._conn_info['user'] = self._user
         self._conn_info['password'] = self._password
+        if 'oauth_access_token' in self._conn_info:
+            del self._conn_info['oauth_access_token']
         super(AuthenticationTestCase, self).tearDown()
 
     def test_SHA512(self):
@@ -106,6 +108,21 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
                 cur.execute("DROP AUTHENTICATION IF EXISTS testIPv4hostHash CASCADE")
                 cur.execute("DROP AUTHENTICATION IF EXISTS testIPv6hostHash CASCADE")
                 cur.execute("DROP AUTHENTICATION IF EXISTS testlocalHash CASCADE")
+
+    def test_oauth_access_token(self):
+        self.require_protocol_at_least(3 << 16 | 11)
+        if not self._oauth_info['access_token']:
+            self.skipTest('OAuth access token not set')
+        if not self._oauth_info['user'] and not self._conn_info['database']:
+            self.skipTest('Both database and oauth_user are not set')
+
+        self._conn_info['user'] = self._oauth_info['user']
+        self._conn_info['oauth_access_token'] = self._oauth_info['access_token']
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT authentication_method FROM sessions WHERE session_id=(SELECT current_session())")
+            res = cur.fetchone()
+            self.assertEqual(res[0], 'OAuth')
 
 
 exec(AuthenticationTestCase.createPrepStmtClass())

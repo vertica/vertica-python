@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,15 +34,20 @@
 # THE SOFTWARE.
 
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Union
 from ..os_utils import ensure_dir_exists
 
-class VerticaLogging(object):
+class VerticaLogging:
 
     @classmethod
-    def setup_logging(cls, logger_name, logfile, log_level=logging.INFO, context=''):
+    def setup_logging(cls, logger_name: str, logfile: str,
+                      log_level: Union[int, str] = logging.INFO,
+                      context: str = '') -> None:
         logger = logging.getLogger(logger_name)
         logger.setLevel(log_level)
 

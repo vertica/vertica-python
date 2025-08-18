@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -50,7 +50,7 @@ going to the backend from Python text string into UTF-8, and to convert data
 coming from the backend from UTF-8 into Python text string.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 from abc import ABCMeta
 from struct import pack
@@ -58,7 +58,7 @@ from struct import pack
 from ..messages import *
 
 
-class Message(object):
+class Message:
     __metaclass__ = ABCMeta
 
     def __init__(self):
@@ -96,10 +96,10 @@ class BackendMessage(Message):
     _message_id_map = {}
 
     @classmethod
-    def from_type(cls, type_, data):
+    def from_type(cls, type_, data, **kwargs) -> BackendMessage:
         klass = cls._message_id_map.get(type_)
         if klass is not None:
-            return klass(data)
+            return klass(data, **kwargs)
         else:
             from .backend_messages import Unknown
             return Unknown(type_, data)

@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 from .base import VerticaPythonUnitTestCase
 from ...vertica.connection import parse_dsn
@@ -41,11 +41,21 @@ class ParseDSNTestCase(VerticaPythonUnitTestCase):
         dsn = ('vertica://john:pwd@localhost:5433/db1?'
                'session_label=vpclient&unicode_error=strict&'
                'log_path=/home/admin/vClient.log&log_level=DEBUG&'
+               'oauth_access_token=GciOiJSUzI1NiI&'
+               'workload=python_test_workload&tlsmode=verify-ca&'
+               'tls_cafile=tls/ca_cert.pem&tls_certfile=tls/cert.pem&'
+               'tls_keyfile=tls/key.pem&'
                'kerberos_service_name=krb_service&kerberos_host_name=krb_host')
         expected = {'database': 'db1', 'host': 'localhost', 'user': 'john',
                     'password': 'pwd', 'port': 5433, 'log_level': 'DEBUG',
                     'session_label': 'vpclient', 'unicode_error': 'strict',
-                    'log_path': '/home/admin/vClient.log', 
+                    'log_path': '/home/admin/vClient.log',
+                    'oauth_access_token': 'GciOiJSUzI1NiI',
+                    'workload': 'python_test_workload',
+                    'tlsmode': 'verify-ca',
+                    'tls_cafile': 'tls/ca_cert.pem',
+                    'tls_certfile': 'tls/cert.pem',
+                    'tls_keyfile': 'tls/key.pem',
                     'kerberos_service_name': 'krb_service',
                     'kerberos_host_name': 'krb_host'}
         parsed = parse_dsn(dsn)
@@ -54,11 +64,11 @@ class ParseDSNTestCase(VerticaPythonUnitTestCase):
     def test_boolean_arguments(self):
         dsn = ('vertica://mike@127.0.0.1/db1?connection_load_balance=True&'
                'use_prepared_statements=0&ssl=false&disable_copy_local=on&'
-               'autocommit=true&binary_transfer=1')
+               'autocommit=true&binary_transfer=1&request_complex_types=off')
         expected = {'database': 'db1', 'connection_load_balance': True,
                     'use_prepared_statements': False,  'ssl': False,
                     'disable_copy_local': True, 'autocommit': True,
-                    'binary_transfer': True,
+                    'binary_transfer': True, 'request_complex_types': False,
                     'host': '127.0.0.1', 'user': 'mike'}
         parsed = parse_dsn(dsn)
         self.assertDictEqual(expected, parsed)

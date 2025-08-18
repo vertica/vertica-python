@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,7 +46,7 @@ error message would be something like
   "Cannot insert multiple commands into a prepared statement"
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 from struct import pack
 

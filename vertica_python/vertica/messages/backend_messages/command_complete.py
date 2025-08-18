@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,9 +40,10 @@ The server prompt that indicates a command has completed. The command tag
 string is the name of the command that was run.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 import re
+import warnings
 
 from struct import unpack
 
@@ -55,7 +56,16 @@ class CommandComplete(BackendMessage):
     def __init__(self, data):
         BackendMessage.__init__(self)
         data = unpack('{0}sx'.format(len(data) - 1), data)[0]
-        self.command_tag = data.decode('utf-8')
+        try:
+            self.command_tag = data.decode('utf-8')
+        except Exception as e:
+            # VER-86494
+            warnings.warn(
+                    f"\n{'-'*70}\n"
+                    "Hit a known server bug (#493). To fix it,\n"
+                    "please upgrade your server to 12.0.4-3 or higher version.\n"
+                    f"{'-'*70}\n")
+            self.command_tag = 'x'
 
     def __str__(self):
         return 'CommandComplete: command_tag = "{}"'.format(self.command_tag)

@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,88 +51,43 @@
 
 """Functions for Python 2 vs. 3 compatibility.
 ## Conversion routines
-In addition to the functions below, `as_str` converts an object to a `str`.
 @@as_bytes
-@@as_text
-@@as_str_any
-## Types
-The compatibility module also provides the following types:
-* `bytes_or_text_types`
-* `complex_types`
-* `integral_types`
-* `real_types`
+@@as_str
 """
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import six as _six
 
 
 def as_bytes(bytes_or_text, encoding='utf-8'):
     """Converts either bytes or unicode to `bytes`, using utf-8 encoding for text.
     Args:
-      bytes_or_text: A `bytes`, `bytearray`, `str`, or `unicode` object.
+      bytes_or_text: A `bytes`, `bytearray`, or `str` object.
       encoding: A string indicating the charset for encoding unicode.
     Returns:
       A `bytes` object.
     Raises:
       TypeError: If `bytes_or_text` is not a binary or unicode string.
     """
-    if isinstance(bytes_or_text, _six.text_type):
+    if isinstance(bytes_or_text, str):
         return bytes_or_text.encode(encoding)
-    elif isinstance(bytes_or_text, bytearray):
+    elif isinstance(bytes_or_text, (bytes, bytearray)):
         return bytes(bytes_or_text)
-    elif isinstance(bytes_or_text, bytes):
-        return bytes_or_text
     else:
-        raise TypeError('Expected binary or unicode string, got %r' %
-                        (bytes_or_text,))
+        raise TypeError('Expected binary or unicode string, got %r' % bytes_or_text)
 
 
-def as_text(bytes_or_text, encoding='utf-8'):
+def as_str(bytes_or_text, encoding='utf-8'):
     """Returns the given argument as a unicode string.
     Args:
-      bytes_or_text: A `bytes`, `bytearray`, `str`, or `unicode` object.
+      bytes_or_text: A `bytes`, `bytearray`, or `str` object.
       encoding: A string indicating the charset for decoding unicode.
     Returns:
-      A `unicode` (Python 2) or `str` (Python 3) object.
+      A `str` object.
     Raises:
       TypeError: If `bytes_or_text` is not a binary or unicode string.
     """
-    if isinstance(bytes_or_text, _six.text_type):
+    if isinstance(bytes_or_text, str):
         return bytes_or_text
     elif isinstance(bytes_or_text, (bytes, bytearray)):
         return bytes_or_text.decode(encoding)
     else:
         raise TypeError('Expected binary or unicode string, got %r' % bytes_or_text)
 
-
-# Convert an object to a `str` in both Python 2 and 3.
-if _six.PY2:
-    as_str = as_bytes
-else:
-    as_str = as_text
-
-
-def as_str_any(value):
-    """Converts to `str` as `str(value)`, but use `as_str` for `bytes`.
-    Args:
-      value: A object that can be converted to `str`.
-    Returns:
-      A `str` object.
-    """
-    if isinstance(value, (bytes, bytearray)):
-        return as_str(value)
-    else:
-        return str(value)
-
-
-# Either bytes or text.
-bytes_or_text_types = (bytes, bytearray, _six.text_type)
-
-_allowed_symbols = [
-    'as_str',
-    'bytes_or_text_types',
-]

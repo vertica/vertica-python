@@ -1,6 +1,7 @@
 # vertica-python
 
-[![PyPI version](https://badge.fury.io/py/vertica-python.svg)](https://badge.fury.io/py/vertica-python)
+[![PyPI version](https://img.shields.io/pypi/v/vertica-python?color=brightgreen&label=PyPI%20package)](https://pypi.org/project/vertica-python/)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/vertica-python?color=yellowgreen)](https://anaconda.org/conda-forge/vertica-python)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/pypi/pyversions/vertica-python.svg)](https://www.python.org/downloads/)
 [![Downloads](https://pepy.tech/badge/vertica-python/week)](https://pepy.tech/project/vertica-python)
@@ -11,7 +12,7 @@
 
 Please check out [release notes](https://github.com/vertica/vertica-python/releases) to learn about the latest improvements.
 
-vertica-python has been tested with Vertica 12.0.0 and Python 2.7/3.7/3.8/3.9/3.10. Feel free to submit issues and/or pull requests (Read up on our [contributing guidelines](#contributing-guidelines)).
+vertica-python has been tested with Vertica 24.4.0 and Python 3.8/3.9/3.10/3.11/3.12/3.13. Feel free to submit issues and/or pull requests (Read up on our [contributing guidelines](#contributing-guidelines)).
 
 
 ## Installation
@@ -89,7 +90,7 @@ with vertica_python.connect(**conn_info) as connection:
 | ------------- | ------------- |
 | host     | The server host of the connection. This can be a host name or an IP address. <br>**_Default_**: "localhost" |
 | port     | The port of the connection. <br>**_Default_**: 5433 |
-| user     | The database user name to use to connect to the database. <br>**_Default_**: OS login user name |
+| user     | The database user name to use to connect to the database. <br>**_Default_**:<br>&nbsp;&nbsp;&nbsp;&nbsp;(for non-OAuth connections) OS login user name  <br>&nbsp;&nbsp;&nbsp;&nbsp;(for OAuth connections) "" |
 | password | The password to use to log into the database. <br>**_Default_**: "" |
 | database | The database name. <br>**_Default_**: "" |
 | autocommit | See [Autocommit](#autocommit). <br>**_Default_**: False |
@@ -102,12 +103,18 @@ with vertica_python.connect(**conn_info) as connection:
 | kerberos_service_name | See [Kerberos Authentication](#kerberos-authentication). <br>**_Default_**: "vertica" |
 | log_level | See [Logging](#logging). |
 | log_path | See [Logging](#logging). |
+| oauth_access_token | See [OAuth Authentication](#oauth-authentication). <br>**_Default_**: "" |
+| request_complex_types | See [SQL Data conversion to Python objects](#sql-data-conversion-to-python-objects). <br>**_Default_**: True |
 | session_label | Sets a label for the connection on the server. This value appears in the client_label column of the _v_monitor.sessions_ system table. <br>**_Default_**: an auto-generated label with format of `vertica-python-{version}-{random_uuid}` |
-| ssl | See [TLS/SSL](#tlsssl). <br>**_Default_**: False (disabled) |
+| ssl | See [TLS/SSL](#tlsssl). <br>**_Default_**: None (tlsmode="prefer") |
+| tlsmode | Controls whether the connection to the server uses TLS encryption. <br>See [TLS/SSL](#tlsssl). <br>**_Default_**: "prefer" |
+| tls_cafile | The name of a file containing trusted SSL certificate authority (CA) certificate(s). <br>See [TLS/SSL](#tlsssl). |
+| tls_certfile | The name of a file containing client's certificate(s). <br>See [TLS/SSL](#tlsssl). |
+| tls_keyfile | The name of a file containing client's private key. <br>See [TLS/SSL](#tlsssl). |
 | unicode_error | See [UTF-8 encoding issues](#utf-8-encoding-issues). <br>**_Default_**: 'strict' (throw error on invalid UTF-8 results) |
 | use_prepared_statements | See [Passing parameters to SQL queries](#passing-parameters-to-sql-queries). <br>**_Default_**: False |
+| workload | Sets the workload name associated with this session. Valid values are workload names that already exist in a workload routing rule on the server. If a workload name that doesn't exist is entered, the server will reject it and it will be set to the default. <br>**_Default_**: "" |
 | dsn | See [Set Properties with Connection String](#set-properties-with-connection-string). |
-
 
 
 Below are a few important connection topics you may deal with, or you can skip and jump to the next section: [Send Queries and Retrieve Results](#send-queries-and-retrieve-results)
@@ -138,28 +145,137 @@ with vertica_python.connect(dsn=connection_str, **additional_info) as conn:
 ```
 
 #### TLS/SSL
-You can pass an `ssl.SSLContext` to `ssl` to customize the SSL connection options. For example,
+
+There are two options to control client-server TLS: `tlsmode` and `ssl`. If both are set, `tlsmode` takes precedence.
+
+`ssl` can be a bool or a `ssl.SSLContext` object. Here is the value mapping between `ssl` (exclude `ssl.SSLContext`) and `tlsmode`:
+
+| `tlsmode` |  `ssl` | Description |
+| ------------- | ------------- | ---|
+| 'disable'     | False | only try a non-TLS connection. |
+| 'prefer'      | (not set) | (Default) first try a TLS connection; if TLS is disabled on the server, then fallback to a non-TLS connection. <br>Note: If TLS is enabled on the server and TLS connection fails, the client rejects the connection. |
+| 'require'     | True |  connects using TLS without verifying certificates. If the TLS connection attempt fails, the client rejects the connection. |
+| 'verify-ca'   || connects using TLS and confirms that the server certificate has been signed by a trusted certificate authority. |
+| 'verify-full' || connects using TLS, confirms that the server certificate has been signed by a trusted certificate authority, and verifies that the host name matches the name provided in the server certificate. |
+
+When `tlsmode` is 'verify-ca' or 'verify-full', these options take certificate/key files: `tls_cafile`, `tls_certfile` and `tls_keyfile`. Otherwise, these options are ignored.
+
+`tlsmode` example:
+```python
+# [TLSMode: require]
+import vertica_python
+conn_info = {'host': '127.0.0.1',
+             'user': 'some_user',
+             'database': 'a_database',
+             'tlsmode': 'require'}
+connection = vertica_python.connect(**conn_info)
+```
+```python
+# [TLSMode: verify-ca]
+import vertica_python
+conn_info = {'host': '127.0.0.1',
+             'user': 'some_user',
+             'database': 'a_database',
+             'tlsmode': 'verify-ca',
+             'tls_cafile': '/path/to/ca_file.pem' # CA certificate used to verify server certificate
+            }
+connection = vertica_python.connect(**conn_info)
+```
+
+```python
+# [TLSMode: verify-full] + Mutual Mode
+import vertica_python
+
+conn_info = {'host': '127.0.0.1',
+             'user': 'some_user',
+             'database': 'a_database',
+             'tlsmode': 'verify-full',
+             'tls_cafile' = '/path/to/ca_file.pem'  # CA certificate used to verify server certificate
+             'tls_certfile' = '/path/to/client.pem',  # (for mutual mode) client certificate
+             'tls_keyfile' = '/path/to/client.key'  # (for mutual mode) client private key
+            }
+connection = vertica_python.connect(**conn_info)
+```
+
+You can pass an `ssl.SSLContext` object to `ssl` to customize the underlying SSL connection options. See more on SSL options [here](https://docs.python.org/3/library/ssl.html).
+
+Server mode TLS examples:
 
 ```python
 import vertica_python
 import ssl
 
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-ssl_context.verify_mode = ssl.CERT_REQUIRED
-ssl_context.check_hostname = True
-ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem')
+# [TLSMode: require]
+# Ensure connection is encrypted.
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
 
 conn_info = {'host': '127.0.0.1',
              'port': 5433,
              'user': 'some_user',
-             'password': 'some_password',
              'database': 'a_database',
              'ssl': ssl_context}
 connection = vertica_python.connect(**conn_info)
 
+
+# [TLSMode: verify-ca]
+# Ensure connection is encrypted, and client trusts server certificate.
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ssl_context.verify_mode = ssl.CERT_REQUIRED
+ssl_context.check_hostname = False
+ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem') # CA certificate used to verify server certificate
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'database': 'a_database',
+             'ssl': ssl_context}
+connection = vertica_python.connect(**conn_info)
+
+
+# [TLSMode: verify-full]
+# Ensure connection is encrypted, client trusts server certificate,
+# and server hostname matches the one listed in the server certificate.
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ssl_context.verify_mode = ssl.CERT_REQUIRED
+ssl_context.check_hostname = True
+ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem') # CA certificate used to verify server certificate
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'database': 'a_database',
+             'ssl': ssl_context}
+connection = vertica_python.connect(**conn_info)
 ```
 
-See more on SSL options [here](https://docs.python.org/3/library/ssl.html).
+Mutual mode TLS example:
+```python
+import vertica_python
+import ssl
+
+# [TLSMode: verify-full]
+# Ensure connection is encrypted, client trusts server certificate,
+# and server hostname matches the one listed in the server certificate.
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ssl_context.verify_mode = ssl.CERT_REQUIRED
+ssl_context.check_hostname = True
+ssl_context.load_verify_locations(cafile='/path/to/ca_file.pem') # CA certificate used to verify server certificate
+
+# For Mutual mode, provide client certificate and client private key to ssl_context.
+# CA certificate used to verify client certificate should be set at the server side.
+ssl_context.load_cert_chain(certfile='/path/to/client.pem', keyfile='/path/to/client.key')
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'user': 'some_user',
+             'database': 'a_database',
+             'ssl': ssl_context}
+connection = vertica_python.connect(**conn_info)
+```
+
+
 
 #### Kerberos Authentication
 In order to use Kerberos authentication, install [dependencies](#using-kerberos-authentication) first, and it is the user's responsibility to ensure that an Ticket-Granting Ticket (TGT) is available and valid. Whether a TGT is available can be easily determined by running the `klist` command. If no TGT is available, then it first must be obtained by running the `kinit` command or by logging in. You can pass in optional arguments to customize the authentication. The arguments are `kerberos_service_name`, which defaults to "vertica", and `kerberos_host_name`, which defaults to the value of argument `host`. For example,
@@ -176,6 +292,21 @@ conn_info = {'host': '127.0.0.1',
              'kerberos_service_name': 'vertica_krb',
              # The instance or host name portion of the Vertica Kerberos principal
              'kerberos_host_name': 'vcluster.example.com'}
+
+with vertica_python.connect(**conn_info) as conn:
+    # do things
+```
+
+#### OAuth Authentication
+To authenticate via OAuth, provide an `oauth_access_token` that authorizes a user to the database.
+```python
+import vertica_python
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'database': 'a_database',
+             # valid OAuth access token
+             'oauth_access_token': 'xxxxxx'}
 
 with vertica_python.connect(**conn_info) as conn:
     # do things
@@ -529,27 +660,27 @@ Note: In other drivers, the batch insert is converted into a COPY statement by u
 
 #### Client-side binding: Query using named parameters or format parameters
 
-vertica-python can automatically convert Python objects to SQL literals, merge the query and the parameters on the client side, and then send the query to the server: using this feature your code will be more robust and reliable to prevent SQL injection attacks.
+vertica-python can automatically convert Python objects to SQL literals, merge the query and the parameters on the client side, and then send the query to the server: using this feature your code will be more robust and reliable to prevent SQL injection attacks. You need to set ```use_prepared_statements``` option to __False__ (at connection level or in cursor.execute*()) to use client-side binding.
 
 Variables can be specified with named (__:name__) placeholders.
 ```python
 cur = connection.cursor()
 data = {'propA': 1, 'propB': 'stringValue'}
-cur.execute("SELECT * FROM a_table WHERE a = :propA AND b = :propB", data)
-# converted into a SQL command similar to: "SELECT * FROM a_table WHERE a = 1 AND b = 'stringValue'"
+cur.execute("SELECT * FROM a_table WHERE a = :propA AND b = :propB", data, use_prepared_statements=False)
+# converted into a SQL command similar to: SELECT * FROM a_table WHERE a = 1 AND b = 'stringValue'
 
 cur.fetchall()
 # [ [1, 'stringValue'] ]
 ```
 
-Variables can also be specified with positional format (__%s__) placeholders. The placeholder __must always be a %s__, even if a different placeholder (such as a %d for integers or %f for floats) may look more appropriate. __Never__ use Python string concatenation (+) or string parameters interpolation (%) to pass variables to a SQL query string.
+Variables can also be specified with positional format (__%s__) placeholders. The placeholder __must always be a %s__, even if a different placeholder (such as a `%d` for integers or `%f` for floats) may look more appropriate. __Never__ use Python string concatenation (+) or string parameters interpolation (%) to pass variables to a SQL query string.
 ```python
 cur = connection.cursor()
 data = (1, "O'Reilly")
 cur.execute("SELECT * FROM a_table WHERE a = %s AND b = %s" % data) # WRONG: % operator
 cur.execute("SELECT * FROM a_table WHERE a = %d AND b = %s", data)  # WRONG: %d placeholder
 cur.execute("SELECT * FROM a_table WHERE a = %s AND b = %s", data)  # correct
-# converted into a SQL command similar to: "SELECT * FROM a_table WHERE a = 1 AND b = 'O''Reilly'"
+# converted into a SQL command: SELECT * FROM a_table WHERE a = 1 AND b = 'O''Reilly'
 
 cur.fetchall()
 # [ [1, "O'Reilly"] ]
@@ -563,9 +694,29 @@ The placeholder must not be quoted. _vertica-python_ will add quotes where neede
 >>> cur.execute("INSERT INTO table VALUES (%s)", ("someString",))   # correct
 ```
 
-_vertica-python_ supports default mapping for many standard Python types. It is possible to adapt new Python types to SQL literals via `Cursor.register_sql_literal_adapter(py_class_or_type, adapter_function)` function. Example:
+In order to merge the query (with placeholders) and the parameters on the client side, parameter values (python object) are converted to SQL literals (str). _vertica-python_ supports default mapping to SQL literals for many standard Python types (str, bytes, bool, int, float, decimal.Decimal, tuple, list, set, dict, datetime.datetime, datetime.date, datetime.time, uuid.UUID). For complex types, in some cases, you may need explicit typecasting for the placeholder (e.g. `%s::ARRAY[ARRAY[INT]]`, `%s::ROW(varchar,int,date)`):
+
 ```python
-class Point(object):
+from datetime import date
+cur.execute("CREATE TABLE table (a INT, b ARRAY[DATE])")
+value = [date(2021, 6, 10), date(2021, 6, 12), date(2021, 6, 30)]
+
+cur.execute("INSERT INTO table VALUES (%s, %s)", [100, value], use_prepared_statements=False)  # WRONG
+# Error Message: Column "b" is of type array[date] but expression is of type array[varchar], Sqlstate: 42804, 
+# Hint: You will need to rewrite or cast the expression
+
+cur.execute("INSERT INTO table VALUES (%s, %s::ARRAY[DATE])", [100, value], use_prepared_statements=False)  # correct
+# converted into a SQL command: INSERT INTO vptest VALUES (100, ARRAY['2021-06-10','2021-06-12','2021-06-30']::ARRAY[DATE])
+
+# Client-side binding of cursor.executemany is different from cursor.execute internally
+# But it also supports some of complex types mapping
+cur.executemany("INSERT INTO table (a, b) VALUES (%s, %s)", [[100, value]], use_prepared_statements=False)
+```
+
+##### Register new SQL literal adapters
+It is possible to adapt new Python types to SQL literals via `Cursor.register_sql_literal_adapter(py_class_or_type, adapter_function)` function. Example:
+```python
+class Point:
     def __init__(self, x, y):
         self.x = x
         self.y = y
@@ -730,6 +881,13 @@ with vertica_python.connect(**conn_info) as connection:
     print("Rows loaded 1:", cur.fetchall())
     cur.nextset()
     print("Rows loaded 2:", cur.fetchall())
+    
+    # Copy from local stdin (StringIO)
+    from io import StringIO
+    data = "Anna|123-456-789\nBrown|555-444-3333\nCindy|555-867-53093453453\nDodd|123-456-789\nEd|123-456-789"
+    cur.execute("COPY customers (firstNames, phoneNumbers) FROM LOCAL STDIN ENFORCELENGTH RETURNREJECTED AUTO",
+                copy_stdin=StringIO(data))
+
 ```
 When connection option `disable_copy_local` set to True, disables COPY LOCAL operations, including copying data from local files/stdin and using local files to store data and exceptions. You can use this property to prevent users from writing to and copying from files on a Vertica host, including an MC host. Note that this property doesn't apply to `Cursor.copy()`.
 
@@ -804,10 +962,16 @@ When a query is executed and `Cursor.fetch*()` is called, SQL data (bytes) are d
 | TIMESTAMP      | datetime.datetime<sup>[1]</sup> |
 | TIMESTAMPTZ    | datetime.datetime<sup>[1]</sup> |
 | INTERVAL	     | [dateutil.relativedelta.relativedelta](https://dateutil.readthedocs.io/en/stable/relativedelta.html#dateutil.relativedelta.relativedelta) |
+| ARRAY          | list<sup>[3]</sup> |
+| SET            | set<sup>[3]</sup>  |
+| ROW            | dict<sup>[3]</sup> |
+| MAP            | dict<sup>[3]</sup> |
 
 <sup>[1]</sup>Python’s datetime.date and datetime.datetime only supports date ranges 0001-01-01 to 9999-12-31. Retrieving a value of BC date or future date (year>9999) results in an error.
 
 <sup>[2]</sup>Python’s datetime.time only supports times until 23:59:59. Retrieving a value of 24:00:00 results in an error.
+
+<sup>[3]</sup>If connection option 'request_complex_types' set to _False_, the server returns all complex types as VARCHAR/LONG VARCHAR Json strings, so the client will convert data to _str_ instead. Server before v12.0.2 cannot provide enough metadata for complex types, the behavior is equal to request_complex_types=False.
 
 
 #### Bypass data conversion to Python objects
@@ -833,7 +997,151 @@ with vertica_python.connect(**conn_info) as conn:
     # [[b'foo', b'100', b'2001-12-01 02:50:00']]
 ```
 
-As a result, this can improve query performance when you call `fetchall()` but ignore/skip result data. This can also be used when defining customized data converters.
+As a result, this can improve query performance when you call `fetchall()` but ignore/skip result data.
+
+#### Customize data conversion to Python objects
+The `Cursor.register_sqldata_converter(oid, converter_func)` method allows to customize how SQL data values are converted to Python objects when query results are returned.
+
+PARAMETERS:
+- oid – The Vertica type OID to manage.
+- converter_func – The converter function to register for oid. The function should have two arguments <`val`, `ctx`>. [Data Transfer Format](#data-transfer-format) matters for `val` (SQL data value). `ctx` is a dict managing resources that may be used by convertions. E.g. `ctx['column'].format_code` would be 0 (Text transfer format) or 1 (Binary transfer format).
+
+The `Cursor.unregister_sqldata_converter(oid)` method allows to cancel customization and use the default converter.
+
+Each Vertica type OID is an integer representing a SQL type, you can look up OIDs in `vertica_python.datatypes`:
+```
+$ python3
+>>> from vertica_python.datatypes import VerticaType
+>>> {k:v for k,v in dict(VerticaType.__dict__).items() if not k.startswith('_')}
+{'UNKNOWN': 4, 'BOOL': 5, 'INT8': 6, 'FLOAT8': 7, 'CHAR': 8, 'VARCHAR': 9, 'DATE': 10, 'TIME': 11, 'TIMESTAMP': 12, 'TIMESTAMPTZ': 13, 'INTERVAL': 14, 'INTERVALYM': 114, 'TIMETZ': 15, 'NUMERIC': 16, 'VARBINARY': 17, 'UUID': 20, 'LONGVARCHAR': 115, 'LONGVARBINARY': 116, 'BINARY': 117, 'ROW': 300, 'ARRAY': 301, 'MAP': 302, 'ARRAY1D_BOOL': 1505, 'ARRAY1D_INT8': 1506, 'ARRAY1D_FLOAT8': 1507, 'ARRAY1D_CHAR': 1508, 'ARRAY1D_VARCHAR': 1509, 'ARRAY1D_DATE': 1510, 'ARRAY1D_TIME': 1511, 'ARRAY1D_TIMESTAMP': 1512, 'ARRAY1D_TIMESTAMPTZ': 1513, 'ARRAY1D_INTERVAL': 1514, 'ARRAY1D_INTERVALYM': 1521, 'ARRAY1D_TIMETZ': 1515, 'ARRAY1D_NUMERIC': 1516, 'ARRAY1D_VARBINARY': 1517, 'ARRAY1D_UUID': 1520, 'ARRAY1D_BINARY': 1522, 'ARRAY1D_LONGVARCHAR': 1519, 'ARRAY1D_LONGVARBINARY': 1518, 'SET_BOOL': 2705, 'SET_INT8': 2706, 'SET_FLOAT8': 2707, 'SET_CHAR': 2708, 'SET_VARCHAR': 2709, 'SET_DATE': 2710, 'SET_TIME': 2711, 'SET_TIMESTAMP': 2712, 'SET_TIMESTAMPTZ': 2713, 'SET_INTERVAL': 2714, 'SET_INTERVALYM': 2721, 'SET_TIMETZ': 2715, 'SET_NUMERIC': 2716, 'SET_VARBINARY': 2717, 'SET_UUID': 2720, 'SET_BINARY': 2722, 'SET_LONGVARCHAR': 2719, 'SET_LONGVARBINARY': 2718}
+>>>
+>>> # Use VerticaType.XXXX to refer to an OID
+>>> VerticaType.VARCHAR
+9
+>>>
+>>> from vertica_python.datatypes import TYPENAME
+>>> TYPENAME   # mapping from OIDs to readable names
+{4: 'Unknown', 5: 'Boolean', 6: 'Integer', 7: 'Float', 8: 'Char', 9: 'Varchar', 115: 'Long Varchar', 10: 'Date', 11: 'Time', 15: 'TimeTz', 12: 'Timestamp', 13: 'TimestampTz', 117: 'Binary', 17: 'Varbinary', 116: 'Long Varbinary', 16: 'Numeric', 20: 'Uuid', 300: 'Row', 301: 'Array', 302: 'Map', 1505: 'Array[Boolean]', 1506: 'Array[Int8]', 1507: 'Array[Float8]', 1508: 'Array[Char]', 1509: 'Array[Varchar]', 1510: 'Array[Date]', 1511: 'Array[Time]', 1512: 'Array[Timestamp]', 1513: 'Array[TimestampTz]', 1515: 'Array[TimeTz]', 1516: 'Array[Numeric]', 1517: 'Array[Varbinary]', 1520: 'Array[Uuid]', 1522: 'Array[Binary]', 1519: 'Array[Long Varchar]', 1518: 'Array[Long Varbinary]', 2705: 'Set[Boolean]', 2706: 'Set[Int8]', 2707: 'Set[Float8]', 2708: 'Set[Char]', 2709: 'Set[Varchar]', 2710: 'Set[Date]', 2711: 'Set[Time]', 2712: 'Set[Timestamp]', 2713: 'Set[TimestampTz]', 2715: 'Set[TimeTz]', 2716: 'Set[Numeric]', 2717: 'Set[Varbinary]', 2720: 'Set[Uuid]', 2722: 'Set[Binary]', 2719: 'Set[Long Varchar]', 2718: 'Set[Long Varbinary]'}
+```
+
+**Example: Vertica numeric to Python float**
+
+Normally Vertica NUMERIC values are converted to Python decimal.Decimal instances, because both the types allow fixed-precision arithmetic and are not subject to rounding. Sometimes, however, you may want to perform floating-point math on NUMERIC values, and decimal.Decimal may get in the way. If you are fine with the potential loss of precision and you simply want to receive NUMERIC values as Python float, you can register a converter on NUMERIC.
+
+```python
+import vertica_python
+from vertica_python.datatypes import VerticaType
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             ...
+            }
+
+conn = vertica_python.connect(**conn_info)
+cur = conn.cursor()
+cur.execute("SELECT 123.45::NUMERIC")
+print(cur.fetchone()[0])
+# Decimal('123.45')
+
+def convert_numeric(val, ctx):
+    # val: bytes - this is a text representation of NUMERIC value
+    # ctx: dict - some info that may be useful to the converter
+    return float(val)
+
+cur.register_sqldata_converter(VerticaType.NUMERIC, convert_numeric)
+cur.execute("SELECT 123.45::NUMERIC")
+print(cur.fetchone()[0])
+# 123.45
+
+cur.unregister_sqldata_converter(VerticaType.NUMERIC)  # reset
+cur.execute("SELECT 123.45::NUMERIC")
+print(cur.fetchone()[0])
+# Decimal('123.45')
+```
+
+**Example: Vertica complex types**
+
+The raw bytes data of complex types (ARRAY, MAP, ROW, SET) are in JSON format for both Text & Binary transfer format.
+
+```python
+import json
+import numpy as np
+import vertica_python
+from vertica_python.datatypes import VerticaType
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'binary_transfer': False/True,
+             ...
+            }
+
+conn = vertica_python.connect(**conn_info)
+cur = conn.cursor()
+
+#==================================================
+cur.execute("SELECT ARRAY[-1.234, 0, 1.66, null, 50]::ARRAY[FLOAT]")
+data = cur.fetchone()[0]
+print(type(data))  # <class 'list'>
+print(data)  # [-1.234, 0.0, 1.66, None, 50.0]
+numpy_data = np.array(data) # This is equal to the query value below
+#==================================================
+def convert_array(val, ctx):
+    # val: b'[-1.234,0.0,1.66,null,50.0]'
+    json_data = json.loads(val)
+    return np.array(json_data)
+# VerticaType.ARRAY1D_FLOAT8 represents one-dimensional array of FLOAT type
+cur.register_sqldata_converter(VerticaType.ARRAY1D_FLOAT8, convert_array)
+cur.execute("SELECT ARRAY[-1.234, 0, 1.66, null, 50]::ARRAY[FLOAT]")
+data = cur.fetchone()[0]
+print(type(data))  # <class 'numpy.ndarray'>
+print(data)  # [-1.234 0.0 1.66 None 50.0]
+
+#==================================================
+# VerticaType.ARRAY represents multidimensional array or contain ROWs
+cur.register_sqldata_converter(VerticaType.ARRAY, convert_array)
+cur.execute("SELECT ARRAY[ARRAY[-1, 234, 5],ARRAY[88, 0, 19]]::ARRAY[ARRAY[INT]]")
+data = cur.fetchone()[0]
+print(type(data))  # <class 'numpy.ndarray'>
+print(data)
+#[[ -1 234   5]
+# [ 88   0  19]]
+```
+```python
+import pandas
+import vertica_python
+from io import BytesIO
+from vertica_python.datatypes import VerticaType
+
+conn_info = {'host': '127.0.0.1',
+             'port': 5433,
+             'binary_transfer': False/True,
+             ...
+            }
+
+conn = vertica_python.connect(**conn_info)
+cur = conn.cursor()
+
+cur.execute("SELECT ROW(ROW('a','b') as row1, ROW('c','d') as row2)")
+data = cur.fetchone()[0]
+print(type(data)) # <class 'dict'>
+print(data)  # {'row1': {'f0': 'a', 'f1': 'b'}, 'row2': {'f0': 'c', 'f1': 'd'}}
+
+def convert_row(val, ctx):
+    # val: b'{"row1":{"f0":"a","f1":"b"},"row2":{"f0":"c","f1":"d"}}'
+    return pandas.read_json(BytesIO(val), orient='index')
+
+cur.register_sqldata_converter(VerticaType.ROW, convert_row)
+cur.execute("SELECT ROW(ROW('a','b') as row1, ROW('c','d') as row2)")
+data = cur.fetchone()[0]
+print(type(data)) # <class 'pandas.core.frame.DataFrame'>
+print(data)
+#      f0 f1
+# row1  a  b
+# row2  c  d
+```
+
+
+If you want to learn how default converters for each transfer format and oid works, look at the source code at `vertica_python/vertica/deserializer.py`
 
 ### Shortcuts
 The `Cursor.execute()` method returns `self`. This means that you can chain a fetch operation, such as `fetchone()`, to the `execute()` call:

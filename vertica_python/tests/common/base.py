@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 import os
 import sys
@@ -41,13 +41,8 @@ import logging
 import unittest
 import inspect
 import getpass
-import six
-if six.PY2:
-    from ConfigParser import ConfigParser
-elif six.PY3:
-    from configparser import ConfigParser
+from configparser import ConfigParser
 
-from ...compat import as_text, as_str, as_bytes
 from ...vertica.log import VerticaLogging
 
 
@@ -58,6 +53,9 @@ default_configs = {
     'port': 5433,
     'user': getpass.getuser(),
     'password': '',
+    'database': '',
+    'oauth_access_token': '',
+    'oauth_user': '',
 }
 
 
@@ -72,8 +70,7 @@ class VerticaPythonTestCase(unittest.TestCase):
 
         # load default configurations
         for key in config_list:
-            if key != 'database':
-                test_config[key] = default_configs[key]
+            test_config[key] = default_configs[key]
 
         # override with the configuration file
         confparser = ConfigParser()
@@ -98,8 +95,6 @@ class VerticaPythonTestCase(unittest.TestCase):
         # value is string when loaded from configuration file and environment variable
         if 'port' in test_config:
             test_config['port'] = int(test_config['port'])
-        if 'database' in config_list and 'user' in test_config:
-            test_config.setdefault('database', test_config['user'])
         if 'log_level' in test_config:
             levels = ['NOTSET', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
             if isinstance(test_config['log_level'], str):
@@ -116,8 +111,8 @@ class VerticaPythonTestCase(unittest.TestCase):
     def _setup_logger(cls, tag, log_dir, log_level):
         # Setup test logger
         # E.g. If the class is defined in tests/integration_tests/test_dates.py
-        #      and test cases run under python3.7, then
-        #      the log would write to $VP_TEST_LOG_DIR/py37/integration_tests/test_dates.log
+        #      and test cases run under python3.9, then
+        #      the log would write to $VP_TEST_LOG_DIR/py39/integration_tests/test_dates.log
 
         testfile = os.path.splitext(os.path.basename(inspect.getsourcefile(cls)))[0]
         logfile = os.path.join(log_dir, tag, testfile + '.log')
@@ -132,27 +127,6 @@ class VerticaPythonTestCase(unittest.TestCase):
         self.logger.info('\n'+'-'*10+' End '+self.__class__.__name__+"."+self._testMethodName+' '+'-'*10+'\n')
 
     # Common assertions
-    def assertTextEqual(self, first, second, msg=None):
-        first_text = as_text(first)
-        second_text = as_text(second)
-        self.assertEqual(first=first_text, second=second_text, msg=msg)
-
-    def assertStrEqual(self, first, second, msg=None):
-        first_str = as_str(first)
-        second_str = as_str(second)
-        self.assertEqual(first=first_str, second=second_str, msg=msg)
-
-    def assertBytesEqual(self, first, second, msg=None):
-        first_bytes = as_bytes(first)
-        second_bytes = as_bytes(second)
-        self.assertEqual(first=first_bytes, second=second_bytes, msg=msg)
-
-    def assertResultEqual(self, value, result, msg=None):
-        if isinstance(value, six.string_types):
-            self.assertTextEqual(first=value, second=result, msg=msg)
-        else:
-            self.assertEqual(first=value, second=result, msg=msg)
-
     def assertListOfListsEqual(self, list1, list2, msg=None):
         self.assertEqual(len(list1), len(list2), msg=msg)
         for l1, l2 in zip(list1, list2):

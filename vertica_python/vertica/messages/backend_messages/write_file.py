@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2020-2024 Open Text.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ RETURNREJECTED parameters instead, this message is a series of row numbers
 saying which rows in the load were rejected.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 from struct import unpack_from
 

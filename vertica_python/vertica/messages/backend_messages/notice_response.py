@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,9 +33,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
-import six
 from struct import unpack_from
 
 from ...mixins.notice_response_attr import _NoticeResponseAttrMixin
@@ -54,7 +53,7 @@ class NoticeResponse(_NoticeResponseAttrMixin, BackendMessage):
     def error_message(self):
         return ', '.join([
             "{0}: {1}".format(name, value)
-            for (name, value) in six.iteritems(self.values)
+            for (name, value) in self.values.items()
         ])
 
     def __str__(self):
@@ -100,7 +99,7 @@ class NoticeResponse(_NoticeResponseAttrMixin, BackendMessage):
             unpacked = unpack_from('c{0}sx'.format(null_byte - 1 - pos), data, pos)
             key = unpacked[0]
             value = unpacked[1]
-            data_mapping[key] = value.decode('utf-8', 'replace')
+            data_mapping[key] = value.decode('utf-8', 'backslashreplace')
 
             pos += (len(value) + 2)
 

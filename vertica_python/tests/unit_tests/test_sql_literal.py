@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2020-2024 Open Text.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 from collections import namedtuple
 from decimal import Decimal
@@ -47,19 +47,19 @@ class SqlLiteralTestCase(VerticaPythonUnitTestCase):
         self.assertEqual(cursor.object_to_sql_literal(datetime.date(2018, 9, 7)), "'2018-09-07'")
         self.assertEqual(cursor.object_to_sql_literal(datetime.time(13, 50, 9)), "'13:50:09'")
         # String
-        self.assertEqual(cursor.object_to_sql_literal(u"string'1"), "'string''1'")
+        self.assertEqual(cursor.object_to_sql_literal("string'1"), "'string''1'")
         self.assertEqual(cursor.object_to_sql_literal(b"string'1"), "'string''1'")
         # Tuple and namedtuple
         self.assertEqual(cursor.object_to_sql_literal(
-            (123, u"string'1", None)), "(123,'string''1',NULL)")
+            (123, "string'1", None)), "(123,'string''1',NULL)")
         self.assertEqual(cursor.object_to_sql_literal(
-            ((1, u"a"), (2, u"b"), (3, u"c"))), "((1,'a'),(2,'b'),(3,'c'))")
+            ((1, "a"), (2, "b"), (3, "c"))), "((1,'a'),(2,'b'),(3,'c'))")
         Point = namedtuple('Point', ['x', 'y', 'z'])
         p = Point(x=11, y=22, z=33)
         self.assertEqual(cursor.object_to_sql_literal(p), "(11,22,33)")
 
     def test_register_adapters(self):
-        class Point(object):
+        class Point:
             def __init__(self, x, y):
                 self.x = x
                 self.y = y

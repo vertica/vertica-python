@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2020-2024 Open Text.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ The client has to verify that these files exist and are readable
 before running the copy.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 from struct import unpack_from
 

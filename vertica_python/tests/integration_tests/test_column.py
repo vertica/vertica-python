@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
+# Copyright (c) 2018-2024 Open Text.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,18 +33,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from __future__ import print_function, division, absolute_import
+from __future__ import annotations
 
 from .base import VerticaPythonIntegrationTestCase
 
 
 class ColumnTestCase(VerticaPythonIntegrationTestCase):
     def test_column_names_query(self):
-        columns = ['isocode', 'name', u'\uFF04']
+        columns = ['isocode', 'name', '\uFF04']
 
         with self._connect() as conn:
             cur = conn.cursor()
-            cur.execute(u"""
+            cur.execute("""
                 SELECT 'US' AS {0}, 'United States' AS {1}, 'USD' AS {2}
                 UNION ALL SELECT 'CA', 'Canada', 'CAD'
                 UNION ALL SELECT 'MX', 'Mexico', 'MXN' """.format(*columns))

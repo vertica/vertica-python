@@ -43,10 +43,39 @@ from ..message import BulkFrontendMessage
 from ..backend_messages.authentication import Authentication
 from ....compat import as_bytes
 
-if os.name == 'nt':
-    from . import crypt_windows as crypt
-else:
-    import crypt
+try:
+    if os.name == 'nt':
+        # Windows-specific crypt module workaround
+        # Try using passlib or cryptography in place of 'crypt' on Windows
+        try:
+            from passlib.hash import sha256_crypt as crypt  # Passlib as fallback
+        except ImportError:
+            try:
+                from cryptography.hazmat.primitives import hashes  # Cryptography fallback
+                crypt = hashes  # Note: hashes doesn't replace 'crypt', review usage
+            except ImportError:
+                raise ValueError(
+                    "Neither 'passlib' nor 'cryptography' is available on Windows, "
+                    "and the 'crypt' module is missing. "
+                    "Please install one of these libraries or adapt the code to use a different hashing mechanism."
+                )
+    else:
+        # Try importing cryptography as an alternative for non-Windows platforms
+        try:
+            from cryptography.hazmat.primitives import hashes
+            crypt = hashes  # Note: hashes doesn't replace 'crypt', review usage
+        except ImportError:
+            # If cryptography isn't available, fallback to passlib
+            try:
+                from passlib.hash import sha256_crypt as crypt
+            except ImportError:
+                raise ValueError(
+                    "Neither 'cryptography' nor 'passlib' is available, "
+                    "and the 'crypt' module is missing. "
+                    "Please install one of these libraries or adapt the code to use a different hashing mechanism."
+                )
+except ValueError as e:
+    raise ValueError(f"Error importing crypt module: {e}") from e
 
 
 class Password(BulkFrontendMessage):

@@ -939,15 +939,15 @@ class Connection:
                 user, database, session_label, os_user_name,
                 autocommit, binary_transfer, request_complex_types,
                 oauth_access_token, workload, auth_category,
-                totp_value
+                totp_value if totp_value is not None else None
             ))
 
 
         send_startup(totp_value=totp)  # ✅ First attempt
         while True:
             message = self.read_message()
-            self._logger.debug(f"Received message: {type(message).__name__}")
-            self._logger.debug(f"Message code: {getattr(message, 'code', None)}")
+            self._logger.debug(f"📨 Received message: {type(message).__name__}")
+            self._logger.debug(f"🔁 Message code: {getattr(message, 'code', None)}")
             if isinstance(message, messages.Authentication):
                 if message.code == messages.Authentication.OK:
                     self._logger.info("User {} successfully authenticated"
@@ -955,11 +955,11 @@ class Connection:
                     # 🔁 Continue reading messages after successful authentication
                     while True:
                         message = self.read_message()
-                        self._logger.debug(f"Post-auth message: {type(message).__name__}")
+                        self._logger.debug(f"📨 Post-auth message: {type(message).__name__}")
                         if isinstance(message, messages.ReadyForQuery):
                             self.transaction_status = message.transaction_status
                             # self.session_id = message.session_id
-                            self._logger.info("Connection is ready")
+                            self._logger.info("✅ Connection is ready")
                             break
                         elif isinstance(message, messages.ParameterStatus):
                             self.parameters[message.key] = message.value
@@ -974,68 +974,64 @@ class Connection:
                             short_msg = match.group(1).strip() if match else error_msg.strip()
 
                             if "Invalid TOTP" in short_msg:
-                                print("Authentication failed: Invalid TOTP token.")
-                                self._logger.error("Authentication failed: Invalid TOTP token.")
+                                print("❌ Authentication failed: Invalid TOTP token.")
+                                self._logger.error("❌ Authentication failed: Invalid TOTP token.")
                                 self.close_socket()
                                 raise errors.ConnectionError("Authentication failed: Invalid TOTP token.")
 
                             # Generic error fallback
-                            print(f"Authentication failed: {short_msg}")
+                            print(f"❌ Authentication failed: {short_msg}")
                             self._logger.error(short_msg)
-                            raise errors.ConnectionError(f"Authentication failed: {short_msg}")
+                            raise errors.ConnectionError(f"❌ Authentication failed: {short_msg}")
                         else:
-                            self._logger.warning(f"Unexpected message type: {type(message).__name__}")
+                            self._logger.warning(f"⚠️  Unexpected message type: {type(message).__name__}")
 
                     break
                 elif message.code == messages.Authentication.TOTP:
                     if retried_totp:
                         raise errors.ConnectionError("TOTP authentication failed.")
 
-                    # ✅ If TOTP not provided initially, prompt only once
+                    # ✅ If TOTP not provided initially, allow 3 retry attempts
                     if not totp:
-                        timeout_seconds = 30  # 5 minutes timeout
-                        try:
-                            print("Enter TOTP: ", end="", flush=True)
-                            ready, _, _ = select.select([sys.stdin], [], [], timeout_seconds)
-                            if ready:
-                                totp_input = sys.stdin.readline().strip()
-
-                                # ❌ Blank TOTP entered
-                                if not totp_input:
-                                    self._logger.error("Invalid TOTP: Cannot be empty.")
-                                    raise errors.ConnectionError("Invalid TOTP: Cannot be empty.")
-
-                                # ❌ Validate TOTP format (must be 6 digits)
-                                if not totp_input.isdigit() or len(totp_input) != 6:
-                                    print("Invalid TOTP format. Please enter a 6-digit code.")
-                                    self._logger.error("Invalid TOTP format entered.")
-                                    raise errors.ConnectionError("Invalid TOTP format: Must be a 6-digit number.")
-                                # ✅ Valid TOTP — retry connection
-                                totp = totp_input
-                                self.close_socket()
-                                self.socket = self.establish_socket_connection(self.address_list)
-                                self._logger.info(f"Retrying with TOTP: '{totp}'")
-
-                                # ✅ Re-init required attributes
-                                self.backend_pid = 0
-                                self.backend_key = 0
-                                self.transaction_status = None
-                                self.session_id = None
-
-                                self._logger.debug("Startup message sent with TOTP.")
-                                send_startup(totp_value=totp)
-
-                            else:
-                                self._logger.error("Session timeout: No TOTP entered within time limit.")
-                                self.close_socket()
-                                raise errors.ConnectionError("Session timeout: No TOTP entered within time limit.")
-                        except (KeyboardInterrupt, EOFError):
-                            raise errors.ConnectionError("TOTP input cancelled.")
+                        max_attempts = 3
+                        timeout_seconds = 300  # 5 minutes timeout
+                        for attempt in range(max_attempts):
+                            try:
+                                print(f"🔐 Enter TOTP (attempt {attempt+1}/{max_attempts}): ", end="", flush=True)
+                                ready, _, _ = select.select([sys.stdin], [], [], timeout_seconds)
+                                if ready:
+                                    totp_input = sys.stdin.readline().strip()
+                                    if not totp_input:
+                                        print("⚠️  TOTP cannot be empty.")
+                                        continue
+                                    totp = totp_input
+                                    self.close_socket()
+                                    self.socket = self.establish_socket_connection(self.address_list)
+                                    self._logger.info(f"🚀 Retrying with TOTP: '{totp}'")
+                                    # ✅ Re-init required attributes
+                                    self.backend_pid = 0
+                                    self.backend_key = 0
+                                    self.transaction_status = None
+                                    self.session_id = None
+                                    self._logger.debug("✅ Startup message sent with TOTP.")
+                                    # Send new startup message with updated TOTP
+                                    send_startup(totp_value=totp)
+                                    break
+                                else:
+                                    print("⏰ Session timed out. No TOTP entered within time limit.")
+                                    self._logger.error("Session timeout: No TOTP entered within time limit.")
+                                    self.close_socket()
+                                    raise errors.ConnectionError("Session timeout: No TOTP entered within time limit.")
+                            except (KeyboardInterrupt, EOFError):
+                                raise errors.ConnectionError("TOTP input cancelled.")
+                        else:
+                             print("❌ Maximum TOTP attempts exceeded without input.")
+                             self.close_socket()
+                             raise errors.ConnectionError("Authentication failed: No valid TOTP provided.")
                     else:
                         raise errors.ConnectionError("TOTP was requested but not provided.")
                     retried_totp = True
                     continue
-
                 elif message.code == messages.Authentication.CHANGE_PASSWORD:
                     msg = "The password for user {} has expired".format(self.options['user'])
                     self._logger.error(msg)

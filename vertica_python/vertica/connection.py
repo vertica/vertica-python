@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2024 Open Text.
+# Copyright (c) 2018-2022 Micro Focus or one of its affiliates.
 # Copyright (c) 2018 Uber Technologies, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,24 +34,30 @@
 # THE SOFTWARE.
 
 
-from __future__ import annotations
+from __future__ import print_function, division, absolute_import
 
 import base64
-import getpass
 import logging
-import random
 import socket
 import ssl
+import getpass
 import uuid
-import warnings
-from collections import deque
 from struct import unpack
+from collections import deque, namedtuple
+import random
 
 # noinspection PyCompatibility,PyUnresolvedReferences
-from urllib.parse import urlparse, parse_qs
-from typing import TYPE_CHECKING, NamedTuple
-if TYPE_CHECKING:
-    from typing import Any, Dict, List, Optional, Type, Union, Deque, Tuple
+from six import raise_from, string_types, integer_types, PY2
+
+if PY2:
+    from urlparse import urlparse, parse_qs
+else:
+    from urllib.parse import urlparse, parse_qs
+
+    from typing import TYPE_CHECKING
+    if TYPE_CHECKING:
+        from typing import Any, Dict, Literal, Optional, Type, Union
+        from typing_extensions import Self
 
 import vertica_python
 from .. import errors
@@ -60,7 +66,6 @@ from ..vertica.cursor import Cursor
 from ..vertica.messages.message import BackendMessage, FrontendMessage
 from ..vertica.messages.frontend_messages import CancelRequest
 from ..vertica.log import VerticaLogging
-from ..vertica.tlsmode import TLSMode
 
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 5433
@@ -72,24 +77,21 @@ DEFAULT_KRB_SERVICE_NAME = 'vertica'
 DEFAULT_LOG_LEVEL = logging.WARNING
 DEFAULT_LOG_PATH = 'vertica_python.log'
 DEFAULT_BINARY_TRANSFER = False
-DEFAULT_REQUEST_COMPLEX_TYPES = True
-DEFAULT_OAUTH_ACCESS_TOKEN = ''
-DEFAULT_WORKLOAD = ''
-DEFAULT_TLSMODE = 'prefer'
 try:
     DEFAULT_USER = getpass.getuser()
 except Exception as e:
     DEFAULT_USER = None
-    warnings.warn(f"Cannot get the login user name: {str(e)}")
+    print("WARN: Cannot get the login user name: {}".format(str(e)))
 
 
-def connect(**kwargs: Any) -> Connection:
+def connect(**kwargs):
+    # type: (Any) -> Connection
     """Opens a new connection to a Vertica database."""
     return Connection(kwargs)
 
 
-def parse_dsn(dsn: str) -> Dict[str, Union[str, int, bool, float]]:
-    """Parse connection string (DSN) into a dictionary of keywords and values.
+def parse_dsn(dsn):
+    """Parse connection string into a dictionary of keywords and values.
        Connection string format:
            vertica://<user>:<password>@<host>:<port>/<database>?k1=v1&k2=v2&...
     """
@@ -98,7 +100,7 @@ def parse_dsn(dsn: str) -> Dict[str, Union[str, int, bool, float]]:
         raise ValueError("Only vertica:// scheme is supported.")
 
     # Ignore blank/invalid values
-    result: Dict[str, Union[str, int, bool, float]] = {k: v for k, v in (
+    result = {k: v for k, v in (
         ('host', url.hostname),
         ('port', url.port),
         ('user', url.username),
@@ -107,7 +109,6 @@ def parse_dsn(dsn: str) -> Dict[str, Union[str, int, bool, float]]:
     }
     for key, values in parse_qs(url.query, keep_blank_values=True).items():
         # Try to get the last non-blank value in the list of values for each key
-        value = ''
         for i in reversed(range(len(values))):
             value = values[i]
             if value != '':
@@ -119,8 +120,7 @@ def parse_dsn(dsn: str) -> Dict[str, Union[str, int, bool, float]]:
         elif key == 'backup_server_node':
             continue
         elif key in ('connection_load_balance', 'use_prepared_statements',
-                     'disable_copy_local', 'ssl', 'autocommit',
-                     'binary_transfer', 'request_complex_types'):
+                     'disable_copy_local', 'ssl', 'autocommit', 'binary_transfer'):
             lower = value.lower()
             if lower in ('true', 'on', '1'):
                 result[key] = True
@@ -135,17 +135,10 @@ def parse_dsn(dsn: str) -> Dict[str, Union[str, int, bool, float]]:
 
     return result
 
+_AddressEntry = namedtuple('_AddressEntry', ['host', 'resolved', 'data'])
 
-class _AddressEntry(NamedTuple):
-    host: str
-    resolved: bool
-    data: Any
-
-
-class _AddressList:
-    def __init__(self, host: str, port: Union[int, str],
-                 backup_nodes: List[Union[str, Tuple[str, Union[int, str]]]],
-                 logger: logging.Logger) -> None:
+class _AddressList(object):
+    def __init__(self, host, port, backup_nodes, logger):
         """Creates a new deque with the primary host first, followed by any backup hosts"""
 
         self._logger = logger
@@ -155,7 +148,7 @@ class _AddressList:
         #   - when resolved is False, data is port
         #   - when resolved is True, data is the 5-tuple from socket.getaddrinfo
         # This allows for lazy resolution. Seek peek() for more.
-        self.address_deque: Deque['_AddressEntry'] = deque()
+        self.address_deque = deque()
 
         # load primary host into address_deque
         self._append(host, port)
@@ -170,7 +163,7 @@ class _AddressList:
         # a host name or IP address string (using default port) or
         # a (host, port) tuple
         for node in backup_nodes:
-            if isinstance(node, str):
+            if isinstance(node, string_types):
                 self._append(node, DEFAULT_PORT)
             elif isinstance(node, tuple) and len(node) == 2:
                 self._append(node[0], node[1])
@@ -181,17 +174,17 @@ class _AddressList:
                 raise TypeError(err_msg)
         self._logger.debug('Address list: {0}'.format(list(self.address_deque)))
 
-    def _append(self, host: str, port: Union[int, str]) -> None:
-        if not isinstance(host, str):
+    def _append(self, host, port):
+        if not isinstance(host, string_types):
             err_msg = 'Host must be a string: invalid value: {0}'.format(host)
             self._logger.error(err_msg)
             raise TypeError(err_msg)
 
-        if not isinstance(port, (str, int)):
+        if not isinstance(port, (string_types, integer_types)):
             err_msg = 'Port must be an integer or a string: invalid value: {0}'.format(port)
             self._logger.error(err_msg)
             raise TypeError(err_msg)
-        elif isinstance(port, str):
+        elif isinstance(port, string_types):
             try:
                 port = int(port)
             except ValueError as e:
@@ -206,10 +199,10 @@ class _AddressList:
 
         self.address_deque.append(_AddressEntry(host=host, resolved=False, data=port))
 
-    def push(self, host: str, port: int) -> None:
+    def push(self, host, port):
         self.address_deque.appendleft(_AddressEntry(host=host, resolved=False, data=port))
 
-    def pop(self) -> None:
+    def pop(self):
         self.address_deque.popleft()
 
     def peek(self):
@@ -242,15 +235,15 @@ class _AddressList:
                             host=host, resolved=True, data=addrinfo))
         return None
 
-    def peek_host(self) -> Optional[str]:
-        """Return the leftmost host result."""
+    def peek_host(self):
+        # returning the leftmost host result
         self._logger.debug('Peek host at address list: {0}'.format(list(self.address_deque)))
         if len(self.address_deque) == 0:
             return None
         return self.address_deque[0].host
 
 
-def _generate_session_label() -> str:
+def _generate_session_label():
     return '{type}-{version}-{id}'.format(
         type='vertica-python',
         version=vertica_python.__version__,
@@ -258,9 +251,10 @@ def _generate_session_label() -> str:
     )
 
 
-class Connection:
-    def __init__(self, options: Optional[Dict[str, Any]] = None) -> None:
-        self.parameters: Dict[str, Union[str, int]] = {}
+class Connection(object):
+    def __init__(self, options=None):
+        # type: (Optional[Dict[str, Any]]) -> None
+        self.parameters = {}
         self.session_id = None
         self.backend_pid = None
         self.backend_key = None
@@ -284,17 +278,22 @@ class Connection:
             self.options.setdefault('log_level', DEFAULT_LOG_LEVEL)
             self.options.setdefault('log_path', DEFAULT_LOG_PATH)
             VerticaLogging.setup_logging(logger_name, self.options['log_path'],
-                                         self.options['log_level'], str(id(self)))
+                                         self.options['log_level'], id(self))
 
         self.options.setdefault('host', DEFAULT_HOST)
         self.options.setdefault('port', DEFAULT_PORT)
+        if 'user' not in self.options:
+            if DEFAULT_USER:
+                self.options['user'] = DEFAULT_USER
+            else:
+                msg = 'Connection option "user" is required'
+                self._logger.error(msg)
+                raise KeyError(msg)
         self.options.setdefault('database', DEFAULT_DATABASE)
         self.options.setdefault('password', DEFAULT_PASSWORD)
         self.options.setdefault('autocommit', DEFAULT_AUTOCOMMIT)
         self.options.setdefault('session_label', _generate_session_label())
         self.options.setdefault('backup_server_node', DEFAULT_BACKUP_SERVER_NODE)
-        self.options.setdefault('workload', DEFAULT_WORKLOAD)
-        self.kerberos_is_set = self.options.get('kerberos_host_name', None) or self.options.get('kerberos_service_name', None)
         self.options.setdefault('kerberos_service_name', DEFAULT_KRB_SERVICE_NAME)
         # Kerberos authentication hostname defaults to the host value here so
         # the correct value cannot be overwritten by load balancing or failover
@@ -302,22 +301,6 @@ class Connection:
 
         self.address_list = _AddressList(self.options['host'], self.options['port'],
                                          self.options['backup_server_node'], self._logger)
-
-        # OAuth authentication setup
-        self.options.setdefault('oauth_access_token', DEFAULT_OAUTH_ACCESS_TOKEN)
-        if not isinstance(self.options['oauth_access_token'], str):
-            raise TypeError(f'The value of connection option "oauth_access_token" should be a str')
-
-        # user is required for non-OAuth connections
-        if 'user' not in self.options:
-            if len(self.options['oauth_access_token']) > 0:
-                self.options['user'] = ''
-            elif DEFAULT_USER:
-                self.options['user'] = DEFAULT_USER
-            else:
-                msg = 'Connection option "user" is required'
-                self._logger.error(msg)
-                raise KeyError(msg)
 
         # we only support one cursor per connection
         self.options.setdefault('unicode_error', None)
@@ -339,20 +322,14 @@ class Connection:
         self._logger.debug('Data binary transfer is {}'.format(
                      'enabled' if self.options['binary_transfer'] else 'disabled'))
 
-        # knob for requesting complex types metadata
-        self.options.setdefault('request_complex_types', DEFAULT_REQUEST_COMPLEX_TYPES)
-        self._logger.debug('Complex types metadata is {}'.format(
-                     'requested' if self.options['request_complex_types'] else 'not requested'))
-
         self._logger.info('Connecting as user "{}" to database "{}" on host "{}" with port {}'.format(
                      self.options['user'], self.options['database'],
                      self.options['host'], self.options['port']))
-
         self.startup_connection()
 
-        # Complex types metadata is returned since protocol version 3.12
-        self.complex_types_enabled = self.parameters.get('protocol_version', 0) >= (3 << 16 | 12) and \
-                                     self.parameters.get('request_complex_types', 'off') == 'on'
+        # Initially, for a new session, autocommit is off
+        if self.options['autocommit']:
+            self.autocommit = True
 
         self._logger.info('Connection is ready')
 
@@ -360,6 +337,7 @@ class Connection:
     # supporting `with` statements
     #############################################
     def __enter__(self):
+        # type: () -> Self
         return self
 
     def __exit__(self, type_, value, traceback):
@@ -368,47 +346,29 @@ class Connection:
     #############################################
     # dbapi methods
     #############################################
-    def close(self) -> None:
-        """Close the connection now."""
+    def close(self):
         self._logger.info('Close the connection')
         try:
             self.write(messages.Terminate())
         finally:
             self.close_socket()
 
-    def commit(self) -> None:
-        """Commit any pending transaction to the database."""
+    def commit(self):
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
         cur = self.cursor()
         cur.execute('COMMIT;')
 
-    def rollback(self) -> None:
-        """Roll back to the start of any pending transaction."""
+    def rollback(self):
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
         cur = self.cursor()
         cur.execute('ROLLBACK;')
 
-    def cursor(self,
-               cursor_type: Union[None, str, Type[List[Any]], Type[Dict[Any, Any]]] = None) -> Cursor:
-        """Return the Cursor Object using the connection.
-
-        vertica-python only support one cursor per connection.
-
-        Argument cursor_type determines the type of query result rows.
-        The following cases return each row as a list. E.g. [ [1, 'foo'], [2, 'bar'] ]
-         - cursor()
-         - cursor(cursor_type=list)
-         - cursor(cursor_type='list')
-
-        The following cases return each row as a dict with column names as keys.
-        E.g. [ {'id': 1, 'value': 'foo'}, {'id': 2, 'value': 'bar'} ]
-         - cursor(cursor_type=dict)
-         - cursor(cursor_type='dict')
-        """
+    def cursor(self, cursor_type=None):
+        # type: (Self, Optional[Union[Literal['list', 'dict'], Type[list[Any]], Type[dict[Any, Any]]]]) -> Cursor
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
 
@@ -423,14 +383,13 @@ class Connection:
     # non-dbapi methods
     #############################################
     @property
-    def autocommit(self) -> bool:
-        """Read the connection's AUTOCOMMIT setting from cache."""
-        # For a new session, autocommit is off by default
+    def autocommit(self):
+        """Read the connection's AUTOCOMMIT setting from cache"""
         return self.parameters.get('auto_commit', 'off') == 'on'
 
     @autocommit.setter
-    def autocommit(self, value: bool) -> None:
-        """Change the connection's AUTOCOMMIT setting."""
+    def autocommit(self, value):
+        """Change the connection's AUTOCOMMIT setting"""
         if self.autocommit is value:
             return
         val = 'on' if value else 'off'
@@ -438,11 +397,9 @@ class Connection:
         cur.execute('SET SESSION AUTOCOMMIT TO {}'.format(val), use_prepared_statements=False)
         cur.fetchall()   # check for errors and update the cache
 
-    def cancel(self) -> None:
-        """Cancel the current database operation.
-        
-        This method can be called from a different thread than the one currently
-        executing a database operation.
+    def cancel(self):
+        """Cancel the current database operation. This can be called from a
+           different thread than the one currently executing a database operation.
         """
         if self.closed():
             raise errors.ConnectionError('Connection is closed')
@@ -454,17 +411,15 @@ class Connection:
 
         self._logger.info('Cancel request issued')
 
-    def opened(self) -> bool:
-        """Returns True if the connection is opened."""
+    def opened(self):
         return (self.socket is not None
                 and self.backend_pid is not None
                 and self.transaction_status is not None)
 
-    def closed(self) -> bool:
-        """Returns True if the connection is closed."""
+    def closed(self):
         return not self.opened()
 
-    def __str__(self) -> str:
+    def __str__(self):
         safe_options = {key: value for key, value in self.options.items() if key != 'password'}
 
         s1 = "<Vertica.Connection:{0} parameters={1} backend_pid={2}, ".format(
@@ -491,67 +446,32 @@ class Connection:
         if self.socket:
             return self.socket
 
-        # the initial establishment of the socket connection
+        # the initial establishment of the client connection
         raw_socket = self.establish_socket_connection(self.address_list)
 
-        # modify the socket connection based on client connection options
-        try:
-            ssl_context, force = self._generate_ssl_context()
+        # enable load balancing
+        load_balance_options = self.options.get('connection_load_balance')
+        self._logger.debug('Connection load balance option is {0}'.format(
+                     'enabled' if load_balance_options else 'disabled'))
+        if load_balance_options:
+            raw_socket = self.balance_load(raw_socket)
 
-            # enable load balancing
-            load_balance_options = self.options.get('connection_load_balance')
-            self._logger.debug('Connection load balance option is {0}'.format(
-                         'enabled' if load_balance_options else 'disabled'))
-            if load_balance_options:
-                raw_socket = self.balance_load(raw_socket)
-
-            # enable TLS
-            if ssl_context is not None:
-                raw_socket = self.enable_ssl(raw_socket, ssl_context, force=force)
-        except:
-            self._logger.debug('Close the socket')
-            raw_socket.close()
-            raise
+        # enable SSL
+        ssl_options = self.options.get('ssl')
+        self._logger.debug('SSL option is {0}'.format('enabled' if ssl_options else 'disabled'))
+        if ssl_options:
+            raw_socket = self.enable_ssl(raw_socket, ssl_options)
 
         self.socket = raw_socket
         return self.socket
-
-    def _generate_ssl_context(self):
-        tlsmode_options = self.options.get('tlsmode')
-        ssl_options = self.options.get('ssl')
-        # If TLSmode option and SSL option are set, TLSmode option takes precedence.
-        ssl_context = None
-        if tlsmode_options is not None:
-            tlsmode = TLSMode(tlsmode_options)
-        elif ssl_options is not None:
-            if isinstance(ssl_options, ssl.SSLContext):
-                ssl_context = ssl_options
-                tlsmode = TLSMode.REQUIRE  # placeholder
-            elif isinstance(ssl_options, bool):
-                tlsmode = TLSMode.REQUIRE if ssl_options else TLSMode.DISABLE
-            else:
-                raise TypeError('The value of connection option "ssl" should be a bool or ssl.SSLContext object')
-        else:
-            tlsmode = TLSMode(DEFAULT_TLSMODE)
-        self._logger.debug(f'Connection TLS Mode is {tlsmode.name}')
-
-        if tlsmode.requests_encryption():
-            if ssl_context is None:
-                cafile = self.options.get('tls_cafile')
-                certfile = self.options.get('tls_certfile')
-                keyfile = self.options.get('tls_keyfile')
-                ssl_context = tlsmode.get_sslcontext(cafile, certfile, keyfile)
-            return ssl_context, tlsmode.requires_encryption()
-        else:
-            return None, False
 
     def _socket_as_file(self):
         if self.socket_as_file is None:
             self.socket_as_file = self._socket().makefile('rb')
         return self.socket_as_file
 
-    def create_socket(self, family) -> socket.socket:
-        """Create a TCP socket object."""
+    def create_socket(self, family):
+        """Create a TCP socket object"""
         raw_socket = socket.socket(family, socket.SOCK_STREAM)
         raw_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         connection_timeout = self.options.get('connection_timeout')
@@ -560,7 +480,7 @@ class Connection:
             raw_socket.settimeout(connection_timeout)
         return raw_socket
 
-    def balance_load(self, raw_socket: socket.socket) -> socket.socket:
+    def balance_load(self, raw_socket):
         # Send load balance request and read server response
         self._logger.debug('=> %s', messages.LoadBalanceRequest())
         raw_socket.sendall(messages.LoadBalanceRequest().get_message())
@@ -591,50 +511,72 @@ class Connection:
             raw_socket = self.establish_socket_connection(self.address_list)
         else:
             self._logger.debug('<= LoadBalanceResponse: %s', response)
-            no_load_balancing = "Load balancing requested but not supported by server"
-            warnings.warn(no_load_balancing)
-            self._logger.warning(no_load_balancing)
+            self._logger.warning("Load balancing requested but not supported by server")
 
         return raw_socket
-
-    def enable_ssl(self,
-                   raw_socket: socket.socket,
-                   ssl_context: ssl.SSLContext,
-                   force: bool) -> Union[socket.socket, ssl.SSLSocket]:
+    def enable_ssl(self, raw_socket, ssl_options):
         # Send SSL request and read server response
         self._logger.debug('=> %s', messages.SslRequest())
         raw_socket.sendall(messages.SslRequest().get_message())
         response = raw_socket.recv(1)
         self._logger.debug('<= SslResponse: %s', response)
-        if response == b'':
-            msg = 'Failed to get ssl response from server'
-            self._logger.error(msg)
-            raise errors.ConnectionError(msg)
+
         if response == b'S':
-            self._logger.info('Enabling TLS')
+            self._logger.info('Enabling SSL')
             try:
                 server_host = self.address_list.peek_host()
                 if server_host is None:   # This should not happen
-                    msg = 'Cannot get the connected server host while enabling TLS'
+                    msg = 'Cannot get the connected server host while enabling SSL'
                     self._logger.error(msg)
                     raise errors.ConnectionError(msg)
-                raw_socket = ssl_context.wrap_socket(raw_socket, server_hostname=server_host)
+
+                if isinstance(ssl_options, ssl.SSLContext):
+                    context = ssl_options
+                else:
+                    context = ssl.create_default_context()
+
+                    # Load user-provided certificates if available
+                    cafile = self.options.get('tls_cafile')
+                    certfile = self.options.get('tls_certfile')
+                    keyfile = self.options.get('tls_keyfile')
+
+                    if cafile:
+                        self._logger.info(f'Loading CA file: {cafile}')
+                        context.load_verify_locations(cafile)
+                    if certfile and keyfile:
+                        self._logger.info(f'Loading client cert: {certfile} and key: {keyfile}')
+                        context.load_cert_chain(certfile=certfile, keyfile=keyfile)
+                    else:
+                        self._logger.warning('Client certificate/key not provided; connection may fail if server requires mutual TLS.')
+
+                # Allow automatic negotiation between TLS 1.2 and 1.3
+                context.minimum_version = ssl.TLSVersion.TLSv1_2
+                context.maximum_version = ssl.TLSVersion.TLSv1_3
+
+                # Enable ALPN for Vertica protocol negotiation
+                try:
+                    context.set_alpn_protocols(['http/1.1', 'vertica', 'postgresql'])
+                except NotImplementedError:
+                    self._logger.warning("ALPN not supported on this system; skipping.")
+
+                # Disable hostname verification for testing (not for production)
+                context.check_hostname = True
+                context.verify_mode = ssl.CERT_REQUIRED
+
+                raw_socket = context.wrap_socket(raw_socket, server_hostname=server_host)
+
             except ssl.CertificateError as e:
-                raise errors.ConnectionError(str(e))
+                raise_from(errors.ConnectionError(str(e)), e)
             except ssl.SSLError as e:
-                raise errors.ConnectionError(str(e))
-        elif force:
-            err_msg = "SSL requested but disabled on the server"
+                raise_from(errors.ConnectionError(str(e)), e)
+        else:
+            err_msg = "SSL requested but not supported by server"
             self._logger.error(err_msg)
             raise errors.SSLNotSupported(err_msg)
-        else:
-            msg = 'TLS is not configured on the server. Proceeding with an unencrypted channel.'
-            hint = "\nHINT: Set connection option 'tlsmode' to 'disable' to explicitly create a non-TLS connection."
-            warnings.warn(msg + hint)
-            self._logger.warning(msg)
+
         return raw_socket
 
-    def establish_socket_connection(self, address_list: _AddressList) -> socket.socket:
+    def establish_socket_connection(self, address_list):
         """Given a list of database node addresses, establish the socket
            connection to the database server. Return a connected socket object.
         """
@@ -644,7 +586,7 @@ class Connection:
 
         # Failover: loop to try all addresses
         while addrinfo:
-            (family, _socktype, _proto, _canonname, sockaddr) = addrinfo
+            (family, socktype, proto, canonname, sockaddr) = addrinfo
             last_exception = None
 
             # _AddressList filters all addrs to AF_INET and AF_INET6, which both
@@ -673,11 +615,10 @@ class Connection:
 
         return raw_socket
 
-    def ssl(self) -> bool:
-        """Returns True if the TCP socket is a SSL socket."""
+    def ssl(self):
         return self.socket is not None and isinstance(self.socket, ssl.SSLSocket)
 
-    def write(self, message: FrontendMessage, vsocket: Optional[Union[socket.socket, ssl.SSLSocket]] = None) -> None:
+    def write(self, message, vsocket=None):
         if not isinstance(message, FrontendMessage):
             raise TypeError("invalid message: ({0})".format(message))
         if vsocket is None:
@@ -685,7 +626,7 @@ class Connection:
         self._logger.debug('=> %s', message)
         try:
             for data in message.fetch_message():
-                size = 8192  # Max msg size, consistent with how the server works
+                size = 8192 # Max msg size, consistent with how the server works
                 pos = 0
                 while pos < len(data):
                     sent = vsocket.send(data[pos : pos + size])
@@ -696,12 +637,11 @@ class Connection:
             self.close_socket()
             self._logger.error(str(e))
             if isinstance(e, IOError):
-                raise errors.ConnectionError(str(e))
+                raise_from(errors.ConnectionError(str(e)), e)
             else:
                 raise
 
-    def close_socket(self) -> None:
-        self._logger.debug("Close connection's socket")
+    def close_socket(self):
         try:
             if self.socket is not None:
                 self._socket().close()
@@ -710,34 +650,30 @@ class Connection:
         finally:
             self.reset_values()
 
-    def reset_connection(self) -> None:
+    def reset_connection(self):
         self.close()
         self.startup_connection()
 
-    def is_asynchronous_message(self, message: BackendMessage) -> bool:
+    def is_asynchronous_message(self, message):
         # Check if it is an asynchronous response message
         # Note: ErrorResponse is a subclass of NoticeResponse
         return (isinstance(message, messages.ParameterStatus) or
             (isinstance(message, messages.NoticeResponse) and
              not isinstance(message, messages.ErrorResponse)))
 
-    def handle_asynchronous_message(self, message: Union[messages.ParameterStatus, messages.NoticeResponse]) -> None:
+    def handle_asynchronous_message(self, message):
         if isinstance(message, messages.ParameterStatus):
             if message.name == 'protocol_version':
                 message.value = int(message.value)
             self.parameters[message.name] = message.value
         elif (isinstance(message, messages.NoticeResponse) and
-              not isinstance(message, messages.ErrorResponse)):
+             not isinstance(message, messages.ErrorResponse)):
             if getattr(self, 'notice_handler', None) is not None:
                 self.notice_handler(message)
             else:
-                notice = f'{message.severity} {message.error_code}: {message.message}'
-                if message.hint is not None:
-                    notice += f'\nHINT: {message.hint}'
-                warnings.warn(notice)
                 self._logger.warning(message.error_message())
 
-    def read_string(self) -> bytearray:
+    def read_string(self):
         s = bytearray()
         while True:
             char = self.read_bytes(1)
@@ -746,7 +682,7 @@ class Connection:
             s.extend(char)
         return s
 
-    def read_message(self) -> BackendMessage:
+    def read_message(self):
         while True:
             try:
                 type_ = self.read_bytes(1)
@@ -772,8 +708,6 @@ class Connection:
                     else:
                         # The rest of the message is read later with write_to_disk()
                         message = messages.WriteFile(filename, file_length)
-                elif type_ == messages.RowDescription.message_id:
-                    message = BackendMessage.from_type(type_, self.read_bytes(size - 4), complex_types_enabled=self.complex_types_enabled)
                 else:
                     message = BackendMessage.from_type(type_, self.read_bytes(size - 4))
                 self._logger.debug('<= %s', message)
@@ -785,7 +719,7 @@ class Connection:
                 self.close_socket()
                 # noinspection PyTypeChecker
                 self._logger.error(e)
-                raise errors.ConnectionError(str(e))
+                raise_from(errors.ConnectionError(str(e)), e)
             if not self.is_asynchronous_message(message):
                 break
         return message
@@ -810,7 +744,7 @@ class Connection:
             self._logger.error(msg)
             raise errors.MessageError(msg)
 
-    def read_bytes(self, n: int) -> bytes:
+    def read_bytes(self, n):
         if n == 1:
             result = self._socket_as_file().read(1)
             if not result:
@@ -828,7 +762,7 @@ class Connection:
                 to_read -= received
             return buf
 
-    def send_GSS_response_and_receive_challenge(self, response):
+    def send_GSS_response_and_receive_challenge(self, response):       
         # Send the GSS response data to the vertica server
         token = base64.b64decode(response)
         self.write(messages.Password(token, messages.Authentication.GSS))
@@ -842,7 +776,7 @@ class Connection:
             raise errors.MessageError(msg)
         return message.auth_data
 
-    def make_GSS_authentication(self) -> None:
+    def make_GSS_authentication(self):
         try:
             import kerberos
         except ImportError as e:
@@ -898,28 +832,15 @@ class Connection:
             self._logger.error(msg)
             raise errors.KerberosError(msg)
 
-    def startup_connection(self) -> None:
+    def startup_connection(self):
         user = self.options['user']
         database = self.options['database']
         session_label = self.options['session_label']
         os_user_name = DEFAULT_USER if DEFAULT_USER else ''
         password = self.options['password']
-        autocommit = self.options['autocommit']
         binary_transfer = self.options['binary_transfer']
-        request_complex_types = self.options['request_complex_types']
-        oauth_access_token = self.options['oauth_access_token']
-        workload = self.options['workload']
-        if len(oauth_access_token) > 0:
-            auth_category = 'OAuth'
-        elif self.kerberos_is_set:
-            auth_category = 'Kerberos'
-        elif password:
-            auth_category = 'User'
-        else:
-            auth_category = ''
 
-        self.write(messages.Startup(user, database, session_label, os_user_name, autocommit, binary_transfer, 
-                                    request_complex_types, oauth_access_token, workload, auth_category))
+        self.write(messages.Startup(user, database, session_label, os_user_name, binary_transfer))
 
         while True:
             message = self.read_message()
@@ -933,13 +854,10 @@ class Connection:
                     self._logger.error(msg)
                     raise errors.ConnectionError(msg)
                 elif message.code == messages.Authentication.PASSWORD_GRACE:
-                    password_grace = f'The password for user {self.options["user"]} will expire soon. Please consider changing it.'
-                    warnings.warn(password_grace)
-                    self._logger.warning(password_grace)
+                    self._logger.warning('The password for user {} will expire soon.'
+                        ' Please consider changing it.'.format(self.options['user']))
                 elif message.code == messages.Authentication.GSS:
                     self.make_GSS_authentication()
-                elif message.code == messages.Authentication.OAUTH:
-                    self.write(messages.Password(oauth_access_token, message.code))
                 else:
                     self.write(messages.Password(password, message.code,
                                                  {'user': user,

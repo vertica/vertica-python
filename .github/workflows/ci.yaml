@@ -266,147 +266,93 @@ jobs:
               GRANT AUTHENTICATION v_dbadmin_hash TO dbadmin;
             \"
           "
-
-      - name: Fetch OAuth Access Token
+          
+      - name: Run Python tests in-cluster (py-test-runner)
         run: |
           set -euo pipefail
-          NS=keycloak
-          POD_NAME="curl-token-$$"
-          IMAGE="curlimages/curl:latest"
-          TOKEN_ENDPOINT="http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token"
-          WAIT_TIMEOUT=60
-          INTERVAL=2
 
-          kubectl -n ${NS} run ${POD_NAME} --restart=Never --image=${IMAGE} --command -- sleep 300
+          NS=my-verticadb-operator
+          SVC=verticadb-sample-defaultsubcluster
+          LOCATOR="${SVC}.${NS}.svc.cluster.local:5433"
+          POD=py-test-runner
+          IMAGE=python:3.11-slim
 
+          # wait for endpoints so Vertica is discoverable
+          WAIT_TIMEOUT=300
+          INTERVAL=5
           deadline=$((SECONDS + WAIT_TIMEOUT))
           while [ $SECONDS -lt $deadline ]; do
-            phase=$(kubectl -n ${NS} get pod ${POD_NAME} -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
-            if [ "$phase" = "Running" ]; then
-              break
-            fi
-            if [ "$phase" = "Failed" ] || [ "$phase" = "Unknown" ]; then
-              kubectl -n ${NS} describe pod ${POD_NAME} || true
-              kubectl -n ${NS} logs ${POD_NAME} || true
-              kubectl -n ${NS} delete pod ${POD_NAME} --ignore-not-found || true
-              echo "Pod ${POD_NAME} entered non-running phase: $phase"
-              exit 1
-            fi
-            sleep ${INTERVAL}
+            addrs=$(kubectl -n ${NS} get endpoints ${SVC} -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null || true)
+            [ -n "$addrs" ] && break || sleep ${INTERVAL}
           done
 
-          if [ "$(kubectl -n ${NS} get pod ${POD_NAME} -o jsonpath='{.status.phase}')" != "Running" ]; then
-            echo "Timed out waiting for curl pod to become Running"
-            kubectl -n ${NS} describe pod ${POD_NAME} || true
-            kubectl -n ${NS} logs ${POD_NAME} || true
-            kubectl -n ${NS} delete pod ${POD_NAME} --ignore-not-found || true
-            exit 1
-          fi
+          # create test pod and wait for Ready
+          kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+          kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- sleep infinity
+          kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=180s
 
-          kubectl -n ${NS} exec ${POD_NAME} -- sh -c "
-            curl -s -w '\n%{http_code}' -X POST '${TOKEN_ENDPOINT}' \
+          # copy repo into pod
+          kubectl -n ${NS} exec -i pod/${POD} -- mkdir -p /workspace
+          tar cf - . | kubectl -n ${NS} exec -i pod/${POD} -- tar xf - -C /workspace
+
+          # install test deps (adjust as needed)
+          kubectl -n ${NS} exec pod/${POD} -- bash -lc "python -m pip install --upgrade pip >/dev/null 2>&1 || true; pip install tox pytest >/dev/null 2>&1 || true"
+
+          # fetch token inside cluster (password grant as in your Go flow)
+          kubectl -n keycloak run curl-token --restart=Never --image=curlimages/curl:latest --command -- sleep 300
+          kubectl -n keycloak wait --for=condition=Ready pod/curl-token --timeout=120s || true
+          kubectl -n keycloak exec pod/curl-token -- sh -c "
+            curl -s -w '\n%{http_code}' -X POST 'http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token' \
               -d 'client_id=${CLIENT_ID}' \
               -d 'username=${USER}' \
               -d 'password=${PASSWORD}' \
               -d 'grant_type=password' \
               -d 'client_secret=${CLIENT_SECRET}' > /tmp/token_resp.txt
           "
-
-          RAW_JSON=$(kubectl -n ${NS} exec ${POD_NAME} -- cat /tmp/token_resp.txt || true)
-          kubectl -n ${NS} delete pod ${POD_NAME} --ignore-not-found
+          RAW_JSON=$(kubectl -n keycloak exec pod/curl-token -- cat /tmp/token_resp.txt || true)
+          kubectl -n keycloak delete pod curl-token --ignore-not-found || true
 
           HTTP_CODE=$(printf "%s" "$RAW_JSON" | tail -n1)
           BODY=$(printf "%s" "$RAW_JSON" | sed '$d')
-
-          echo "Token endpoint HTTP status: $HTTP_CODE"
           if [ -z "$HTTP_CODE" ] || [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-            echo "Failed to get token; response (truncated):"
+            echo "Failed to fetch token; http=$HTTP_CODE; body:"
             printf "%.1024s\n" "$BODY"
             exit 1
           fi
 
           TOKEN=$(printf "%s" "$BODY" | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("access_token",""))' || true)
-
           if [ -z "$TOKEN" ]; then
-            echo "No access_token found in response; full body:"
+            echo "No access_token in response; body:"
             echo "$BODY"
             exit 1
           fi
 
-          printf "%s" "$TOKEN" > access_token.txt
-          echo "Access token saved to access_token.txt"
-
-      - name: Create and populate python test pod (robust)
-        run: |
-          set -euo pipefail
-
-          NS=my-verticadb-operator
-          POD=py-test-runner
-          IMAGE=python:3.11-slim
-          WAIT_TIMEOUT=180
-          INTERVAL=3
-
-          kubectl create ns ${NS} --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null || true
-          kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
-          kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- sleep infinity
-
-          deadline=$((SECONDS + WAIT_TIMEOUT))
-          while [ $SECONDS -lt $deadline ]; do
-            pod_phase=$(kubectl -n ${NS} get pod ${POD} -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
-            if [ "$pod_phase" = "Running" ]; then
-              echo "Pod ${POD} is Running"
-              break
-            fi
-            if [ -n "$pod_phase" ] && { [ "$pod_phase" = "Failed" ] || [ "$pod_phase" = "Unknown" ]; }; then
-              echo "Pod entered non-running phase: $pod_phase"
-              kubectl -n ${NS} describe pod ${POD} || true
-              kubectl -n ${NS} get events --sort-by=.metadata.creationTimestamp -n ${NS} || true
-              kubectl -n ${NS} logs ${POD} || true
-              kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
-              exit 1
-            fi
-            sleep ${INTERVAL}
-          done
-
-          if [ "$(kubectl -n ${NS} get pod ${POD} -o jsonpath='{.status.phase}' 2>/dev/null || echo "")" != "Running" ]; then
-            echo "Timed out waiting for pod ${POD} to become Running"
-            kubectl -n ${NS} describe pod ${POD} || true
-            kubectl -n ${NS} get events --sort-by=.metadata.creationTimestamp -n ${NS} || true
-            kubectl -n ${NS} logs ${POD} || true
-            kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
-            exit 1
+          # deliver token into test pod
+          printf '%s' "$TOKEN" > access_token.txt
+          if ! kubectl -n ${NS} cp access_token.txt pod/${POD}:/workspace/access_token.txt 2>/dev/null; then
+            printf '%s' "$TOKEN" | kubectl -n ${NS} exec -i pod/${POD} -- tee /workspace/access_token.txt >/dev/null
           fi
+          rm -f access_token.txt
 
-          kubectl -n ${NS} exec -i pod/${POD} -- mkdir -p /workspace
-          tar cf - . | kubectl -n ${NS} exec -i pod/${POD} -- tar xf - -C /workspace
-
-          if kubectl -n ${NS} cp access_token.txt pod/${POD}:/workspace/access_token.txt 2>/dev/null; then
-            echo "Token copied into pod via kubectl cp"
-          else
-            echo "kubectl cp failed; falling back to pipe into pod"
-            TOKEN_CONTENT=$(cat access_token.txt)
-            printf '%s' "$TOKEN_CONTENT" | kubectl -n ${NS} exec -i pod/${POD} -- tee /workspace/access_token.txt >/dev/null
-            echo "Token written into pod via fallback"
-          fi
-
-
-      - name: Run tests inside python pod
-        run: |
-          NS=my-verticadb-operator
-          POD=py-test-runner
+          # run tests inside pod with token exported
           kubectl -n ${NS} exec -i pod/${POD} -- bash -lc "
             set -euo pipefail
             cd /workspace
-            python -m pip install --upgrade pip >/dev/null 2>&1 || true
-            pip install tox pytest >/dev/null 2>&1 || true
-            export VP_TEST_OAUTH_ACCESS_TOKEN=\$(cat access_token.txt)
+            export VP_TEST_OAUTH_ACCESS_TOKEN=\$(cat /workspace/access_token.txt)
+            export VP_TEST_USER=dbadmin
+            export VP_TEST_OAUTH_USER=${USER}
+            # wait for Vertica to be reachable
+            for i in \$(seq 1 60); do
+              (echo > /dev/tcp/${LOCATOR%%:*}/${LOCATOR#*:}) >/dev/null 2>&1 && { echo vertica reachable; break; }
+              echo waiting for vertica \$i
+              sleep 5
+            done
+            # run tests (adjust command if you use pytest directly)
             tox -e py
           "
 
-      - name: Cleanup python test pod
-        if: always()
-        run: |
-          kubectl -n my-verticadb-operator delete pod py-test-runner --ignore-not-found || true
+          # cleanup
+          kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
 
       - name: Uninstall MinIO
         if: always()

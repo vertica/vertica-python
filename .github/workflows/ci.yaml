@@ -267,7 +267,7 @@ jobs:
             \"
           "
           
-      - name: Run Python tests in-cluster (same pattern as Go)
+            - name: Run Python tests in-cluster (robust)
         run: |
           set -euo pipefail
 
@@ -277,7 +277,7 @@ jobs:
           POD=py-test-runner
           IMAGE=python:3.11-slim
 
-          # wait for endpoints (same as Go)
+          # wait for endpoints
           WAIT_TIMEOUT=300
           INTERVAL=5
           deadline=$((SECONDS + WAIT_TIMEOUT))
@@ -285,8 +285,13 @@ jobs:
             addrs=$(kubectl -n ${NS} get endpoints ${SVC} -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null || true)
             [ -n "$addrs" ] && break || sleep ${INTERVAL}
           done
+          if [ -z "$addrs" ]; then
+            kubectl -n ${NS} get pods -o wide || true
+            kubectl -n ${NS} get endpoints ${SVC} -o yaml || true
+            exit 1
+          fi
 
-          # create test pod and wait Running
+          # create test pod and wait ready
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
           kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- sleep infinity
           kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=180s
@@ -295,13 +300,11 @@ jobs:
           kubectl -n ${NS} exec -i pod/${POD} -- mkdir -p /workspace
           tar cf - . | kubectl -n ${NS} exec -i pod/${POD} -- tar xf - -C /workspace
 
-          # install system deps if tests need them
+          # ensure build deps and python deps
           kubectl -n ${NS} exec pod/${POD} -- bash -lc 'apt-get update -qq && apt-get install -y -qq build-essential libssl-dev libpq-dev || true'
-
-          # install python deps
           kubectl -n ${NS} exec pod/${POD} -- bash -lc 'python -m pip install --upgrade pip >/dev/null 2>&1 || true; pip install tox pytest >/dev/null 2>&1 || true'
 
-          # fetch token inside cluster (curl pod)
+          # fetch token inside cluster and copy into pod
           CT_POD="curl-token-$$"
           kubectl -n keycloak run ${CT_POD} --restart=Never --image=curlimages/curl:latest --command -- sleep 300
           kubectl -n keycloak wait --for=condition=Ready pod/${CT_POD} --timeout=120s || true
@@ -318,23 +321,17 @@ jobs:
           HTTP_CODE=$(printf "%s" "$RAW_JSON" | tail -n1)
           BODY=$(printf "%s" "$RAW_JSON" | sed '$d')
           if [ -z "$HTTP_CODE" ] || [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-            echo "Failed to fetch token; http=$HTTP_CODE; body:"
             printf "%.1024s\n" "$BODY"
             exit 1
           fi
           TOKEN=$(printf "%s" "$BODY" | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("access_token",""))' || true)
-          if [ -z "$TOKEN" ]; then
-            echo "No access_token found; body:"
-            echo "$BODY"
-            exit 1
-          fi
           printf '%s' "$TOKEN" > access_token.txt
           if ! kubectl -n ${NS} cp access_token.txt pod/${POD}:/workspace/access_token.txt 2>/dev/null; then
             printf '%s' "$TOKEN" | kubectl -n ${NS} exec -i pod/${POD} -- tee /workspace/access_token.txt >/dev/null
           fi
           rm -f access_token.txt
 
-          # inside pod: wait for TCP and run tests
+          # inside pod: wait for vertica TCP then run tests
           kubectl -n ${NS} exec -i pod/${POD} -- bash -lc "
             set -euo pipefail
             cd /workspace
@@ -351,7 +348,6 @@ jobs:
             tox -e py
           "
 
-          # cleanup
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
 
 

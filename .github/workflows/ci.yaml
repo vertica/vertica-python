@@ -267,7 +267,7 @@ jobs:
             \"
           "
           
-      - name: Run Python tests in-cluster (py-test-runner)
+      - name: Run Python tests in-cluster (same pattern as Go)
         run: |
           set -euo pipefail
 
@@ -277,7 +277,7 @@ jobs:
           POD=py-test-runner
           IMAGE=python:3.11-slim
 
-          # wait for endpoints so Vertica is discoverable
+          # wait for endpoints (same as Go)
           WAIT_TIMEOUT=300
           INTERVAL=5
           deadline=$((SECONDS + WAIT_TIMEOUT))
@@ -286,32 +286,35 @@ jobs:
             [ -n "$addrs" ] && break || sleep ${INTERVAL}
           done
 
-          # create test pod and wait for Ready
+          # create test pod and wait Running
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
           kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- sleep infinity
           kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=180s
 
-          # copy repo into pod
+          # copy workspace
           kubectl -n ${NS} exec -i pod/${POD} -- mkdir -p /workspace
           tar cf - . | kubectl -n ${NS} exec -i pod/${POD} -- tar xf - -C /workspace
 
-          # install test deps (adjust as needed)
-          kubectl -n ${NS} exec pod/${POD} -- bash -lc "python -m pip install --upgrade pip >/dev/null 2>&1 || true; pip install tox pytest >/dev/null 2>&1 || true"
+          # install system deps if tests need them
+          kubectl -n ${NS} exec pod/${POD} -- bash -lc 'apt-get update -qq && apt-get install -y -qq build-essential libssl-dev libpq-dev || true'
 
-          # fetch token inside cluster (password grant as in your Go flow)
-          kubectl -n keycloak run curl-token --restart=Never --image=curlimages/curl:latest --command -- sleep 300
-          kubectl -n keycloak wait --for=condition=Ready pod/curl-token --timeout=120s || true
-          kubectl -n keycloak exec pod/curl-token -- sh -c "
+          # install python deps
+          kubectl -n ${NS} exec pod/${POD} -- bash -lc 'python -m pip install --upgrade pip >/dev/null 2>&1 || true; pip install tox pytest >/dev/null 2>&1 || true'
+
+          # fetch token inside cluster (curl pod)
+          CT_POD="curl-token-$$"
+          kubectl -n keycloak run ${CT_POD} --restart=Never --image=curlimages/curl:latest --command -- sleep 300
+          kubectl -n keycloak wait --for=condition=Ready pod/${CT_POD} --timeout=120s || true
+          kubectl -n keycloak exec pod/${CT_POD} -- sh -c "
             curl -s -w '\n%{http_code}' -X POST 'http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token' \
               -d 'client_id=${CLIENT_ID}' \
               -d 'username=${USER}' \
               -d 'password=${PASSWORD}' \
               -d 'grant_type=password' \
-              -d 'client_secret=${CLIENT_SECRET}' > /tmp/token_resp.txt
+              -d 'client_secret=${CLIENT_SECRET}' > /tmp/token_resp.txt || true
           "
-          RAW_JSON=$(kubectl -n keycloak exec pod/curl-token -- cat /tmp/token_resp.txt || true)
-          kubectl -n keycloak delete pod curl-token --ignore-not-found || true
-
+          RAW_JSON=$(kubectl -n keycloak exec pod/${CT_POD} -- cat /tmp/token_resp.txt || true)
+          kubectl -n keycloak delete pod ${CT_POD} --ignore-not-found || true
           HTTP_CODE=$(printf "%s" "$RAW_JSON" | tail -n1)
           BODY=$(printf "%s" "$RAW_JSON" | sed '$d')
           if [ -z "$HTTP_CODE" ] || [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
@@ -319,40 +322,38 @@ jobs:
             printf "%.1024s\n" "$BODY"
             exit 1
           fi
-
           TOKEN=$(printf "%s" "$BODY" | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("access_token",""))' || true)
           if [ -z "$TOKEN" ]; then
-            echo "No access_token in response; body:"
+            echo "No access_token found; body:"
             echo "$BODY"
             exit 1
           fi
-
-          # deliver token into test pod
           printf '%s' "$TOKEN" > access_token.txt
           if ! kubectl -n ${NS} cp access_token.txt pod/${POD}:/workspace/access_token.txt 2>/dev/null; then
             printf '%s' "$TOKEN" | kubectl -n ${NS} exec -i pod/${POD} -- tee /workspace/access_token.txt >/dev/null
           fi
           rm -f access_token.txt
 
-          # run tests inside pod with token exported
+          # inside pod: wait for TCP and run tests
           kubectl -n ${NS} exec -i pod/${POD} -- bash -lc "
             set -euo pipefail
             cd /workspace
             export VP_TEST_OAUTH_ACCESS_TOKEN=\$(cat /workspace/access_token.txt)
             export VP_TEST_USER=dbadmin
             export VP_TEST_OAUTH_USER=${USER}
-            # wait for Vertica to be reachable
+            HOST=${LOCATOR%%:*}
+            PORT=${LOCATOR##*:}
             for i in \$(seq 1 60); do
-              (echo > /dev/tcp/${LOCATOR%%:*}/${LOCATOR#*:}) >/dev/null 2>&1 && { echo vertica reachable; break; }
+              (echo > /dev/tcp/\$HOST/\$PORT) >/dev/null 2>&1 && break
               echo waiting for vertica \$i
               sleep 5
             done
-            # run tests (adjust command if you use pytest directly)
             tox -e py
           "
 
           # cleanup
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+
 
       - name: Uninstall MinIO
         if: always()

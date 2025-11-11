@@ -272,7 +272,7 @@ jobs:
           set -euo pipefail
           NS=keycloak
           POD_NAME="curl-token-$$"
-          IMAGE="curlimages/curl:7.92.0"
+          IMAGE="curlimages/curl:latest"
           TOKEN_ENDPOINT="http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token"
           WAIT_TIMEOUT=60
           INTERVAL=2

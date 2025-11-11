@@ -383,13 +383,12 @@ jobs:
           if kubectl -n ${NS} cp access_token.txt pod/${POD}:/workspace/access_token.txt 2>/dev/null; then
             echo "Token copied into pod via kubectl cp"
           else
-            echo "kubectl cp failed; falling back to cat > /workspace/access_token.txt"
+            echo "kubectl cp failed; falling back to pipe into pod"
             TOKEN_CONTENT=$(cat access_token.txt)
-            kubectl -n ${NS} exec -i pod/${POD} -- bash -lc "cat > /workspace/access_token.txt" <<EOF
-            $TOKEN_CONTENT
-            EOF
+            printf '%s' "$TOKEN_CONTENT" | kubectl -n ${NS} exec -i pod/${POD} -- tee /workspace/access_token.txt >/dev/null
             echo "Token written into pod via fallback"
           fi
+
 
       - name: Run tests inside python pod
         run: |

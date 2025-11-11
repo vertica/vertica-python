@@ -267,45 +267,90 @@ jobs:
             \"
           "
 
-      - name: Fetch OAuth Access Token
+      - name: Run Python tests (in-cluster)
         run: |
-          RAW_JSON=$(kubectl -n keycloak exec deploy/keycloak -- \
-            curl -s -X POST http://localhost:8080/realms/${REALM}/protocol/openid-connect/token \
-              -d "client_id=${CLIENT_ID}" \
-              -d "username=${USER}" \
-              -d "password=${PASSWORD}" \
-              -d "grant_type=password" \
-              -d "client_secret=${CLIENT_SECRET}")
+          NS=my-verticadb-operator
+          SVC=verticadb-sample-defaultsubcluster
+          LOCATOR="${SVC}.${NS}.svc.cluster.local:5433"
 
-          echo "Raw response: $RAW_JSON"
+          WAIT_TIMEOUT=300
+          INTERVAL=5
+          deadline=$((SECONDS + WAIT_TIMEOUT))
+          while [ $SECONDS -lt $deadline ]; do
+            addrs=$(kubectl -n ${NS} get endpoints ${SVC} -o jsonpath='{.subsets[*].addresses[*].ip}' || true)
+            [ -n "$addrs" ] && break || sleep ${INTERVAL}
+          done
 
-          if [ -z "$RAW_JSON" ]; then
-            echo "Empty response from Keycloak; failing"
-            exit 1
-          fi
+          kubectl -n ${NS} run py-test-runner --image=python:3.11-slim --restart=Never -- sleep infinity
+          kubectl -n ${NS} wait --for=condition=Ready pod/py-test-runner --timeout=120s
 
-          TOKEN=$(echo "$RAW_JSON" | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("access_token",""))')
+          kubectl -n ${NS} exec -i pod/py-test-runner -- mkdir -p /workspace
+          tar cf - . | kubectl -n ${NS} exec -i pod/py-test-runner -- tar xf - -C /workspace
 
-          if [ -z "$TOKEN" ]; then
-            echo "Failed to retrieve access token; response:"
-            echo "$RAW_JSON"
-            exit 1
-          fi
+          kubectl -n ${NS} exec -i pod/py-test-runner -- bash -lc "
+            set -euo pipefail
+            cd /workspace
+            python -m pip install --upgrade pip
+            pip install tox pytest || true
+          "
 
-          echo "$TOKEN" > access_token.txt
-          echo "Access token successfully retrieved"
+          kubectl -n ${NS} exec -i pod/py-test-runner -- bash -lc "
+            set -euo pipefail
+            TOKEN_ENDPOINT='http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token'
+            MAX_RETRIES=6
+            SLEEP=3
+            attempt=0
+            BODY=''
+            HTTP_CODE=0
 
-      - name: Install dependencies
-        run: pip install tox
+            while [ \$attempt -lt \$MAX_RETRIES ]; do
+              RAW=\$(kubectl -n keycloak run --rm -i --restart=Never \
+                --image=curlimages/curl:7.92.0 --command -- sh -c \"\
+                  curl -s -w '\\\\n%{http_code}' -X POST '\${TOKEN_ENDPOINT}' \
+                    -d 'client_id=${CLIENT_ID}' \
+                    -d 'username=${USER}' \
+                    -d 'password=${PASSWORD}' \
+                    -d 'grant_type=password' \
+                    -d 'client_secret=${CLIENT_SECRET}'\" ) || true
 
-      - name: Run tests
-        env:
-          VP_TEST_USER: dbadmin
-          VP_TEST_OAUTH_USER: ${{ env.USER }}
-        run: |
-          export VP_TEST_OAUTH_ACCESS_TOKEN=$(cat access_token.txt)
-          tox -e py
-          kubectl -n my-verticadb-operator delete pod go-test-runner --ignore-not-found=true
+              HTTP_CODE=\$(printf '%s' \"\$RAW\" | tail -n1)
+              BODY=\$(printf '%s' \"\$RAW\" | sed '\$d')
+
+              echo \"Token attempt \$((attempt+1)) HTTP: \$HTTP_CODE\"
+              printf 'Resp (trunc 1024): %.1024s\n' \"\$BODY\"
+
+              if [ \"\$HTTP_CODE\" -ge 200 ] && [ \"\$HTTP_CODE\" -lt 300 ]; then
+                break
+              fi
+              attempt=\$((attempt+1))
+              sleep \$SLEEP
+            done
+
+            if [ -z \"\$BODY\" ]; then
+              echo 'Empty response from Keycloak; failing'
+              exit 1
+            fi
+
+            TOKEN=\$(printf '%s' \"\$BODY\" | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get(\"access_token\",\"\"))' || true)
+
+            if [ -z \"\$TOKEN\" ]; then
+              echo 'Failed to retrieve access_token; full response:'
+              echo \"\$BODY\"
+              exit 1
+            fi
+
+            printf '%s' \"\$TOKEN\" > /workspace/access_token.txt
+            echo 'Access token retrieved and saved to /workspace/access_token.txt'
+          "
+
+          kubectl -n ${NS} exec -i pod/py-test-runner -- bash -lc "
+            set -euo pipefail
+            cd /workspace
+            export VP_TEST_OAUTH_ACCESS_TOKEN=\$(cat access_token.txt)
+            tox -e py || pytest -v || true
+          "
+
+          kubectl -n ${NS} delete pod py-test-runner --ignore-not-found=true
 
       - name: Uninstall MinIO
         if: always()

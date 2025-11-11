@@ -42,7 +42,7 @@ jobs:
           helm repo add vertica-charts https://vertica.github.io/charts || true
           helm repo add bitnami https://charts.bitnami.com/bitnami || true
           helm repo update
-      # Step 4: Install MinIO for communal storage
+
       - name: Install MinIO (namespace minio)
         run: |
           kubectl create ns minio || true
@@ -96,6 +96,7 @@ jobs:
           kubectl -n minio rollout status deployment/minio --timeout=2m || true
           kubectl get pods -n minio -o wide || true
           kubectl get svc -n minio || true
+
       - name: Ensure MinIO bucket exists
         run: |
           kubectl run mc-client --rm -i --restart=Never \
@@ -106,7 +107,7 @@ jobs:
               mc mb --ignore-existing localminio/vertica-fleeting && \
               mc ls localminio
             "
-      # Create MinIO credentials secret
+
       - name: Create MinIO Secret
         run: |
           kubectl delete secret communal-creds -n my-verticadb-operator --ignore-not-found
@@ -116,7 +117,7 @@ jobs:
             --from-literal=accesskey="minioadmin" \
             --from-literal=secretkey="minioadmin"
           kubectl get secret communal-creds -n my-verticadb-operator -o yaml || true
-      # Install Vertica Operator
+
       - name: Install Vertica Operator
         run: |
           cat <<'EOF' > operator-values.yaml
@@ -131,7 +132,7 @@ jobs:
           helm upgrade --install vdb-op vertica-charts/verticadb-operator \
             -n my-verticadb-operator -f operator-values.yaml --wait --timeout 10m
           kubectl -n my-verticadb-operator get pods -o wide || true
-      # Deploy VerticaDB with MinIO
+
       - name: Deploy VerticaDB
         run: |
           cat <<'EOF' | kubectl apply -f -
@@ -158,7 +159,7 @@ jobs:
           EOF
           kubectl annotate verticadb verticadb-sample -n my-verticadb-operator \
             vertica.com/ci-reconcile="$(date -u +%s)" --overwrite || true
-      # Wait for Vertica readiness
+
       - name: Wait for Vertica readiness
         run: |
           NS=my-verticadb-operator
@@ -168,7 +169,7 @@ jobs:
             kubectl get pod ${POD} -n ${NS} && break || sleep 10
           done
           kubectl wait --for=condition=Ready pod/${POD} -n ${NS} --timeout=5m || true
-      # Deploy Keycloak in K8s
+
       - name: Deploy Keycloak
         run: |
           kubectl create ns keycloak || true
@@ -219,12 +220,12 @@ jobs:
               - port: 8080
                 targetPort: 8080
           EOF
-      # Wait for Keycloak readiness
+
       - name: Wait for Keycloak readiness
         run: |
           kubectl -n keycloak rollout status deploy/keycloak --timeout=2m
           kubectl -n keycloak get pods -o wide
-      # Configure Keycloak realm, client, and user
+
       - name: Configure Keycloak realm, client, and user
         run: |
           kubectl -n keycloak exec deploy/keycloak -- \
@@ -245,7 +246,7 @@ jobs:
           kubectl -n keycloak exec deploy/keycloak -- \
             /opt/keycloak/bin/kcadm.sh set-password -r test \
               --username oauth_user --new-password password
-      # Configure Vertica Authentication
+
       - name: Configure Vertica Authentication
         run: |
           NS=my-verticadb-operator
@@ -265,39 +266,35 @@ jobs:
               GRANT AUTHENTICATION v_dbadmin_hash TO dbadmin;
             \"
           "
-      # Fetch OAuth Access Token from Keycloak
-     - name: Fetch OAuth Access Token
-       run: |
-         # run the token request inside the Keycloak pod (Keycloak listens on localhost:8080 there)
-         RAW_JSON=$(kubectl -n keycloak exec deploy/keycloak -- \
-           curl -s -X POST http://localhost:8080/realms/${REALM}/protocol/openid-connect/token \
-             -d "client_id=${CLIENT_ID}" \
-             -d "username=${USER}" \
-             -d "password=${PASSWORD}" \
-             -d "grant_type=password" \
-             -d "client_secret=${CLIENT_SECRET}")
-     
-         echo "Raw response: $RAW_JSON"
-     
-         # basic HTTP-level check: ensure we received JSON
-         if [ -z "$RAW_JSON" ]; then
-           echo "Empty response from Keycloak; failing"
-           exit 1
-         fi
-     
-         # extract token
-         TOKEN=$(echo "$RAW_JSON" | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("access_token",""))')
-     
-         if [ -z "$TOKEN" ]; then
-           echo "Failed to retrieve access token; response:"
-           echo "$RAW_JSON"
-           exit 1
-         fi
-     
-         echo "$TOKEN" > access_token.txt
-         echo "Access token successfully retrieved"
 
-		  
+      - name: Fetch OAuth Access Token
+        run: |
+          RAW_JSON=$(kubectl -n keycloak exec deploy/keycloak -- \
+            curl -s -X POST http://localhost:8080/realms/${REALM}/protocol/openid-connect/token \
+              -d "client_id=${CLIENT_ID}" \
+              -d "username=${USER}" \
+              -d "password=${PASSWORD}" \
+              -d "grant_type=password" \
+              -d "client_secret=${CLIENT_SECRET}")
+
+          echo "Raw response: $RAW_JSON"
+
+          if [ -z "$RAW_JSON" ]; then
+            echo "Empty response from Keycloak; failing"
+            exit 1
+          fi
+
+          TOKEN=$(echo "$RAW_JSON" | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("access_token",""))')
+
+          if [ -z "$TOKEN" ]; then
+            echo "Failed to retrieve access token; response:"
+            echo "$RAW_JSON"
+            exit 1
+          fi
+
+          echo "$TOKEN" > access_token.txt
+          echo "Access token successfully retrieved"
+
       - name: Install dependencies
         run: pip install tox
 
@@ -305,14 +302,11 @@ jobs:
         env:
           VP_TEST_USER: dbadmin
           VP_TEST_OAUTH_USER: ${{ env.USER }}
-          VP_TEST_OAUTH_ACCESS_TOKEN: ${{ secrets.NONE }}
         run: |
           export VP_TEST_OAUTH_ACCESS_TOKEN=$(cat access_token.txt)
           tox -e py
           kubectl -n my-verticadb-operator delete pod go-test-runner --ignore-not-found=true
-		  
-		  
-      # Cleanup MinIO
+
       - name: Uninstall MinIO
         if: always()
         run: |

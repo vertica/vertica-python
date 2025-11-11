@@ -280,16 +280,39 @@ jobs:
             \"
           "
 
+            # Fetch OAuth Access Token from Keycloak
+      - name: Fetch OAuth Access Token
+        run: |
+          TOKEN=$(kubectl -n keycloak exec deploy/keycloak -- \
+            curl -s -X POST \
+              -d "client_id=${CLIENT_ID}" \
+              -d "client_secret=${CLIENT_SECRET}" \
+              -d "grant_type=password" \
+              -d "username=${USER}" \
+              -d "password=${PASSWORD}" \
+              http://localhost:8080/realms/${REALM}/protocol/openid-connect/token \
+              | jq -r '.access_token')
+          
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "Failed to retrieve access token"
+            exit 1
+          fi
+
+          echo "$TOKEN" > access_token.txt
+          echo "Access token successfully retrieved"
+
       - name: Install dependencies
         run: pip install tox
 
       - name: Run tests
+        env:
+          VP_TEST_USER: dbadmin
+          VP_TEST_OAUTH_USER: ${{ env.USER }}
+          VP_TEST_OAUTH_ACCESS_TOKEN: ${{ secrets.NONE }}
         run: |
-          export VP_TEST_USER=dbadmin
           export VP_TEST_OAUTH_ACCESS_TOKEN=$(cat access_token.txt)
-          export VP_TEST_OAUTH_USER=${USER}
           tox -e py
-          kubectl -n ${NS} delete pod go-test-runner --ignore-not-found=true
+          kubectl -n my-verticadb-operator delete pod go-test-runner --ignore-not-found=true
 
       # Cleanup MinIO
       - name: Uninstall MinIO

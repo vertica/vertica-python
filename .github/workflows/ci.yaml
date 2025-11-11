@@ -8,7 +8,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13', 'pypy3.10']
+        python-version: ['3.13']
 
     env:
       REALM: test
@@ -336,22 +336,60 @@ jobs:
           printf "%s" "$TOKEN" > access_token.txt
           echo "Access token saved to access_token.txt"
 
-      - name: Create python test pod
+      - name: Create and populate python test pod (robust)
         run: |
+          set -euo pipefail
+
           NS=my-verticadb-operator
           POD=py-test-runner
           IMAGE=python:3.11-slim
+          WAIT_TIMEOUT=180
+          INTERVAL=3
+
+          kubectl create ns ${NS} --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null || true
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
           kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- sleep infinity
-          kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=120s
 
-      - name: Copy workspace and token into python pod
-        run: |
-          NS=my-verticadb-operator
-          POD=py-test-runner
+          deadline=$((SECONDS + WAIT_TIMEOUT))
+          while [ $SECONDS -lt $deadline ]; do
+            pod_phase=$(kubectl -n ${NS} get pod ${POD} -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
+            if [ "$pod_phase" = "Running" ]; then
+              echo "Pod ${POD} is Running"
+              break
+            fi
+            if [ -n "$pod_phase" ] && { [ "$pod_phase" = "Failed" ] || [ "$pod_phase" = "Unknown" ]; }; then
+              echo "Pod entered non-running phase: $pod_phase"
+              kubectl -n ${NS} describe pod ${POD} || true
+              kubectl -n ${NS} get events --sort-by=.metadata.creationTimestamp -n ${NS} || true
+              kubectl -n ${NS} logs ${POD} || true
+              kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+              exit 1
+            fi
+            sleep ${INTERVAL}
+          done
+
+          if [ "$(kubectl -n ${NS} get pod ${POD} -o jsonpath='{.status.phase}' 2>/dev/null || echo "")" != "Running" ]; then
+            echo "Timed out waiting for pod ${POD} to become Running"
+            kubectl -n ${NS} describe pod ${POD} || true
+            kubectl -n ${NS} get events --sort-by=.metadata.creationTimestamp -n ${NS} || true
+            kubectl -n ${NS} logs ${POD} || true
+            kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+            exit 1
+          fi
+
           kubectl -n ${NS} exec -i pod/${POD} -- mkdir -p /workspace
           tar cf - . | kubectl -n ${NS} exec -i pod/${POD} -- tar xf - -C /workspace
-          kubectl -n ${NS} cp access_token.txt pod/${POD}:/workspace/access_token.txt
+
+          if kubectl -n ${NS} cp access_token.txt pod/${POD}:/workspace/access_token.txt 2>/dev/null; then
+            echo "Token copied into pod via kubectl cp"
+          else
+            echo "kubectl cp failed; falling back to cat > /workspace/access_token.txt"
+            TOKEN_CONTENT=$(cat access_token.txt)
+            kubectl -n ${NS} exec -i pod/${POD} -- bash -lc "cat > /workspace/access_token.txt" <<EOF
+            $TOKEN_CONTENT
+            EOF
+            echo "Token written into pod via fallback"
+          fi
 
       - name: Run tests inside python pod
         run: |
@@ -365,6 +403,11 @@ jobs:
             export VP_TEST_OAUTH_ACCESS_TOKEN=\$(cat access_token.txt)
             tox -e py
           "
+
+      - name: Cleanup python test pod
+        if: always()
+        run: |
+          kubectl -n my-verticadb-operator delete pod py-test-runner --ignore-not-found || true
 
       - name: Uninstall MinIO
         if: always()

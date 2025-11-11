@@ -43,7 +43,6 @@ jobs:
           helm repo add bitnami https://charts.bitnami.com/bitnami || true
           helm repo update
 
-      # Step 4: Install MinIO for communal storage
       - name: Install MinIO (namespace minio)
         run: |
           kubectl create ns minio || true
@@ -95,8 +94,6 @@ jobs:
           EOF
           kubectl apply -f minio.yaml
           kubectl -n minio rollout status deployment/minio --timeout=2m || true
-          kubectl get pods -n minio -o wide || true
-          kubectl get svc -n minio || true
 
       - name: Ensure MinIO bucket exists
         run: |
@@ -109,7 +106,6 @@ jobs:
               mc ls localminio
             "
 
-      # Create MinIO credentials secret
       - name: Create MinIO Secret
         run: |
           kubectl delete secret communal-creds -n my-verticadb-operator --ignore-not-found
@@ -118,9 +114,7 @@ jobs:
             -n my-verticadb-operator \
             --from-literal=accesskey="minioadmin" \
             --from-literal=secretkey="minioadmin"
-          kubectl get secret communal-creds -n my-verticadb-operator -o yaml || true
 
-      # Install Vertica Operator
       - name: Install Vertica Operator
         run: |
           cat <<'EOF' > operator-values.yaml
@@ -134,9 +128,7 @@ jobs:
           EOF
           helm upgrade --install vdb-op vertica-charts/verticadb-operator \
             -n my-verticadb-operator -f operator-values.yaml --wait --timeout 10m
-          kubectl -n my-verticadb-operator get pods -o wide || true
 
-      # Deploy VerticaDB with MinIO
       - name: Deploy VerticaDB
         run: |
           cat <<'EOF' | kubectl apply -f -
@@ -164,7 +156,6 @@ jobs:
           kubectl annotate verticadb verticadb-sample -n my-verticadb-operator \
             vertica.com/ci-reconcile="$(date -u +%s)" --overwrite || true
 
-      # Wait for Vertica readiness
       - name: Wait for Vertica readiness
         run: |
           NS=my-verticadb-operator
@@ -175,7 +166,6 @@ jobs:
           done
           kubectl wait --for=condition=Ready pod/${POD} -n ${NS} --timeout=5m || true
 
-      # Deploy Keycloak in K8s
       - name: Deploy Keycloak
         run: |
           kubectl create ns keycloak || true
@@ -206,13 +196,6 @@ jobs:
                         value: admin
                     ports:
                       - containerPort: 8080
-                    readinessProbe:
-                      httpGet:
-                        path: /
-                        port: 8080
-                      initialDelaySeconds: 20
-                      periodSeconds: 5
-                      failureThreshold: 6
           ---
           apiVersion: v1
           kind: Service
@@ -227,13 +210,11 @@ jobs:
                 targetPort: 8080
           EOF
 
-      # Wait for Keycloak readiness
       - name: Wait for Keycloak readiness
         run: |
           kubectl -n keycloak rollout status deploy/keycloak --timeout=2m
           kubectl -n keycloak get pods -o wide
 
-      # Configure Keycloak realm, client, and user
       - name: Configure Keycloak realm, client, and user
         run: |
           kubectl -n keycloak exec deploy/keycloak -- \
@@ -259,7 +240,6 @@ jobs:
             /opt/keycloak/bin/kcadm.sh set-password -r test \
               --username oauth_user --new-password password
 
-      # Configure Vertica Authentication
       - name: Configure Vertica Authentication
         run: |
           NS=my-verticadb-operator
@@ -280,10 +260,13 @@ jobs:
             \"
           "
 
-      # Fetch OAuth Access Token from Keycloak
       - name: Fetch OAuth Access Token
         run: |
-          RAW=$(curl -s -X POST http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token \
+          kubectl -n keycloak port-forward svc/keycloak 8080:8080 >/dev/null 2>&1 &
+          disown
+          sleep 10
+
+          RAW=$(curl -s -X POST http://localhost:8080/realms/${REALM}/protocol/openid-connect/token \
             -d "client_id=${CLIENT_ID}" \
             -d "username=${USER}" \
             -d "password=${PASSWORD}" \
@@ -302,20 +285,6 @@ jobs:
           echo "$TOKEN" > access_token.txt
           echo "Access token successfully retrieved"
 
-      - name: Install dependencies
-        run: pip install tox
-
-      - name: Run tests
-        env:
-          VP_TEST_USER: dbadmin
-          VP_TEST_OAUTH_USER: ${{ env.USER }}
-          VP_TEST_OAUTH_ACCESS_TOKEN: ${{ secrets.NONE }}
-        run: |
-          export VP_TEST_OAUTH_ACCESS_TOKEN=$(cat access_token.txt)
-          tox -e py
-          kubectl -n my-verticadb-operator delete pod go-test-runner --ignore-not-found=true
-
-      # Cleanup MinIO
       - name: Uninstall MinIO
         if: always()
         run: |

@@ -280,20 +280,21 @@ jobs:
             \"
           "
 
-            # Fetch OAuth Access Token from Keycloak
+      # Fetch OAuth Access Token from Keycloak
       - name: Fetch OAuth Access Token
         run: |
-          TOKEN=$(kubectl -n keycloak exec deploy/keycloak -- \
-            curl -s -X POST \
-              -d "client_id=${CLIENT_ID}" \
-              -d "client_secret=${CLIENT_SECRET}" \
-              -d "grant_type=password" \
-              -d "username=${USER}" \
-              -d "password=${PASSWORD}" \
-              http://localhost:8080/realms/${REALM}/protocol/openid-connect/token \
-              | jq -r '.access_token')
-          
-          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+          RAW=$(curl -s -X POST http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token \
+            -d "client_id=${CLIENT_ID}" \
+            -d "username=${USER}" \
+            -d "password=${PASSWORD}" \
+            -d "grant_type=password" \
+            -d "client_secret=${CLIENT_SECRET}")
+
+          echo "Raw response: $RAW"
+
+          TOKEN=$(echo "$RAW" | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj.get("access_token",""))')
+
+          if [ -z "$TOKEN" ]; then
             echo "Failed to retrieve access token"
             exit 1
           fi

@@ -266,11 +266,10 @@ jobs:
               GRANT AUTHENTICATION v_dbadmin_hash TO dbadmin;
             \"
           "
-          
-            - name: Run Python tests in-cluster (robust)
+
+      - name: Run Python tests in-cluster (robust)
         run: |
           set -euo pipefail
-
           NS=my-verticadb-operator
           SVC=verticadb-sample-defaultsubcluster
           LOCATOR="${SVC}.${NS}.svc.cluster.local:5433"
@@ -349,7 +348,6 @@ jobs:
           "
 
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
-
 
       - name: Uninstall MinIO
         if: always()

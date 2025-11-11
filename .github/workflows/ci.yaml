@@ -42,7 +42,7 @@ jobs:
           helm repo add vertica-charts https://vertica.github.io/charts || true
           helm repo add bitnami https://charts.bitnami.com/bitnami || true
           helm repo update
-      # Step 4: Install MinIO for communal storage
+
       - name: Install MinIO (namespace minio)
         run: |
           kubectl create ns minio || true
@@ -96,6 +96,7 @@ jobs:
           kubectl -n minio rollout status deployment/minio --timeout=2m || true
           kubectl get pods -n minio -o wide || true
           kubectl get svc -n minio || true
+
       - name: Ensure MinIO bucket exists
         run: |
           kubectl run mc-client --rm -i --restart=Never \
@@ -106,17 +107,17 @@ jobs:
               mc mb --ignore-existing localminio/vertica-fleeting && \
               mc ls localminio
             "
-      # Create MinIO credentials secret
+
       - name: Create MinIO Secret
         run: |
-          kubectl delete secret communal-creds -n my-verticadb-operator --ignore-not-found
           kubectl create ns my-verticadb-operator || true
+          kubectl delete secret communal-creds -n my-verticadb-operator --ignore-not-found
           kubectl create secret generic communal-creds \
             -n my-verticadb-operator \
             --from-literal=accesskey="minioadmin" \
             --from-literal=secretkey="minioadmin"
           kubectl get secret communal-creds -n my-verticadb-operator -o yaml || true
-      # Install Vertica Operator
+
       - name: Install Vertica Operator
         run: |
           cat <<'EOF' > operator-values.yaml
@@ -131,7 +132,7 @@ jobs:
           helm upgrade --install vdb-op vertica-charts/verticadb-operator \
             -n my-verticadb-operator -f operator-values.yaml --wait --timeout 10m
           kubectl -n my-verticadb-operator get pods -o wide || true
-      # Deploy VerticaDB with MinIO
+
       - name: Deploy VerticaDB
         run: |
           cat <<'EOF' | kubectl apply -f -
@@ -158,7 +159,7 @@ jobs:
           EOF
           kubectl annotate verticadb verticadb-sample -n my-verticadb-operator \
             vertica.com/ci-reconcile="$(date -u +%s)" --overwrite || true
-      # Wait for Vertica readiness
+
       - name: Wait for Vertica readiness
         run: |
           NS=my-verticadb-operator
@@ -168,7 +169,7 @@ jobs:
             kubectl get pod ${POD} -n ${NS} && break || sleep 10
           done
           kubectl wait --for=condition=Ready pod/${POD} -n ${NS} --timeout=5m || true
-      # Deploy Keycloak in K8s
+
       - name: Deploy Keycloak
         run: |
           kubectl create ns keycloak || true
@@ -219,12 +220,12 @@ jobs:
               - port: 8080
                 targetPort: 8080
           EOF
-      # Wait for Keycloak readiness
+
       - name: Wait for Keycloak readiness
         run: |
           kubectl -n keycloak rollout status deploy/keycloak --timeout=2m
           kubectl -n keycloak get pods -o wide
-      # Configure Keycloak realm, client, and user
+
       - name: Configure Keycloak realm, client, and user
         run: |
           kubectl -n keycloak exec deploy/keycloak -- \
@@ -245,7 +246,7 @@ jobs:
           kubectl -n keycloak exec deploy/keycloak -- \
             /opt/keycloak/bin/kcadm.sh set-password -r test \
               --username oauth_user --new-password password
-      # Configure Vertica Authentication
+
       - name: Configure Vertica Authentication
         run: |
           NS=my-verticadb-operator
@@ -265,11 +266,10 @@ jobs:
               GRANT AUTHENTICATION v_dbadmin_hash TO dbadmin;
             \"
           "
-	  # Fetch access token	  
+
       - name: Fetch OAuth Access Token
         run: |
           set -euo pipefail
-
           NS=keycloak
           POD_NAME="curl-token-$$"
           IMAGE="curlimages/curl:7.92.0"
@@ -277,10 +277,8 @@ jobs:
           WAIT_TIMEOUT=60
           INTERVAL=2
 
-          # Create a short-lived pod that will run curl
           kubectl -n ${NS} run ${POD_NAME} --restart=Never --image=${IMAGE} --command -- sleep 300
 
-          # Wait for pod to reach Running
           deadline=$((SECONDS + WAIT_TIMEOUT))
           while [ $SECONDS -lt $deadline ]; do
             phase=$(kubectl -n ${NS} get pod ${POD_NAME} -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
@@ -305,7 +303,6 @@ jobs:
             exit 1
           fi
 
-          # Execute curl inside the pod and write body+httpcode to a file
           kubectl -n ${NS} exec ${POD_NAME} -- sh -c "
             curl -s -w '\n%{http_code}' -X POST '${TOKEN_ENDPOINT}' \
               -d 'client_id=${CLIENT_ID}' \
@@ -315,7 +312,6 @@ jobs:
               -d 'client_secret=${CLIENT_SECRET}' > /tmp/token_resp.txt
           "
 
-          # Retrieve response then delete pod
           RAW_JSON=$(kubectl -n ${NS} exec ${POD_NAME} -- cat /tmp/token_resp.txt || true)
           kubectl -n ${NS} delete pod ${POD_NAME} --ignore-not-found
 
@@ -355,7 +351,6 @@ jobs:
           POD=py-test-runner
           kubectl -n ${NS} exec -i pod/${POD} -- mkdir -p /workspace
           tar cf - . | kubectl -n ${NS} exec -i pod/${POD} -- tar xf - -C /workspace
-          # copy the token created on the runner into the pod
           kubectl -n ${NS} cp access_token.txt pod/${POD}:/workspace/access_token.txt
 
       - name: Run tests inside python pod
@@ -370,8 +365,7 @@ jobs:
             export VP_TEST_OAUTH_ACCESS_TOKEN=\$(cat access_token.txt)
             tox -e py
           "
-		  
-      # Cleanup MinIO
+
       - name: Uninstall MinIO
         if: always()
         run: |

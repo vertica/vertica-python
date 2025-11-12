@@ -362,7 +362,7 @@ jobs:
             export VP_TEST_HOST='${SVC}.${NS}.svc.cluster.local'
             export VP_TEST_PORT=5433
             export VP_TEST_DATABASE='vdb'
-            export VP_TEST_USER='oauth_user'
+            export VP_TEST_OAUTH_USER='oauth_user'
 
             echo '🔍 Checking connectivity to Vertica...'
             if command -v nc >/dev/null 2>&1; then
@@ -371,7 +371,7 @@ jobs:
               timeout 5 bash -c 'cat < /dev/null > /dev/tcp/'\"\${VP_TEST_HOST}\"'/'\"\${VP_TEST_PORT}\"'' || { echo '❌ Cannot reach Vertica host'; exit 1; }
             fi
 
-            echo '✅ Vertica reachable; performing token introspection...'
+            echo 'Vertica reachable; performing token introspection...'
             INTROSPECT_OUTPUT=\$(curl -s -X POST http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect \
               -d 'client_id=vertica' \
               -d 'client_secret=P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs' \

@@ -4,7 +4,7 @@
 [vp_test_config]
 
 # Connection information
-VP_TEST_HOST=10.0.0.2
+#VP_TEST_HOST=10.0.0.2
 VP_TEST_PORT=5000
 VP_TEST_USER=dbadmin
 #VP_TEST_DATABASE=vdb1

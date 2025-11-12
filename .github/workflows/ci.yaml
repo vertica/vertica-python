@@ -274,7 +274,7 @@ jobs:
           SVC=verticadb-sample-defaultsubcluster
           LOCATOR="${SVC}.${NS}.svc.cluster.local:5433"
           POD=py-test-runner
-          IMAGE=python:3.11-slim
+          IMAGE=python:${{ matrix.python-version }}-slim
 
           # wait for endpoints
           WAIT_TIMEOUT=300
@@ -342,7 +342,7 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Access token successfully fetched and saved as access_token.txt"
+          echo "Access token successfully fetched and saved as access_token.txt"
           head -c 60 access_token.txt && echo "..."
 
           echo "Copying access_token.txt into Python pod..."
@@ -362,21 +362,22 @@ jobs:
           USER=oauth_user
 
           if [ ! -f access_token.txt ]; then
-            echo "❌ Missing access_token.txt — token not created by previous step"
+            echo "Missing access_token.txt — token not created by previous step"
             exit 1
           fi
 
           TOKEN=$(cat access_token.txt)
           if [ -z "$TOKEN" ]; then
-            echo "❌ Empty token content"
+            echo "Empty token content"
             exit 1
           fi
 
-          echo "✅ Running tests inside pod (token length: ${#TOKEN})"
+          echo "Running tests inside pod (token length: ${#TOKEN})"
           kubectl -n ${NS} exec -i pod/${POD} -- bash -lc "
             set -euo pipefail
             cd /workspace
-            pip install --upgrade pip >/dev/null 2>&1 || true
+            apt-get update -qq && apt-get install -y -qq netcat-traditional >/dev/null 2>&1 || true
+            python -m pip install --upgrade pip >/dev/null 2>&1 || true
             pip install tox pytest >/dev/null 2>&1 || true
 
             export VP_TEST_OAUTH_ACCESS_TOKEN='${TOKEN}'
@@ -386,14 +387,20 @@ jobs:
             export VP_TEST_USER='${USER}'
 
             echo 'Testing connectivity to Vertica...'
-            nc -zv \${VP_TEST_HOST} \${VP_TEST_PORT} || { echo '❌ Cannot reach Vertica host'; exit 1; }
-            echo '✅ Vertica reachable; running tests...'
+            if command -v nc >/dev/null 2>&1; then
+              nc -zv \${VP_TEST_HOST} \${VP_TEST_PORT} || { echo '❌ Cannot reach Vertica host'; exit 1; }
+            else
+              echo 'nc not available, using bash /dev/tcp check'
+              timeout 5 bash -c 'cat < /dev/null > /dev/tcp/'\"\${VP_TEST_HOST}\"'/'\"\${VP_TEST_PORT}\"'' || { echo '❌ Cannot reach Vertica host'; exit 1; }
+            fi
 
+            echo 'Vertica reachable; running tests...'
             tox -e py
           "
 
           echo "Cleaning up test pod..."
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+
 
 
 

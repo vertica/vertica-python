@@ -276,7 +276,6 @@ jobs:
           echo "🔧 Configuring Vertica load balancing policy..."
           kubectl -n ${NS} exec ${POD} -c server -- bash -lc "
             /opt/vertica/bin/vsql -U dbadmin -c \"
-              ALTER DATABASE DEFAULT SET load_balance_policy = 'ROUNDROBIN';
               SELECT set_load_balance_policy('ROUNDROBIN');
             \"
           "

@@ -54,6 +54,12 @@ jobs:
           POD=py-test-runner
           IMAGE=python:${{ matrix.python-version }}-slim
 
+          # ensure namespace exists
+          if ! kubectl get ns ${NS} >/dev/null 2>&1; then
+            echo "Namespace ${NS} not found — creating it"
+            kubectl create ns ${NS}
+          fi
+
           # wait for endpoints
           WAIT_TIMEOUT=300
           INTERVAL=5
@@ -149,10 +155,11 @@ jobs:
 
           echo "Running tests inside pod (token length: ${#TOKEN})"
 
+          # use single quotes to preserve bash variables inside pod
           kubectl -n ${NS} exec -i pod/${POD} -- bash -lc '
             set -euo pipefail
             cd /workspace
-            apt-get update -qq && apt-get install -y -qq netcat-traditional >/dev/null 2>&1 || true
+            apt-get update -qq && apt-get install -y -qq netcat-traditional curl >/dev/null 2>&1 || true
             python -m pip install --upgrade pip >/dev/null 2>&1 || true
             pip install tox pytest >/dev/null 2>&1 || true
 

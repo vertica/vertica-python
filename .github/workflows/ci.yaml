@@ -333,6 +333,12 @@ jobs:
             echo "✅ Load balancing verified: all 3 nodes in use"
           fi
 
+      - name: Add fake hosts for loadbalance tests
+        run: |
+          echo "127.0.0.1 invalidhost" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 invalidhost2" | sudo tee -a /etc/hosts
+
+
       - name: Run Python tests in-cluster
         run: |
           set -euo pipefail

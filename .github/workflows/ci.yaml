@@ -349,6 +349,8 @@ jobs:
             export VP_TEST_PORT=5433
             export VP_TEST_DATABASE='vdb'
             export VP_TEST_OAUTH_USER='oauth_user'
+            export VP_TEST_USER='dbadmin'
+            export VP_TEST_PASSWORD=''
 
             echo '🔍 Checking connectivity to Vertica...'
             if command -v nc >/dev/null 2>&1; then

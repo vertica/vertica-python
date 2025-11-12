@@ -351,13 +351,13 @@ jobs:
             TOKEN_CONTENT=$(cat access_token.txt)
             printf '%s' "$TOKEN_CONTENT" | kubectl -n ${NS} exec -i pod/${POD} -- tee /workspace/access_token.txt >/dev/null
           fi
-
+     
       - name: Run tests inside python pod
         run: |
           set -euo pipefail
           NS=my-verticadb-operator
           POD=py-test-runner
-          HOST=verticadb-sample-defaultsubcluster-0.my-verticadb-operator.svc.cluster.local
+          HOST=verticadb-sample-defaultsubcluster.my-verticadb-operator.svc.cluster.local
           DB=vdb
           USER=oauth_user
 
@@ -385,12 +385,16 @@ jobs:
             export VP_TEST_DATABASE='${DB}'
             export VP_TEST_USER='${USER}'
 
-            echo 'Connecting to Vertica host:' \$VP_TEST_HOST
+            echo 'Testing connectivity to Vertica...'
+            nc -zv \${VP_TEST_HOST} \${VP_TEST_PORT} || { echo '❌ Cannot reach Vertica host'; exit 1; }
+            echo '✅ Vertica reachable; running tests...'
+
             tox -e py
           "
 
           echo "Cleaning up test pod..."
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+
 
 
       - name: Uninstall MinIO

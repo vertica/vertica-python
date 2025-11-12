@@ -43,7 +43,229 @@ jobs:
           helm repo add bitnami https://charts.bitnami.com/bitnami || true
           helm repo update
 
-      # (other steps unchanged)...
+          - name: Install MinIO (namespace minio)
+        run: |
+          kubectl create ns minio || true
+          cat <<'EOF' > minio.yaml
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: minio
+            namespace: minio
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: minio
+            template:
+              metadata:
+                labels:
+                  app: minio
+              spec:
+                containers:
+                  - name: minio
+                    image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+                    args: ["server", "/data"]
+                    env:
+                      - name: MINIO_ROOT_USER
+                        value: "minioadmin"
+                      - name: MINIO_ROOT_PASSWORD
+                        value: "minioadmin"
+                    ports:
+                      - containerPort: 9000
+                    volumeMounts:
+                      - name: data
+                        mountPath: /data
+                volumes:
+                  - name: data
+                    emptyDir: {}
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: minio
+            namespace: minio
+          spec:
+            selector:
+              app: minio
+            ports:
+              - port: 9000
+                targetPort: 9000
+          EOF
+          kubectl apply -f minio.yaml
+          kubectl -n minio rollout status deployment/minio --timeout=2m || true
+          kubectl get pods -n minio -o wide || true
+          kubectl get svc -n minio || true
+
+      - name: Ensure MinIO bucket exists
+        run: |
+          kubectl run mc-client --rm -i --restart=Never \
+            --image=minio/mc:latest \
+            -n minio \
+            --command -- bash -c "
+              mc alias set localminio http://minio.minio.svc.cluster.local:9000 minioadmin minioadmin && \
+              mc mb --ignore-existing localminio/vertica-fleeting && \
+              mc ls localminio
+            "
+
+      - name: Create MinIO Secret
+        run: |
+          kubectl create ns my-verticadb-operator || true
+          kubectl delete secret communal-creds -n my-verticadb-operator --ignore-not-found
+          kubectl create secret generic communal-creds \
+            -n my-verticadb-operator \
+            --from-literal=accesskey="minioadmin" \
+            --from-literal=secretkey="minioadmin"
+          kubectl get secret communal-creds -n my-verticadb-operator -o yaml || true
+
+      - name: Install Vertica Operator
+        run: |
+          cat <<'EOF' > operator-values.yaml
+          installCRDs: true
+          controller:
+            extraEnv:
+              - name: AWS_REGION
+                value: "us-east-1"
+              - name: AWS_DEFAULT_REGION
+                value: "us-east-1"
+          EOF
+          helm upgrade --install vdb-op vertica-charts/verticadb-operator \
+            -n my-verticadb-operator -f operator-values.yaml --wait --timeout 10m
+          kubectl -n my-verticadb-operator get pods -o wide || true
+
+      - name: Deploy VerticaDB
+        run: |
+          cat <<'EOF' | kubectl apply -f -
+          apiVersion: vertica.com/v1
+          kind: VerticaDB
+          metadata:
+            name: verticadb-sample
+            namespace: my-verticadb-operator
+          spec:
+            image: opentext/vertica-k8s:latest
+            dbName: vdb
+            initPolicy: Create
+            communal:
+              path: s3://vertica-fleeting/mkottakota/
+              credentialSecret: communal-creds
+              endpoint: http://minio.minio.svc.cluster.local:9000
+              region: us-east-1
+            local:
+              dataPath: /data
+              depotPath: /depot
+            subclusters:
+              - name: defaultsubcluster
+                size: 3
+          EOF
+          kubectl annotate verticadb verticadb-sample -n my-verticadb-operator \
+            vertica.com/ci-reconcile="$(date -u +%s)" --overwrite || true
+
+      - name: Wait for Vertica readiness
+        run: |
+          NS=my-verticadb-operator
+          SS=verticadb-sample-defaultsubcluster
+          POD=${SS}-0
+          for i in {1..30}; do
+            kubectl get pod ${POD} -n ${NS} && break || sleep 10
+          done
+          kubectl wait --for=condition=Ready pod/${POD} -n ${NS} --timeout=5m || true
+
+      - name: Deploy Keycloak
+        run: |
+          kubectl create ns keycloak || true
+          cat <<'EOF' | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: keycloak
+            namespace: keycloak
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: keycloak
+            template:
+              metadata:
+                labels:
+                  app: keycloak
+              spec:
+                containers:
+                  - name: keycloak
+                    image: quay.io/keycloak/keycloak:23.0.4
+                    args: ["start-dev"]
+                    env:
+                      - name: KEYCLOAK_ADMIN
+                        value: admin
+                      - name: KEYCLOAK_ADMIN_PASSWORD
+                        value: admin
+                    ports:
+                      - containerPort: 8080
+                    readinessProbe:
+                      httpGet:
+                        path: /
+                        port: 8080
+                      initialDelaySeconds: 20
+                      periodSeconds: 5
+                      failureThreshold: 6
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: keycloak
+            namespace: keycloak
+          spec:
+            selector:
+              app: keycloak
+            ports:
+              - port: 8080
+                targetPort: 8080
+          EOF
+
+      - name: Wait for Keycloak readiness
+        run: |
+          kubectl -n keycloak rollout status deploy/keycloak --timeout=2m
+          kubectl -n keycloak get pods -o wide
+
+      - name: Configure Keycloak realm, client, and user
+        run: |
+          kubectl -n keycloak exec deploy/keycloak -- \
+            /opt/keycloak/bin/kcadm.sh config credentials \
+              --server http://localhost:8080 --realm master \
+              --user admin --password admin
+          kubectl -n keycloak exec deploy/keycloak -- \
+            /opt/keycloak/bin/kcadm.sh create realms -s realm=test -s enabled=true
+          kubectl -n keycloak exec deploy/keycloak -- \
+            /opt/keycloak/bin/kcadm.sh create clients -r test \
+              -s clientId=vertica -s enabled=true \
+              -s secret=P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs \
+              -s 'redirectUris=["*"]' \
+              -s directAccessGrantsEnabled=true
+          kubectl -n keycloak exec deploy/keycloak -- \
+            /opt/keycloak/bin/kcadm.sh create users -r test \
+              -s username=oauth_user -s enabled=true
+          kubectl -n keycloak exec deploy/keycloak -- \
+            /opt/keycloak/bin/kcadm.sh set-password -r test \
+              --username oauth_user --new-password password
+
+      - name: Configure Vertica Authentication
+        run: |
+          NS=my-verticadb-operator
+          POD=verticadb-sample-defaultsubcluster-0
+          kubectl -n ${NS} exec ${POD} -c server -- bash -c "
+            /opt/vertica/bin/vsql -U dbadmin -c \"
+              CREATE AUTHENTICATION v_oauth METHOD 'oauth' HOST '0.0.0.0/0';
+              ALTER AUTHENTICATION v_oauth SET client_id = 'vertica';
+              ALTER AUTHENTICATION v_oauth SET client_secret = 'P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs';
+              ALTER AUTHENTICATION v_oauth SET discovery_url = 'http://keycloak.keycloak.svc.cluster.local:8080/realms/test/.well-known/openid-configuration';
+              ALTER AUTHENTICATION v_oauth SET introspect_url = 'http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect';
+              CREATE USER oauth_user;
+              GRANT AUTHENTICATION v_oauth TO oauth_user;
+              GRANT ALL ON SCHEMA PUBLIC TO oauth_user;
+              CREATE AUTHENTICATION v_dbadmin_hash METHOD 'hash' HOST '0.0.0.0/0';
+              ALTER AUTHENTICATION v_dbadmin_hash PRIORITY 10000;
+              GRANT AUTHENTICATION v_dbadmin_hash TO dbadmin;
+            \"
+          "
 
       - name: Run Python tests in-cluster (robust)
         run: |

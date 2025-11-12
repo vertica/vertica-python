@@ -367,17 +367,17 @@ jobs:
             echo 'Vertica reachable; running tests...'
 
             echo "🔹 Testing token introspection endpoint..."
-            INTROSPECT_OUTPUT=$(curl -s -X POST http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect \
-              -d "client_id=vertica" \
-              -d "client_secret=P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs" \
-              -d "token=${TOKEN}")
+            INTROSPECT_OUTPUT=\$(curl -s -X POST http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect \
+            -d "client_id=vertica" \
+            -d "client_secret=P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs" \
+            -d "token=\${TOKEN}")
             
-            if echo "$INTROSPECT_OUTPUT" | grep -q '"active":true'; then
+            if echo "\$INTROSPECT_OUTPUT" | grep -q '"active":true'; then
               echo "✅ Token introspection successful (active=true)"
             else
               echo "❌ Token introspection failed:"
-              echo "$INTROSPECT_OUTPUT"
-              exit 1
+              echo "\$INTROSPECT_OUTPUT"
+            exit 1
             fi
             tox -e py
           "

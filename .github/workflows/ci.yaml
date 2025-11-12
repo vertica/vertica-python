@@ -351,6 +351,7 @@ jobs:
             export VP_TEST_OAUTH_USER='oauth_user'
             export VP_TEST_USER='dbadmin'
             export VP_TEST_PASSWORD=''
+            export VP_TEST_BACKUP_SERVER_NODE='[("verticadb-sample-defaultsubcluster-1.my-verticadb-operator.svc.cluster.local",5433),("verticadb-sample-defaultsubcluster-2.my-verticadb-operator.svc.cluster.local",5433)]'
 
             echo '🔍 Checking connectivity to Vertica...'
             if command -v nc >/dev/null 2>&1; then

@@ -267,6 +267,21 @@ jobs:
             \"
           "
 
+
+      - name: Configure Vertica Authentication
+        run: |
+          NS=my-verticadb-operator
+          POD=verticadb-sample-defaultsubcluster-0
+
+          echo "🔧 Configuring Vertica load balancing policy..."
+          kubectl -n ${NS} exec ${POD} -c server -- bash -lc "
+            /opt/vertica/bin/vsql -U dbadmin -c \"
+              ALTER DATABASE DEFAULT SET load_balance_policy = 'ROUNDROBIN';
+              SELECT set_load_balance_policy('ROUNDROBIN');
+            \"
+          "
+
+
       - name: Run Python tests in-cluster (robust + execution)
         run: |
           set -euo pipefail
@@ -351,7 +366,6 @@ jobs:
             export VP_TEST_OAUTH_USER='oauth_user'
             export VP_TEST_USER='dbadmin'
             export VP_TEST_PASSWORD=''
-            export VP_TEST_BACKUP_SERVER_NODE='[("verticadb-sample-defaultsubcluster-1.my-verticadb-operator.svc.cluster.local",5433),("verticadb-sample-defaultsubcluster-2.my-verticadb-operator.svc.cluster.local",5433)]'
 
             echo '🔍 Checking connectivity to Vertica...'
             if command -v nc >/dev/null 2>&1; then

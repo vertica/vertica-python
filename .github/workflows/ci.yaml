@@ -267,14 +267,117 @@ jobs:
             \"
           "
 
-      # (includes your corrected robust + test steps)
-      - name: Run Python tests in-cluster (robust)
+      - name: Run Python tests in-cluster (robust + execution)
         run: |
-          ... (keep full version from previous message) ...
+          set -euo pipefail
+          NS=my-verticadb-operator
+          SVC=verticadb-sample-defaultsubcluster
+          LOCATOR="${SVC}.${NS}.svc.cluster.local:5433"
+          POD=py-test-runner
+          IMAGE=python:${{ matrix.python-version }}-slim
 
-      - name: Run tests inside python pod
-        run: |
-          ... (keep full version from previous message) ...
+          echo "📦 Ensuring namespace ${NS} exists..."
+          kubectl get ns ${NS} >/dev/null 2>&1 || kubectl create ns ${NS}
+
+          echo "⏳ Waiting for Vertica service endpoints..."
+          WAIT_TIMEOUT=300
+          INTERVAL=5
+          deadline=$((SECONDS + WAIT_TIMEOUT))
+          while [ $SECONDS -lt $deadline ]; do
+            addrs=$(kubectl -n ${NS} get endpoints ${SVC} -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null || true)
+            [ -n "$addrs" ] && break || sleep ${INTERVAL}
+          done
+          if [ -z "$addrs" ]; then
+            echo "❌ Vertica service endpoints not found"
+            kubectl -n ${NS} get pods -o wide || true
+            kubectl -n ${NS} get endpoints ${SVC} -o yaml || true
+            exit 1
+          fi
+
+          echo "🚀 Creating Python test pod..."
+          kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+          kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- sleep infinity
+          kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=180s
+
+          echo "📂 Copying repository into pod..."
+          kubectl -n ${NS} exec -i pod/${POD} -- mkdir -p /workspace
+          tar cf - . | kubectl -n ${NS} exec -i pod/${POD} -- tar xf - -C /workspace
+
+          echo "🧰 Installing dependencies..."
+          kubectl -n ${NS} exec pod/${POD} -- bash -lc 'apt-get update -qq && apt-get install -y -qq build-essential libssl-dev libpq-dev netcat-traditional curl || true'
+          kubectl -n ${NS} exec pod/${POD} -- bash -lc 'python -m pip install --upgrade pip >/dev/null 2>&1 || true; pip install tox pytest >/dev/null 2>&1 || true'
+
+          echo "🔑 Fetching token from Keycloak..."
+          CT_POD="curl-token-$$"
+          kubectl -n keycloak delete pod ${CT_POD} --ignore-not-found || true
+          kubectl -n keycloak run ${CT_POD} --restart=Never --image=curlimages/curl:latest --command -- sleep 120
+          kubectl -n keycloak wait --for=condition=Ready pod/${CT_POD} --timeout=120s || true
+
+          kubectl -n keycloak exec pod/${CT_POD} -- sh -c "
+            curl -s -X POST 'http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token' \
+              -d 'client_id=${CLIENT_ID}' \
+              -d 'username=${USER}' \
+              -d 'password=${PASSWORD}' \
+              -d 'grant_type=password' \
+              -d 'client_secret=${CLIENT_SECRET}' > /tmp/token.json
+          "
+
+          kubectl -n keycloak cp ${CT_POD}:/tmp/token.json token.json || {
+            echo "❌ Failed to copy token.json from curl pod"
+            kubectl -n keycloak logs ${CT_POD} || true
+            exit 1
+          }
+          kubectl -n keycloak delete pod ${CT_POD} --ignore-not-found || true
+
+          TOKEN=$(python3 -c 'import json; print(__import__("json").load(open("token.json")).get("access_token",""))')
+          if [ -z "$TOKEN" ]; then
+            echo "❌ No access_token found in token.json"
+            cat token.json
+            exit 1
+          fi
+
+          echo "✅ Access token retrieved (length: ${#TOKEN})"
+          printf '%s' "$TOKEN" | kubectl -n ${NS} exec -i pod/${POD} -- tee /workspace/access_token.txt >/dev/null
+
+          echo "🏃 Running Python tests inside pod..."
+          kubectl -n ${NS} exec -i pod/${POD} -- bash -lc "
+            set -euo pipefail
+            cd /workspace
+
+            export VP_TEST_OAUTH_ACCESS_TOKEN='${TOKEN}'
+            export VP_TEST_HOST='${SVC}.${NS}.svc.cluster.local'
+            export VP_TEST_PORT=5433
+            export VP_TEST_DATABASE='vdb'
+            export VP_TEST_USER='oauth_user'
+
+            echo '🔍 Checking connectivity to Vertica...'
+            if command -v nc >/dev/null 2>&1; then
+              nc -zv \${VP_TEST_HOST} \${VP_TEST_PORT} || { echo '❌ Cannot reach Vertica host'; exit 1; }
+            else
+              timeout 5 bash -c 'cat < /dev/null > /dev/tcp/'\"\${VP_TEST_HOST}\"'/'\"\${VP_TEST_PORT}\"'' || { echo '❌ Cannot reach Vertica host'; exit 1; }
+            fi
+
+            echo '✅ Vertica reachable; performing token introspection...'
+            INTROSPECT_OUTPUT=\$(curl -s -X POST http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect \
+              -d 'client_id=vertica' \
+              -d 'client_secret=P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs' \
+              -d 'token='\${VP_TEST_OAUTH_ACCESS_TOKEN})
+
+            if echo \"\$INTROSPECT_OUTPUT\" | grep -q '\"active\":true'; then
+              echo '✅ Token introspection successful (active=true)'
+            else
+              echo '❌ Token introspection failed:'
+              echo \"\$INTROSPECT_OUTPUT\"
+              exit 1
+            fi
+
+            echo '🚦 Running pytest suite via tox...'
+            tox -e py
+          "
+
+          echo "🧹 Cleaning up test pod..."
+          kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+
 
       - name: Uninstall MinIO
         if: always()

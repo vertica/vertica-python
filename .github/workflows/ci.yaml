@@ -330,22 +330,32 @@ jobs:
           fi
           rm -f access_token.txt
 
-          # inside pod: wait for vertica TCP then run tests
+      # inside pod: wait for vertica TCP then run tests
+      - name: Run tests inside python pod
+        run: |
+          NS=my-verticadb-operator
+          POD=py-test-runner
+          HOST=verticadb-sample-defaultsubcluster-0.my-verticadb-operator.svc.cluster.local
+          DB=vdb
+          USER=oauth_user
+          TOKEN=$(cat access_token.txt)
+
           kubectl -n ${NS} exec -i pod/${POD} -- bash -lc "
             set -euo pipefail
             cd /workspace
-            export VP_TEST_OAUTH_ACCESS_TOKEN=\$(cat /workspace/access_token.txt)
-            export VP_TEST_USER=dbadmin
-            export VP_TEST_OAUTH_USER=${USER}
-            HOST=${LOCATOR%%:*}
-            PORT=${LOCATOR##*:}
-            for i in \$(seq 1 60); do
-              (echo > /dev/tcp/\$HOST/\$PORT) >/dev/null 2>&1 && break
-              echo waiting for vertica \$i
-              sleep 5
-            done
+            python -m pip install --upgrade pip >/dev/null 2>&1 || true
+            pip install tox pytest >/dev/null 2>&1 || true
+
+            export VP_TEST_OAUTH_ACCESS_TOKEN='${TOKEN}'
+            export VP_TEST_HOST='${HOST}'
+            export VP_TEST_PORT=5433
+            export VP_TEST_DATABASE='${DB}'
+            export VP_TEST_USER='${USER}'
+
+            echo 'Connecting to Vertica host:' \$VP_TEST_HOST
             tox -e py
           "
+
 
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
 

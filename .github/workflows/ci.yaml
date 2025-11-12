@@ -267,20 +267,6 @@ jobs:
             \"
           "
 
-      - name: Ensure OAuth user exists and mapped
-        run: |
-          NS=my-verticadb-operator
-          POD=verticadb-sample-defaultsubcluster-0
-          echo "Ensuring OAuth user and mapping exist..."
-          kubectl -n ${NS} exec ${POD} -c server -- bash -c "
-            /opt/vertica/bin/vsql -U dbadmin -c \"
-              CREATE USER IF NOT EXISTS oauth_user;
-              GRANT CONNECT ON DATABASE vdb TO oauth_user;
-              GRANT AUTHENTICATION v_oauth TO oauth_user;
-            \"
-          "
-          echo "✅ OAuth user ensured and mapped to v_oauth"
-
       - name: Run Python tests in-cluster (robust + execution)
         run: |
           set -euo pipefail

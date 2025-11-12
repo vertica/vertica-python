@@ -329,60 +329,70 @@ jobs:
           fi
      
       - name: Run tests inside python pod
-        run: |
-          set -euo pipefail
-          NS=my-verticadb-operator
-          POD=py-test-runner
-          HOST=verticadb-sample-defaultsubcluster.my-verticadb-operator.svc.cluster.local
-          DB=vdb
-          USER=oauth_user
-          if [ ! -f access_token.txt ]; then
-            echo "Missing access_token.txt — token not created by previous step"
-            exit 1
-          fi
-          TOKEN=$(cat access_token.txt)
-          if [ -z "$TOKEN" ]; then
-            echo "Empty token content"
-            exit 1
-          fi
-          echo "Running tests inside pod (token length: ${#TOKEN})"
-          kubectl -n ${NS} exec -i pod/${POD} -- bash -lc "
-            set -euo pipefail
-            cd /workspace
-            apt-get update -qq && apt-get install -y -qq netcat-traditional >/dev/null 2>&1 || true
-            python -m pip install --upgrade pip >/dev/null 2>&1 || true
-            pip install tox pytest >/dev/null 2>&1 || true
-            export VP_TEST_OAUTH_ACCESS_TOKEN='${TOKEN}'
-            export VP_TEST_HOST='${HOST}'
-            export VP_TEST_PORT=5433
-            export VP_TEST_DATABASE='${DB}'
-            export VP_TEST_USER='${USER}'
-            echo 'Testing connectivity to Vertica...'
-            if command -v nc >/dev/null 2>&1; then
-              nc -zv \${VP_TEST_HOST} \${VP_TEST_PORT} || { echo '❌ Cannot reach Vertica host'; exit 1; }
-            else
-              echo 'nc not available, using bash /dev/tcp check'
-              timeout 5 bash -c 'cat < /dev/null > /dev/tcp/'\"\${VP_TEST_HOST}\"'/'\"\${VP_TEST_PORT}\"'' || { echo '❌ Cannot reach Vertica host'; exit 1; }
-            fi
-            echo 'Vertica reachable; running tests...'
+      run: |
+        set -euo pipefail
+        NS=my-verticadb-operator
+        POD=py-test-runner
+        HOST=verticadb-sample-defaultsubcluster.my-verticadb-operator.svc.cluster.local
+        DB=vdb
+        USER=oauth_user
 
-            echo "🔹 Testing token introspection endpoint..."
-            INTROSPECT_OUTPUT=\$(curl -s -X POST http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect \
+        if [ ! -f access_token.txt ]; then
+          echo "Missing access_token.txt — token not created by previous step"
+          exit 1
+        fi
+
+        TOKEN=$(cat access_token.txt)
+        if [ -z "$TOKEN" ]; then
+          echo "Empty token content"
+          exit 1
+        fi
+
+        echo "Running tests inside pod (token length: ${#TOKEN})"
+
+        # use single quotes to safely embed $(...) and quotes inside
+        kubectl -n ${NS} exec -i pod/${POD} -- bash -lc '
+          set -euo pipefail
+          cd /workspace
+          apt-get update -qq && apt-get install -y -qq netcat-traditional >/dev/null 2>&1 || true
+          python -m pip install --upgrade pip >/dev/null 2>&1 || true
+          pip install tox pytest >/dev/null 2>&1 || true
+
+          export VP_TEST_OAUTH_ACCESS_TOKEN="${TOKEN}"
+          export VP_TEST_HOST="${HOST}"
+          export VP_TEST_PORT=5433
+          export VP_TEST_DATABASE="${DB}"
+          export VP_TEST_USER="${USER}"
+
+          echo "Testing connectivity to Vertica..."
+          if command -v nc >/dev/null 2>&1; then
+            nc -zv "${VP_TEST_HOST}" "${VP_TEST_PORT}" || { echo "❌ Cannot reach Vertica host"; exit 1; }
+          else
+            echo "nc not available, using bash /dev/tcp check"
+            timeout 5 bash -c "cat < /dev/null > /dev/tcp/${VP_TEST_HOST}/${VP_TEST_PORT}" || { echo "❌ Cannot reach Vertica host"; exit 1; }
+          fi
+
+          echo "Vertica reachable; running tests..."
+          echo "🔹 Testing token introspection endpoint..."
+          INTROSPECT_OUTPUT=$(curl -s -X POST http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect \
             -d "client_id=vertica" \
             -d "client_secret=P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs" \
-            -d "token=\${TOKEN}")
-            
-            if echo "\$INTROSPECT_OUTPUT" | grep -q '"active":true'; then
-              echo "✅ Token introspection successful (active=true)"
-            else
-              echo "❌ Token introspection failed:"
-              echo "\$INTROSPECT_OUTPUT"
+            -d "token=${TOKEN}")
+
+          if echo "$INTROSPECT_OUTPUT" | grep -q "\"active\":true"; then
+            echo "✅ Token introspection successful (active=true)"
+          else
+            echo "❌ Token introspection failed:"
+            echo "$INTROSPECT_OUTPUT"
             exit 1
-            fi
-            tox -e py
-          "
-          echo "Cleaning up test pod..."
-          kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+          fi
+
+          tox -e py
+        '
+
+        echo "Cleaning up test pod..."
+        kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+
       - name: Uninstall MinIO
         if: always()
         run: |

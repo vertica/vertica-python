@@ -182,6 +182,17 @@ jobs:
           done
           kubectl wait --for=condition=Ready pod/${POD} -n ${NS} --timeout=5m || true
 
+      - name: 🩹 Patch /etc/hosts in test pod with Vertica pod entries
+        run: |
+          echo "Adding Vertica pod entries to /etc/hosts in test pod..."
+          POD=test-runner
+          NS=my-verticadb-operator
+          for p in $(kubectl -n $NS get pods -l app.kubernetes.io/instance=verticadb-sample -o jsonpath='{.items[*].metadata.name}'); do
+            IP=$(kubectl -n $NS get pod $p -o jsonpath='{.status.podIP}')
+            echo "$IP $p.$NS.svc.cluster.local $p" | kubectl -n $NS exec -i $POD -- tee -a /etc/hosts >/dev/null
+            echo "✔ Added $p -> $IP"
+          done
+
       # ---------------------------
       # Keycloak + OAuth setup
       # ---------------------------
@@ -357,7 +368,6 @@ jobs:
             cd /workspace
             export VP_TEST_OAUTH_ACCESS_TOKEN='${TOKEN}'
             export VP_TEST_HOST='verticadb-sample-defaultsubcluster-0.my-verticadb-operator.svc.cluster.local'
-
             export VP_TEST_PORT=5433
             export VP_TEST_DATABASE='vdb'
             export VP_TEST_OAUTH_USER='oauth_user'
@@ -378,8 +388,7 @@ jobs:
               echo '✅ Token introspection successful (active=true)'
             else
               echo '❌ Token introspection failed:'
-              echo \"\$INTROSPECT_OUTPUT\"
-              exit 1
+              echo \"\$INTROSPECT_OUTPUT\"; exit 1
             fi
             echo '🚦 Running pytest suite via tox...'
             tox -e py

@@ -256,83 +256,6 @@ jobs:
               GRANT AUTHENTICATION v_dbadmin_hash TO dbadmin;
             \"
           "
-      - name: Configure Vertica Authentication
-        run: |
-          NS=my-verticadb-operator
-          POD=verticadb-sample-defaultsubcluster-0
-          echo "🔧 Configuring Vertica load balancing policy..."
-          kubectl -n ${NS} exec ${POD} -c server -- bash -lc "
-            /opt/vertica/bin/vsql -U dbadmin -c \"
-              SELECT set_load_balance_policy('ROUNDROBIN');
-            \"
-          "
-      - name: Configure Vertica Load Balancing
-        run: |
-          NS=my-verticadb-operator
-          POD=verticadb-sample-defaultsubcluster-0
-
-          echo "🔧 Setting load balance policy to ROUNDROBIN..."
-          kubectl -n ${NS} exec ${POD} -c server -- bash -c "
-            /opt/vertica/bin/vsql -U dbadmin -c \"
-              SELECT set_load_balance_policy('ROUNDROBIN');
-            \"
-          "
-          
-          echo "🔍 Verifying load balance policy..."
-          kubectl -n ${NS} exec ${POD} -c server -- bash -c "
-            /opt/vertica/bin/vsql -U dbadmin -c \"
-              SELECT get_load_balance_policy();
-            \"
-          "
-
-      - name: Test load balancing is working
-        run: |
-          NS=my-verticadb-operator
-          POD=verticadb-sample-defaultsubcluster-0
-          SVC=verticadb-sample-defaultsubcluster
-          
-          echo "📊 Testing load balancing distribution..."
-          kubectl -n ${NS} exec ${POD} -c server -- bash -c "
-            /opt/vertica/bin/vsql -U dbadmin -c \"
-              DROP TABLE IF EXISTS lb_test_verify CASCADE;
-              CREATE TABLE lb_test_verify (node_name VARCHAR(256));
-            \"
-          "
-          
-          # Make 9 test connections
-          for i in {1..9}; do
-            kubectl -n ${NS} exec ${POD} -c server -- bash -c "
-              /opt/vertica/bin/vsql -U dbadmin -h ${SVC}.${NS}.svc.cluster.local -c \"
-                INSERT INTO lb_test_verify SELECT node_name FROM current_session;
-              \"
-            " >/dev/null 2>&1
-          done
-          
-          echo "📈 Connection distribution:"
-          kubectl -n ${NS} exec ${POD} -c server -- bash -c "
-            /opt/vertica/bin/vsql -U dbadmin -c \"
-              SELECT node_name, COUNT(*) as connections 
-              FROM lb_test_verify 
-              GROUP BY node_name 
-              ORDER BY node_name;
-            \"
-          "
-          
-          UNIQUE_NODES=$(kubectl -n ${NS} exec ${POD} -c server -- bash -c "
-            /opt/vertica/bin/vsql -U dbadmin -At -c \"
-              SELECT COUNT(DISTINCT node_name) FROM lb_test_verify;
-            \"
-          ")
-          
-          echo "Unique nodes used: ${UNIQUE_NODES}/3"
-          
-          if [ "${UNIQUE_NODES}" != "3" ]; then
-            echo "⚠️  Warning: Load balancing may not be working correctly"
-            echo "Expected 3 nodes, got ${UNIQUE_NODES}"
-          else
-            echo "✅ Load balancing verified: all 3 nodes in use"
-          fi
-
       - name: Add fake hosts for loadbalance tests
         run: |
           echo "127.0.0.1 invalidhost" | sudo tee -a /etc/hosts
@@ -356,24 +279,24 @@ jobs:
           done
           
           if [ -z "$addrs" ]; then
-            echo "❌ Vertica service endpoints not found"
+            echo "Vertica service endpoints not found"
             kubectl -n ${NS} get pods -o wide
             kubectl -n ${NS} get endpoints ${SVC} -o yaml
             exit 1
           fi
           
-          echo "✅ Service endpoints ready: $addrs"
+          echo "Service endpoints ready: $addrs"
 
-          echo "🚀 Creating Python test pod..."
+          echo "Creating Python test pod..."
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found --wait || true
           kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- sleep infinity
           kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=3m
 
-          echo "📂 Copying repository into pod..."
+          echo "Copying repository into pod..."
           kubectl -n ${NS} exec -i pod/${POD} -- mkdir -p /workspace
           tar cf - . | kubectl -n ${NS} exec -i pod/${POD} -- tar xf - -C /workspace
 
-          echo "🧰 Installing dependencies..."
+          echo "Installing dependencies..."
           kubectl -n ${NS} exec pod/${POD} -- bash -c '
             apt-get update -qq && \
             apt-get install -y -qq build-essential libssl-dev libpq-dev netcat-traditional curl
@@ -383,7 +306,7 @@ jobs:
             pip install tox pytest >/dev/null 2>&1
           '
 
-          echo "🔑 Fetching OAuth token from Keycloak..."
+          echo "Fetching OAuth token from Keycloak..."
           CT_POD="curl-token-$$"
           kubectl -n keycloak delete pod ${CT_POD} --ignore-not-found --wait || true
           kubectl -n keycloak run ${CT_POD} --restart=Never \
@@ -400,7 +323,7 @@ jobs:
           "
 
           kubectl -n keycloak cp ${CT_POD}:/tmp/token.json token.json || {
-            echo "❌ Failed to copy token.json"
+            echo "Failed to copy token.json"
             kubectl -n keycloak logs ${CT_POD}
             exit 1
           }
@@ -408,7 +331,7 @@ jobs:
 
           TOKEN=$(python3 -c 'import json; print(json.load(open("token.json")).get("access_token",""))')
           if [ -z "$TOKEN" ]; then
-            echo "❌ No access_token found"
+            echo "No access_token found"
             cat token.json
             exit 1
           fi

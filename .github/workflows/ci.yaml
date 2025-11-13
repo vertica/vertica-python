@@ -356,7 +356,8 @@ jobs:
             set -euo pipefail
             cd /workspace
             export VP_TEST_OAUTH_ACCESS_TOKEN='${TOKEN}'
-            export VP_TEST_HOST='${SVC}.${NS}.svc.cluster.local'
+            export VP_TEST_HOST='verticadb-sample-defaultsubcluster-0.my-verticadb-operator.svc.cluster.local'
+
             export VP_TEST_PORT=5433
             export VP_TEST_DATABASE='vdb'
             export VP_TEST_OAUTH_USER='oauth_user'

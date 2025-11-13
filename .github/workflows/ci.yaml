@@ -1,4 +1,4 @@
-name: CI
+name: Vertica CI
 
 on: [push, pull_request]
 
@@ -18,6 +18,9 @@ jobs:
       CLIENT_SECRET: P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs
 
     steps:
+      # ---------------------------
+      # Checkout and setup
+      # ---------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -26,6 +29,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # ---------------------------
+      # Kubernetes (KinD) + Helm setup
+      # ---------------------------
       - name: Set up Kubernetes (KinD)
         uses: helm/kind-action@v1.8.0
         with:
@@ -37,12 +43,16 @@ jobs:
         with:
           version: "3.11.3"
 
-      - name: Add Helm repos
+      - name: Add Helm repositories
         run: |
           helm repo add vertica-charts https://vertica.github.io/charts || true
           helm repo add bitnami https://charts.bitnami.com/bitnami || true
           helm repo update
-      - name: Install MinIO (namespace minio)
+
+      # ---------------------------
+      # MinIO Setup
+      # ---------------------------
+      - name: Install MinIO
         run: |
           kubectl create ns minio || true
           cat <<'EOF' > minio.yaml
@@ -95,6 +105,7 @@ jobs:
           kubectl -n minio rollout status deployment/minio --timeout=2m || true
           kubectl get pods -n minio -o wide || true
           kubectl get svc -n minio || true
+
       - name: Ensure MinIO bucket exists
         run: |
           kubectl run mc-client --rm -i --restart=Never \
@@ -105,6 +116,7 @@ jobs:
               mc mb --ignore-existing localminio/vertica-fleeting && \
               mc ls localminio
             "
+
       - name: Create MinIO Secret
         run: |
           kubectl create ns my-verticadb-operator || true
@@ -114,6 +126,10 @@ jobs:
             --from-literal=accesskey="minioadmin" \
             --from-literal=secretkey="minioadmin"
           kubectl get secret communal-creds -n my-verticadb-operator -o yaml || true
+
+      # ---------------------------
+      # Vertica Operator + DB Deployment
+      # ---------------------------
       - name: Install Vertica Operator
         run: |
           cat <<'EOF' > operator-values.yaml
@@ -128,6 +144,7 @@ jobs:
           helm upgrade --install vdb-op vertica-charts/verticadb-operator \
             -n my-verticadb-operator -f operator-values.yaml --wait --timeout 10m
           kubectl -n my-verticadb-operator get pods -o wide || true
+
       - name: Deploy VerticaDB
         run: |
           cat <<'EOF' | kubectl apply -f -
@@ -154,6 +171,7 @@ jobs:
           EOF
           kubectl annotate verticadb verticadb-sample -n my-verticadb-operator \
             vertica.com/ci-reconcile="$(date -u +%s)" --overwrite || true
+
       - name: Wait for Vertica readiness
         run: |
           NS=my-verticadb-operator
@@ -163,6 +181,10 @@ jobs:
             kubectl get pod ${POD} -n ${NS} && break || sleep 10
           done
           kubectl wait --for=condition=Ready pod/${POD} -n ${NS} --timeout=5m || true
+
+      # ---------------------------
+      # Keycloak + OAuth setup
+      # ---------------------------
       - name: Deploy Keycloak
         run: |
           kubectl create ns keycloak || true
@@ -213,10 +235,12 @@ jobs:
               - port: 8080
                 targetPort: 8080
           EOF
+
       - name: Wait for Keycloak readiness
         run: |
           kubectl -n keycloak rollout status deploy/keycloak --timeout=2m
           kubectl -n keycloak get pods -o wide
+
       - name: Configure Keycloak realm, client, and user
         run: |
           kubectl -n keycloak exec deploy/keycloak -- \
@@ -237,6 +261,7 @@ jobs:
           kubectl -n keycloak exec deploy/keycloak -- \
             /opt/keycloak/bin/kcadm.sh set-password -r test \
               --username oauth_user --new-password password
+
       - name: Configure Vertica Authentication
         run: |
           NS=my-verticadb-operator
@@ -256,7 +281,16 @@ jobs:
               GRANT AUTHENTICATION v_dbadmin_hash TO dbadmin;
             \"
           "
-      - name: Run Python tests in-cluster (robust + execution)
+
+      # ---------------------------
+      # Testing section
+      # ---------------------------
+      - name: Check Vertica load balance policy
+        run: |
+          kubectl -n my-verticadb-operator exec verticadb-sample-defaultsubcluster-0 -c server -- \
+            /opt/vertica/bin/vsql -U dbadmin -c "SELECT get_load_balance_policy();"
+
+      - name: Run Python tests in-cluster
         run: |
           set -euo pipefail
           NS=my-verticadb-operator
@@ -351,10 +385,14 @@ jobs:
           "
           echo "🧹 Cleaning up test pod..."
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+
+      # ---------------------------
+      # Cleanup
+      # ---------------------------
       - name: Uninstall MinIO
         if: always()
         run: |
           kubectl delete pod minio -n minio --ignore-not-found || true
           kubectl delete svc minio -n minio --ignore-not-found || true
           kubectl delete ns minio || true
-          echo "MinIO cleanup complete"
+          echo "✅ MinIO cleanup complete"

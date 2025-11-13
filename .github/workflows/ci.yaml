@@ -182,6 +182,21 @@ jobs:
           done
           kubectl wait --for=condition=Ready pod/${POD} -n ${NS} --timeout=5m || true
 
+          echo "🚀 Creating test runner pod..."
+          kubectl -n ${NS} run test-runner --image=python:3.13-slim --restart=Never --command -- sleep infinity
+          kubectl -n ${NS} wait --for=condition=Ready pod/test-runner --timeout=180s
+
+          echo "🩹 Adding Vertica pod entries to /etc/hosts in test pod..."
+          for p in $(kubectl -n $NS get pods -l app.kubernetes.io/instance=verticadb-sample -o jsonpath='{.items[*].metadata.name}'); do
+            IP=$(kubectl -n $NS get pod $p -o jsonpath='{.status.podIP}')
+            echo "$IP $p.$NS.svc.cluster.local $p" | kubectl -n $NS exec -i test-runner -- tee -a /etc/hosts >/dev/null
+            echo "✔ Added $p -> $IP"
+          done
+
+          echo "📂 Copying repository into pod..."
+          kubectl -n ${NS} cp . test-runner:/workspace
+
+
       # ---------------------------
       # Keycloak + OAuth setup
       # ---------------------------
@@ -281,16 +296,6 @@ jobs:
               GRANT AUTHENTICATION v_dbadmin_hash TO dbadmin;
             \"
           "
-      - name: 🩹 Patch /etc/hosts in test pod with Vertica pod entries
-        run: |
-          echo "Adding Vertica pod entries to /etc/hosts in test pod..."
-          POD=test-runner
-          NS=my-verticadb-operator
-          for p in $(kubectl -n $NS get pods -l app.kubernetes.io/instance=verticadb-sample -o jsonpath='{.items[*].metadata.name}'); do
-            IP=$(kubectl -n $NS get pod $p -o jsonpath='{.status.podIP}')
-            echo "$IP $p.$NS.svc.cluster.local $p" | kubectl -n $NS exec -i $POD -- tee -a /etc/hosts >/dev/null
-            echo "✔ Added $p -> $IP"
-          done
           
       # ---------------------------
       # Testing section

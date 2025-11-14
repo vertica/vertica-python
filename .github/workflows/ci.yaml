@@ -127,6 +127,24 @@ jobs:
             --from-literal=secretkey="minioadmin"
           kubectl get secret communal-creds -n my-verticadb-operator -o yaml || true
 
+      # ---------------------------
+      # Vertica Operator + DB Deployment
+      # ---------------------------
+      - name: Install Vertica Operator
+        run: |
+          cat <<'EOF' > operator-values.yaml
+          installCRDs: true
+          controller:
+            extraEnv:
+              - name: AWS_REGION
+                value: "us-east-1"
+              - name: AWS_DEFAULT_REGION
+                value: "us-east-1"
+          EOF
+          helm upgrade --install vdb-op vertica-charts/verticadb-operator \
+            -n my-verticadb-operator -f operator-values.yaml --wait --timeout 10m
+          kubectl -n my-verticadb-operator get pods -o wide || true
+
       - name: Deploy VerticaDB and per-node Services
         run: |
           cat <<'EOF' | kubectl apply -f -

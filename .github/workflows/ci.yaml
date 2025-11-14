@@ -130,21 +130,6 @@ jobs:
       # ---------------------------
       # Vertica Operator + DB Deployment
       # ---------------------------
-      - name: Install Vertica Operator
-        run: |
-          cat <<'EOF' > operator-values.yaml
-          installCRDs: true
-          controller:
-            extraEnv:
-              - name: AWS_REGION
-                value: "us-east-1"
-              - name: AWS_DEFAULT_REGION
-                value: "us-east-1"
-          EOF
-          helm upgrade --install vdb-op vertica-charts/verticadb-operator \
-            -n my-verticadb-operator -f operator-values.yaml --wait --timeout 10m
-          kubectl -n my-verticadb-operator get pods -o wide || true
-
       - name: Deploy VerticaDB
         run: |
           cat <<'EOF' | kubectl apply -f -
@@ -168,9 +153,46 @@ jobs:
             subclusters:
               - name: defaultsubcluster
                 size: 3
+          ---
+          # ---------------------------
+          # Per-node Services (required for load balancing tests)
+          # ---------------------------
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: vertica-node-0
+            namespace: my-verticadb-operator
+          spec:
+            selector:
+              statefulset.kubernetes.io/pod-name: verticadb-sample-defaultsubcluster-0
+            ports:
+              - port: 5433
+                targetPort: 5433
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: vertica-node-1
+            namespace: my-verticadb-operator
+          spec:
+            selector:
+              statefulset.kubernetes.io/pod-name: verticadb-sample-defaultsubcluster-1
+            ports:
+              - port: 5433
+                targetPort: 5433
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: vertica-node-2
+            namespace: my-verticadb-operator
+          spec:
+            selector:
+              statefulset.kubernetes.io/pod-name: verticadb-sample-defaultsubcluster-2
+            ports:
+              - port: 5433
+                targetPort: 5433
           EOF
-          kubectl annotate verticadb verticadb-sample -n my-verticadb-operator \
-            vertica.com/ci-reconcile="$(date -u +%s)" --overwrite || true
 
       - name: Wait for Vertica readiness
         run: |

@@ -127,10 +127,7 @@ jobs:
             --from-literal=secretkey="minioadmin"
           kubectl get secret communal-creds -n my-verticadb-operator -o yaml || true
 
-      # ---------------------------
-      # Vertica Operator + DB Deployment
-      # ---------------------------
-      - name: Deploy VerticaDB
+      - name: Deploy VerticaDB and per-node Services
         run: |
           cat <<'EOF' | kubectl apply -f -
           apiVersion: vertica.com/v1
@@ -154,9 +151,9 @@ jobs:
               - name: defaultsubcluster
                 size: 3
           ---
-          # ---------------------------
-          # Per-node Services (required for load balancing tests)
-          # ---------------------------
+          # -------------------------------------
+          # Per-node Services (needed for LB tests)
+          # -------------------------------------
           apiVersion: v1
           kind: Service
           metadata:

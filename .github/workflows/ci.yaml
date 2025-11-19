@@ -157,7 +157,7 @@ jobs:
             image: opentext/vertica-k8s:latest
             dbName: vdb
             initPolicy: Create
-            ksafety: 0  
+            kSafety: 0  
             communal:
               path: s3://vertica-fleeting/mkottakota/
               credentialSecret: communal-creds

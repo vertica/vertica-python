@@ -156,8 +156,7 @@ jobs:
           spec:
             image: opentext/vertica-k8s:latest
             dbName: vdb
-            kSafety: 0 
-            initPolicy: Create
+            kSafety: 0             initPolicy: Create
             communal:
               path: s3://vertica-fleeting/mkottakota/
               credentialSecret: communal-creds
@@ -439,12 +438,42 @@ jobs:
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
 
       # ---------------------------
-      # Cleanup
+      # Final Teardown (K8s + KinD)
       # ---------------------------
-      - name: Uninstall MinIO
+      - name: Cleanup Kubernetes resources
         if: always()
         run: |
-          kubectl delete pod minio -n minio --ignore-not-found || true
-          kubectl delete svc minio -n minio --ignore-not-found || true
-          kubectl delete ns minio || true
-          echo "✅ MinIO cleanup complete"
+          echo "🧹 Starting cleanup..."
+
+          echo "➡️ Deleting Python test runner pods..."
+          kubectl -n my-verticadb-operator delete pod test-runner --ignore-not-found || true
+          kubectl -n my-verticadb-operator delete pod py-test-runner --ignore-not-found || true
+
+          echo "➡️ Deleting Keycloak pods & services..."
+          kubectl delete deployment keycloak -n keycloak --ignore-not-found || true
+          kubectl delete service keycloak -n keycloak --ignore-not-found || true
+          kubectl delete ns keycloak --ignore-not-found || true
+
+          echo "➡️ Deleting VerticaDB and Operator..."
+          kubectl delete verticadb verticadb-sample -n my-verticadb-operator --ignore-not-found || true
+          helm uninstall vdb-op -n my-verticadb-operator || true
+          kubectl delete ns my-verticadb-operator --ignore-not-found || true
+
+          echo "➡️ Deleting MinIO..."
+          kubectl delete -f minio.yaml --ignore-not-found || true
+          kubectl delete ns minio --ignore-not-found || true
+
+          echo "➡️ Deleting leftover services..."
+          kubectl delete svc vertica-node-0 -n my-verticadb-operator --ignore-not-found || true
+          kubectl delete svc vertica-node-1 -n my-verticadb-operator --ignore-not-found || true
+          kubectl delete svc vertica-node-2 -n my-verticadb-operator --ignore-not-found || true
+
+          echo "🧽 Kubernetes resources cleanup done."
+
+
+      - name: Delete KinD cluster
+        if: always()
+        run: |
+          echo "🗑️ Deleting KinD cluster..."
+          kind delete cluster --name vertica-ci || true
+          echo "✅ KinD cluster removed successfully"

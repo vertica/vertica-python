@@ -166,7 +166,7 @@ jobs:
               depotPath: /depot
             subclusters:
               - name: defaultsubcluster
-                size: 1
+                size: 3
           ---
           # -------------------------------------
           # Per-node Services (needed for LB tests)

@@ -144,7 +144,6 @@ jobs:
           helm upgrade --install vdb-op vertica-charts/verticadb-operator \
             -n my-verticadb-operator -f operator-values.yaml --wait --timeout 10m
           kubectl -n my-verticadb-operator get pods -o wide || true
-
       - name: Deploy VerticaDB and per-node Services
         run: |
           cat <<'EOF' | kubectl apply -f -
@@ -156,7 +155,7 @@ jobs:
           spec:
             image: opentext/vertica-k8s:latest
             dbName: vdb
-            kSafety: 0             initPolicy: Create
+            initPolicy: Create
             communal:
               path: s3://vertica-fleeting/mkottakota/
               credentialSecret: communal-creds

@@ -48,7 +48,6 @@ jobs:
           helm repo add vertica-charts https://vertica.github.io/charts || true
           helm repo add bitnami https://charts.bitnami.com/bitnami || true
           helm repo update
-
       # ---------------------------
       # MinIO Setup
       # ---------------------------
@@ -105,7 +104,6 @@ jobs:
           kubectl -n minio rollout status deployment/minio --timeout=2m || true
           kubectl get pods -n minio -o wide || true
           kubectl get svc -n minio || true
-
       - name: Ensure MinIO bucket exists
         run: |
           kubectl run mc-client --rm -i --restart=Never \
@@ -116,7 +114,6 @@ jobs:
               mc mb --ignore-existing localminio/vertica-fleeting && \
               mc ls localminio
             "
-
       - name: Create MinIO Secret
         run: |
           kubectl create ns my-verticadb-operator || true
@@ -126,7 +123,6 @@ jobs:
             --from-literal=accesskey="minioadmin" \
             --from-literal=secretkey="minioadmin"
           kubectl get secret communal-creds -n my-verticadb-operator -o yaml || true
-
       # ---------------------------
       # Vertica Operator + DB Deployment
       # ---------------------------
@@ -209,7 +205,6 @@ jobs:
               - port: 5433
                 targetPort: 5433
           EOF
-
       - name: Wait for Vertica readiness
         run: |
           NS=my-verticadb-operator
@@ -219,22 +214,25 @@ jobs:
             kubectl get pod ${POD} -n ${NS} && break || sleep 10
           done
           kubectl wait --for=condition=Ready pod/${POD} -n ${NS} --timeout=5m || true
-
           echo "🚀 Creating test runner pod..."
-          kubectl -n ${NS} run test-runner --image=python:3.13-slim --restart=Never --command -- sleep infinity
-          kubectl -n ${NS} wait --for=condition=Ready pod/test-runner --timeout=180s
+          # Decide startup command based on image type
+          if [[ "${IMAGE}" == *"pypy"* ]]; then
+            START_CMD="python -c 'import time; time.sleep(10**6)'"
+          else
+            START_CMD="sleep infinity"
+          fi
 
+          kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- ${START_CMD}
+
+          kubectl -n ${NS} wait --for=condition=Ready pod/test-runner --timeout=180s
           echo "🩹 Adding Vertica pod entries to /etc/hosts in test pod..."
           for p in $(kubectl -n $NS get pods -l app.kubernetes.io/instance=verticadb-sample -o jsonpath='{.items[*].metadata.name}'); do
             IP=$(kubectl -n $NS get pod $p -o jsonpath='{.status.podIP}')
             echo "$IP $p.$NS.svc.cluster.local $p" | kubectl -n $NS exec -i test-runner -- tee -a /etc/hosts >/dev/null
             echo "✔ Added $p -> $IP"
           done
-
           echo "📂 Copying repository into pod..."
           kubectl -n ${NS} cp . test-runner:/workspace
-
-
       # ---------------------------
       # Keycloak + OAuth setup
       # ---------------------------
@@ -288,12 +286,10 @@ jobs:
               - port: 8080
                 targetPort: 8080
           EOF
-
       - name: Wait for Keycloak readiness
         run: |
           kubectl -n keycloak rollout status deploy/keycloak --timeout=2m
           kubectl -n keycloak get pods -o wide
-
       - name: Configure Keycloak realm, client, and user
         run: |
           kubectl -n keycloak exec deploy/keycloak -- \
@@ -314,7 +310,6 @@ jobs:
           kubectl -n keycloak exec deploy/keycloak -- \
             /opt/keycloak/bin/kcadm.sh set-password -r test \
               --username oauth_user --new-password password
-
       - name: Configure Vertica Authentication
         run: |
           NS=my-verticadb-operator
@@ -342,7 +337,6 @@ jobs:
         run: |
           kubectl -n my-verticadb-operator exec verticadb-sample-defaultsubcluster-0 -c server -- \
             /opt/vertica/bin/vsql -U dbadmin -c "SELECT get_load_balance_policy();"
-
       - name: Run Python tests in-cluster
         run: |
           set -euo pipefail
@@ -350,7 +344,7 @@ jobs:
           SVC=verticadb-sample-defaultsubcluster
           LOCATOR="${SVC}.${NS}.svc.cluster.local:5433"
           POD=py-test-runner
-          IMAGE=python:${{ matrix.python-version }}-slim
+          IMAGE=python:${{ matrix.python-version }}
           echo "Ensuring namespace ${NS} exists..."
           kubectl get ns ${NS} >/dev/null 2>&1 || kubectl create ns ${NS}
           echo "Waiting for Vertica service endpoints..."
@@ -437,7 +431,6 @@ jobs:
           "
           echo "Cleaning up test pod..."
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
-
       # ---------------------------
       # Final Teardown (K8s + KinD)
       # ---------------------------
@@ -445,33 +438,25 @@ jobs:
         if: always()
         run: |
           echo "Starting cleanup..."
-
           echo "Deleting Python test runner pods..."
           kubectl -n my-verticadb-operator delete pod test-runner --ignore-not-found || true
           kubectl -n my-verticadb-operator delete pod py-test-runner --ignore-not-found || true
-
           echo "Deleting Keycloak pods & services..."
           kubectl delete deployment keycloak -n keycloak --ignore-not-found || true
           kubectl delete service keycloak -n keycloak --ignore-not-found || true
           kubectl delete ns keycloak --ignore-not-found || true
-
           echo "Deleting VerticaDB and Operator..."
           kubectl delete verticadb verticadb-sample -n my-verticadb-operator --ignore-not-found || true
           helm uninstall vdb-op -n my-verticadb-operator || true
           kubectl delete ns my-verticadb-operator --ignore-not-found || true
-
           echo "Deleting MinIO..."
           kubectl delete -f minio.yaml --ignore-not-found || true
           kubectl delete ns minio --ignore-not-found || true
-
           echo "Deleting leftover services..."
           kubectl delete svc vertica-node-0 -n my-verticadb-operator --ignore-not-found || true
           kubectl delete svc vertica-node-1 -n my-verticadb-operator --ignore-not-found || true
           kubectl delete svc vertica-node-2 -n my-verticadb-operator --ignore-not-found || true
-
           echo "Kubernetes resources cleanup done."
-
-
       - name: Delete KinD cluster
         if: always()
         run: |

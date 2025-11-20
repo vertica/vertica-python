@@ -152,6 +152,8 @@ jobs:
           metadata:
             name: verticadb-sample
             namespace: my-verticadb-operator
+            annotations:
+              vertica.com/k-safety: "0"
           spec:
             image: opentext/vertica-k8s:latest
             dbName: vdb
@@ -166,7 +168,7 @@ jobs:
               depotPath: /depot
             subclusters:
               - name: defaultsubcluster
-                size: 3
+                size: 1
           ---
           # -------------------------------------
           # Per-node Services (needed for LB tests)

@@ -370,12 +370,17 @@ jobs:
           echo "Creating Python test pod..."
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
           if [[ "${IMAGE}" == *"pypy"* ]]; then
-            START_CMD="python -c 'import time; time.sleep(10**6)'"
+            kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- python -c "import time; time.sleep(10**6)"
           else
-          START_CMD="sleep infinity"
+           kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- sleep infinity
           fi
-          kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- ${START_CMD}
-          kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=180s
+          # Try waiting for Ready, but capture failure
+          if ! kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=180s; then
+            echo "Pod did not become Ready. Collecting debug info..."
+            kubectl -n ${NS} describe pod ${POD} || true
+            kubectl -n ${NS} logs ${POD} || true
+            exit 1
+          fi
           echo "Copying repository into pod..."
           kubectl -n ${NS} exec -i pod/${POD} -- mkdir -p /workspace
           tar cf - . | kubectl -n ${NS} exec -i pod/${POD} -- tar xf - -C /workspace

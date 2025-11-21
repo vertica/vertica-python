@@ -404,7 +404,12 @@ jobs:
               pypy3 -m pip install --upgrade pip
               pypy3 -m pip install tox pytest
             fi
-            export PATH=$PATH:/root/.local/bin
+            # Conditionally adjust PATH for PyPy
+            if [[ "${{ matrix.python-version }}" == pypy* ]]; then
+              export PATH=$PATH:/opt/pypy/bin
+            else
+              export PATH=$PATH:/root/.local/bin
+            fi
             which tox && tox --version
           '
           echo "Fetching token from Keycloak..."
@@ -445,8 +450,6 @@ jobs:
             export VP_TEST_OAUTH_USER='oauth_user'
             export VP_TEST_USER='dbadmin'
             export VP_TEST_PASSWORD=''
-            # Add PyPy bin directory to PATH
-            export PATH=\$PATH:/opt/pypy/bin
             echo '🔍 Checking connectivity to Vertica...'
             if command -v nc >/dev/null 2>&1; then
               nc -zv \${VP_TEST_HOST} \${VP_TEST_PORT} || { echo '❌ Cannot reach Vertica host'; exit 1; }

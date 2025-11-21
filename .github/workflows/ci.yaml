@@ -8,7 +8,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13','pypy3.10']
 
     env:
       REALM: test
@@ -369,7 +369,12 @@ jobs:
           fi
           echo "Creating Python test pod..."
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
-          kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- sleep infinity
+          if [[ "${IMAGE}" == *"pypy"* ]]; then
+            START_CMD="python -c 'import time; time.sleep(10**6)'"
+          else
+          START_CMD="sleep infinity"
+          fi
+          kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- ${START_CMD}
           kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=180s
           echo "Copying repository into pod..."
           kubectl -n ${NS} exec -i pod/${POD} -- mkdir -p /workspace

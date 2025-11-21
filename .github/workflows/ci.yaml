@@ -350,7 +350,13 @@ jobs:
           SVC=verticadb-sample-defaultsubcluster
           LOCATOR="${SVC}.${NS}.svc.cluster.local:5433"
           POD=py-test-runner
-          IMAGE=python:${{ matrix.python-version }}-slim
+          # Decide image based on matrix value
+          if [[ "${{ matrix.python-version }}" == pypy* ]]; then
+            VERSION="${{ matrix.python-version }}"   # e.g. "pypy3.10"
+            IMAGE="pypy:${VERSION#pypy}"             # strip "pypy" prefix in bash → "pypy:3.10"
+          else
+            IMAGE="python:${{ matrix.python-version }}"
+          fi
           echo "Ensuring namespace ${NS} exists..."
           kubectl get ns ${NS} >/dev/null 2>&1 || kubectl create ns ${NS}
           echo "Waiting for Vertica service endpoints..."

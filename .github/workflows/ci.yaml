@@ -8,14 +8,14 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13','pypy3.10']
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13', 'pypy3.10']
 
     env:
-      REALM: test
-      USER: oauth_user
-      PASSWORD: password
-      CLIENT_ID: vertica
-      CLIENT_SECRET: P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs
+      REALM: ${{ secrets.REALM }}
+      USER: ${{ secrets.USER }}
+      PASSWORD: ${{ secrets.PASSWORD }}
+      CLIENT_ID: ${{ secrets.CLIENT_ID }}
+      CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
 
     steps:
       # ---------------------------
@@ -45,7 +45,7 @@ jobs:
 
       - name: Add Helm repositories
         run: |
-          helm repo add vertica-charts https://vertica.github.io/charts || true
+          helm repo add vertica-charts https://vertica.github.io/charts
           helm repo add bitnami https://charts.bitnami.com/bitnami || true
           helm repo update
 
@@ -54,7 +54,7 @@ jobs:
       # ---------------------------
       - name: Install MinIO
         run: |
-          kubectl create ns minio || true
+          kubectl create ns minio
           cat <<'EOF' > minio.yaml
           apiVersion: apps/v1
           kind: Deployment
@@ -73,7 +73,7 @@ jobs:
               spec:
                 containers:
                   - name: minio
-                    image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+                    image: minio/minio:latest
                     args: ["server", "/data"]
                     env:
                       - name: MINIO_ROOT_USER
@@ -102,7 +102,7 @@ jobs:
                 targetPort: 9000
           EOF
           kubectl apply -f minio.yaml
-          kubectl -n minio rollout status deployment/minio --timeout=2m || true
+          kubectl -n minio rollout status deployment/minio --timeout=2m
           kubectl get pods -n minio -o wide || true
           kubectl get svc -n minio || true
 
@@ -119,7 +119,7 @@ jobs:
 
       - name: Create MinIO Secret
         run: |
-          kubectl create ns my-verticadb-operator || true
+          kubectl create ns my-verticadb-operator
           kubectl delete secret communal-creds -n my-verticadb-operator --ignore-not-found
           kubectl create secret generic communal-creds \
             -n my-verticadb-operator \
@@ -218,7 +218,7 @@ jobs:
           for i in {1..30}; do
             kubectl get pod ${POD} -n ${NS} && break || sleep 10
           done
-          kubectl wait --for=condition=Ready pod/${POD} -n ${NS} --timeout=5m || true
+          kubectl wait --for=condition=Ready pod/${POD} -n ${NS} --timeout=5m
 
           echo "🚀 Creating test runner pod..."
           kubectl -n ${NS} run test-runner --image=python:3.13-slim --restart=Never --command -- sleep infinity
@@ -240,7 +240,7 @@ jobs:
       # ---------------------------
       - name: Deploy Keycloak
         run: |
-          kubectl create ns keycloak || true
+          kubectl create ns keycloak
           cat <<'EOF' | kubectl apply -f -
           apiVersion: apps/v1
           kind: Deployment
@@ -334,15 +334,10 @@ jobs:
               GRANT AUTHENTICATION v_dbadmin_hash TO dbadmin;
             \"
           "
-          
+
       # ---------------------------
       # Testing section
       # ---------------------------
-      - name: Check Vertica load balance policy
-        run: |
-          kubectl -n my-verticadb-operator exec verticadb-sample-defaultsubcluster-0 -c server -- \
-            /opt/vertica/bin/vsql -U dbadmin -c "SELECT get_load_balance_policy();"
-
       - name: Run Python tests in-cluster
         run: |
           set -euo pipefail
@@ -373,25 +368,75 @@ jobs:
             kubectl -n ${NS} get endpoints ${SVC} -o yaml || true
             exit 1
           fi
-          echo "Creating Python test pod..."
-          kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
-          if [[ "${IMAGE}" == *"pypy"* ]]; then
-            kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- python -c "import time; time.sleep(10**6)"
-          else
-            kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- sleep infinity
+
+          TOKEN=$(kubectl -n keycloak run curl-client --rm -i --restart=Never \
+            --image=curlimages/curl:latest \
+            --command -- \
+            curl -s -X POST "http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token" \
+            -d "client_id=${CLIENT_ID}" \
+            -d "username=${USER}" \
+            -d "password=${PASSWORD}" \
+            -d "grant_type=password" \
+            -d "client_secret=${CLIENT_SECRET}" | jq -r .access_token)
+
+          if [ -z "$TOKEN" ]; then
+            echo "Failed to fetch access token"
+            exit 1
           fi
-          # Try waiting for Ready, but capture failure
+
+          echo "Creating Kubernetes Secret with token..."
+          kubectl -n ${NS} delete secret oauth-token --ignore-not-found
+          kubectl -n ${NS} create secret generic oauth-token \
+            --from-literal=access_token="$TOKEN"
+
+          echo "Creating Python test pod with secret mount..."
+          kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: ${POD}
+            namespace: ${NS}
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: tester
+                image: ${IMAGE}
+                command: ["sleep", "infinity"]
+                env:
+                  - name: VP_TEST_OAUTH_ACCESS_TOKEN
+                    valueFrom:
+                      secretKeyRef:
+                        name: oauth-token
+                        key: access_token
+                  - name: VP_TEST_HOST
+                    value: verticadb-sample-defaultsubcluster.my-verticadb-operator.svc.cluster.local
+                  - name: VP_TEST_PORT
+                    value: "5433"
+                  - name: VP_TEST_DATABASE
+                    value: vdb
+                  - name: VP_TEST_OAUTH_USER
+                    value: oauth_user
+                  - name: VP_TEST_USER
+                    value: dbadmin
+                  - name: VP_TEST_PASSWORD
+                    value: ""
+          EOF
+
+           echo "Waiting for test pod readiness..."
           if ! kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=180s; then
             echo "Pod did not become Ready. Collecting debug info..."
             kubectl -n ${NS} describe pod ${POD} || true
             kubectl -n ${NS} logs ${POD} || true
             exit 1
           fi
+
           echo "Copying repository into pod..."
-          kubectl -n ${NS} exec -i pod/${POD} -- mkdir -p /workspace
-          tar cf - . | kubectl -n ${NS} exec -i pod/${POD} -- tar xf - -C /workspace
+          kubectl -n ${NS} exec -i ${POD} -- mkdir -p /workspace
+          tar cf - . | kubectl -n ${NS} exec -i ${POD} -- tar xf - -C /workspace
+
           echo "Installing dependencies..."
-          kubectl -n ${NS} exec pod/${POD} -- bash -lc '
+          kubectl -n ${NS} exec ${POD} -- bash -lc '
             set -e
             apt-get update -qq
             apt-get install -y -qq build-essential libssl-dev libpq-dev netcat-traditional curl
@@ -404,70 +449,30 @@ jobs:
               pypy3 -m pip install --upgrade pip
               pypy3 -m pip install tox pytest
             fi
-            # Conditionally adjust PATH for PyPy
-            if [[ "${{ matrix.python-version }}" == pypy* ]]; then
+            if command -v pypy3 >/dev/null 2>&1; then
               export PATH=$PATH:/opt/pypy/bin
             else
               export PATH=$PATH:/root/.local/bin
             fi
             which tox && tox --version
           '
-          echo "Fetching token from Keycloak..."
-          CT_POD="curl-token-$$"
-          kubectl -n keycloak delete pod ${CT_POD} --ignore-not-found || true
-          kubectl -n keycloak run ${CT_POD} --restart=Never --image=curlimages/curl:latest --command -- sleep 120
-          kubectl -n keycloak wait --for=condition=Ready pod/${CT_POD} --timeout=120s || true
-          kubectl -n keycloak exec pod/${CT_POD} -- sh -c "
-            curl -s -X POST 'http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token' \
-              -d 'client_id=${CLIENT_ID}' \
-              -d 'username=${USER}' \
-              -d 'password=${PASSWORD}' \
-              -d 'grant_type=password' \
-              -d 'client_secret=${CLIENT_SECRET}' > /tmp/token.json
-          "
-          kubectl -n keycloak cp ${CT_POD}:/tmp/token.json token.json || {
-            echo "Failed to copy token.json from curl pod"
-            kubectl -n keycloak logs ${CT_POD} || true
-            exit 1
-          }
-          kubectl -n keycloak delete pod ${CT_POD} --ignore-not-found || true
-          TOKEN=$(python3 -c 'import json; print(__import__("json").load(open("token.json")).get("access_token",""))')
-          if [ -z "$TOKEN" ]; then
-            echo "No access_token found in token.json"
-            cat token.json
-            exit 1
-          fi
-          echo "Access token retrieved (length: ${#TOKEN})"
-          printf '%s' "$TOKEN" | kubectl -n ${NS} exec -i pod/${POD} -- tee /workspace/access_token.txt >/dev/null
+
           echo "🏃 Running Python tests inside pod..."
-          kubectl -n ${NS} exec -i pod/${POD} -- bash -lc "
+          kubectl -n ${NS} exec -i ${POD} -- bash -lc "
             set -euo pipefail
             cd /workspace
-            export VP_TEST_OAUTH_ACCESS_TOKEN='${TOKEN}'
-            export VP_TEST_HOST='verticadb-sample-defaultsubcluster.my-verticadb-operator.svc.cluster.local'
-            export VP_TEST_PORT=5433
-            export VP_TEST_DATABASE='vdb'
-            export VP_TEST_OAUTH_USER='oauth_user'
-            export VP_TEST_USER='dbadmin'
-            export VP_TEST_PASSWORD=''
             echo '🔍 Checking connectivity to Vertica...'
-            if command -v nc >/dev/null 2>&1; then
-              nc -zv \${VP_TEST_HOST} \${VP_TEST_PORT} || { echo '❌ Cannot reach Vertica host'; exit 1; }
-            else
-              timeout 5 bash -c 'cat < /dev/null > /dev/tcp/'\"\${VP_TEST_HOST}\"'/'\"\${VP_TEST_PORT}\"'' || { echo '❌ Cannot reach Vertica host'; exit 1; }
-            fi
+            nc -zv \${VP_TEST_HOST} \${VP_TEST_PORT} || { echo '❌ Cannot reach Vertica host'; exit 1; }
             echo 'Vertica reachable; performing token introspection...'
             INTROSPECT_OUTPUT=\$(curl -s -X POST http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect \
               -d 'client_id=vertica' \
-              -d 'client_secret=P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs' \
+              -d 'client_secret=${CLIENT_SECRET}' \
               -d 'token='\${VP_TEST_OAUTH_ACCESS_TOKEN})
             if echo \"\$INTROSPECT_OUTPUT\" | grep -q '\"active\":true'; then
               echo 'Token introspection successful (active=true)'
             else
-              echo 'Token introspection failed:'
-              echo \"\$INTROSPECT_OUTPUT\"; exit 1
+              echo 'Token introspection failed:'; echo \"\$INTROSPECT_OUTPUT\"; exit 1
             fi
-
             if command -v pypy3 >/dev/null 2>&1; then
               export PATH=\$PATH:/opt/pypy/bin
             fi

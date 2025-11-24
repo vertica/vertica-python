@@ -368,21 +368,36 @@ jobs:
             kubectl -n ${NS} get endpoints ${SVC} -o yaml || true
             exit 1
           fi
-
-          TOKEN=$(kubectl -n keycloak run curl-client --rm -i --restart=Never \
+          RAW=$(
+          kubectl -n keycloak run curl-client \
             --image=curlimages/curl:latest \
-            --command -- \
-            curl -s -X POST "http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token" \
+            --restart=Never \
+            --rm -i --quiet \
+            -- curl -s -X POST "http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token" \
             -d "client_id=${CLIENT_ID}" \
             -d "username=${USER}" \
             -d "password=${PASSWORD}" \
             -d "grant_type=password" \
-            -d "client_secret=${CLIENT_SECRET}" | jq -r .access_token)
+            -d "client_secret=${CLIENT_SECRET}"
+          )
 
-          if [ -z "$TOKEN" ]; then
-            echo "Failed to fetch access token"
+          # Validate JSON before parsing
+          if ! echo "$RAW" | jq . >/dev/null 2>&1; then
+            echo "Token endpoint did not return valid JSON:"
+            echo "$RAW"
             exit 1
           fi
+
+          # Extract the access token
+          TOKEN=$(echo "$RAW" | jq -r .access_token)
+
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "Failed to fetch access token"
+            echo "$RAW"
+            exit 1
+          fi
+
+          echo "Access token retrieved (length: ${#TOKEN})"
 
           echo "Creating Kubernetes Secret with token..."
           kubectl -n ${NS} delete secret oauth-token --ignore-not-found

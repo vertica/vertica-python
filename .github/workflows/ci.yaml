@@ -378,7 +378,7 @@ jobs:
           if [[ "${IMAGE}" == *"pypy"* ]]; then
             kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- python -c "import time; time.sleep(10**6)"
           else
-           kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- sleep infinity
+            kubectl -n ${NS} run ${POD} --image=${IMAGE} --restart=Never --command -- sleep infinity
           fi
           # Try waiting for Ready, but capture failure
           if ! kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=180s; then
@@ -467,6 +467,11 @@ jobs:
               echo 'Token introspection failed:'
               echo \"\$INTROSPECT_OUTPUT\"; exit 1
             fi
+
+            if command -v pypy3 >/dev/null 2>&1; then
+              export PATH=\$PATH:/opt/pypy/bin
+            fi
+
             echo 'Running pytest suite via tox...'
             tox -e py
           "

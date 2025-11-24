@@ -352,57 +352,72 @@ jobs:
           SVC=verticadb-sample-defaultsubcluster
           LOCATOR="${SVC}.${NS}.svc.cluster.local:5433"
           POD=py-test-runner
+
           # Decide image based on matrix value
           if [[ "${{ matrix.python-version }}" == pypy* ]]; then
-            VERSION="${{ matrix.python-version }}"   # e.g. "pypy3.10"
-            IMAGE="pypy:${VERSION#pypy}"             # strip "pypy" prefix in bash → "pypy:3.10"
+            VERSION="${{ matrix.python-version }}"   # "pypy3.10"
+            IMAGE="pypy:${VERSION#pypy}"             # "pypy:3.10"
           else
             IMAGE="python:${{ matrix.python-version }}"
           fi
+
           echo "Ensuring namespace ${NS} exists..."
           kubectl get ns ${NS} >/dev/null 2>&1 || kubectl create ns ${NS}
+
           echo "Waiting for Vertica service endpoints..."
           WAIT_TIMEOUT=300
           INTERVAL=5
           deadline=$((SECONDS + WAIT_TIMEOUT))
           while [ $SECONDS -lt $deadline ]; do
-            addrs=$(kubectl -n ${NS} get endpoints ${SVC} -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null || true)
+            addrs=$(kubectl -n ${NS} get endpoints ${SVC} \
+              -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null || true)
             [ -n "$addrs" ] && break || sleep ${INTERVAL}
           done
+
           if [ -z "$addrs" ]; then
             echo "Vertica service endpoints not found"
             kubectl -n ${NS} get pods -o wide || true
             kubectl -n ${NS} get endpoints ${SVC} -o yaml || true
             exit 1
           fi
-          RAW=$(
-          kubectl -n keycloak run curl-client \
-            --image=curlimages/curl:latest \
-            --restart=Never \
-            --rm -i --quiet \
-            -- curl -s -X POST "http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token" \
-            -d "client_id=${CLIENT_ID}" \
-            -d "username=${USER}" \
-            -d "password=${PASSWORD}" \
-            -d "grant_type=password" \
-            -d "client_secret=${CLIENT_SECRET}"
-          )
 
-          # Validate JSON before parsing
-          if ! echo "$RAW" | jq . >/dev/null 2>&1; then
-            echo "Token endpoint did not return valid JSON:"
-            echo "$RAW"
-            exit 1
-          fi
+          echo "Retrieving access token from Keycloak with retries..."
+          TOKEN=""
+          for i in {1..10}; do
+            echo "Attempt $i..."
 
-          # Extract the access token
-          TOKEN=$(echo "$RAW" | jq -r .access_token)
+            RAW=$(
+              kubectl -n keycloak run curl-client \
+                --image=curlimages/curl:latest \
+                --restart=Never \
+                --rm -i --quiet \
+                --command -- curl -s -X POST \
+                  "http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token" \
+                  -d "client_id=${CLIENT_ID}" \
+                  -d "username=${USER}" \
+                  -d "password=${PASSWORD}" \
+                  -d "grant_type=password" \
+                  -d "client_secret=${CLIENT_SECRET}"
+            ) || true
 
-          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-            echo "Failed to fetch access token"
-            echo "$RAW"
-            exit 1
-          fi
+            # JSON validity check
+            if echo "$RAW" | jq -e . >/dev/null 2>&1; then
+              TOKEN=$(echo "$RAW" | jq -r .access_token)
+            fi
+
+            if [ -n "${TOKEN}" ] && [ "${TOKEN}" != "null" ]; then
+              echo "Access token retrieved successfully."
+              break
+            fi
+
+            echo "Token fetch failed: $RAW"
+            sleep 5
+
+            if [ "$i" -eq 10 ]; then
+              echo "Failed to fetch access token after multiple retries."
+              exit 1
+            fi
+          done
 
           echo "Access token retrieved (length: ${#TOKEN})"
 
@@ -445,7 +460,7 @@ jobs:
                     value: ""
           EOF
 
-           echo "Waiting for test pod readiness..."
+          echo "Waiting for test pod readiness..."
           if ! kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=180s; then
             echo "Pod did not become Ready. Collecting debug info..."
             kubectl -n ${NS} describe pod ${POD} || true
@@ -479,22 +494,26 @@ jobs:
             which tox && tox --version
           '
 
-          echo "🏃 Running Python tests inside pod..."
+          echo "Running Python tests inside pod..."
           kubectl -n ${NS} exec -i ${POD} -- bash -lc "
             set -euo pipefail
             cd /workspace
-            echo '🔍 Checking connectivity to Vertica...'
-            nc -zv \${VP_TEST_HOST} \${VP_TEST_PORT} || { echo '❌ Cannot reach Vertica host'; exit 1; }
+
+            echo 'Checking connectivity to Vertica...'
+            nc -zv \${VP_TEST_HOST} \${VP_TEST_PORT} || { echo 'Cannot reach Vertica host'; exit 1; }
+
             echo 'Vertica reachable; performing token introspection...'
             INTROSPECT_OUTPUT=\$(curl -s -X POST http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect \
               -d 'client_id=vertica' \
               -d 'client_secret=${CLIENT_SECRET}' \
               -d 'token='\${VP_TEST_OAUTH_ACCESS_TOKEN})
+
             if echo \"\$INTROSPECT_OUTPUT\" | grep -q '\"active\":true'; then
               echo 'Token introspection successful (active=true)'
             else
               echo 'Token introspection failed:'; echo \"\$INTROSPECT_OUTPUT\"; exit 1
             fi
+
             if command -v pypy3 >/dev/null 2>&1; then
               export PATH=\$PATH:/opt/pypy/bin
             fi
@@ -502,6 +521,7 @@ jobs:
             echo 'Running pytest suite via tox...'
             tox -e py
           "
+
           echo "Cleaning up test pod..."
           kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
 

@@ -123,6 +123,121 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
             cur.execute("SELECT authentication_method FROM sessions WHERE session_id=(SELECT current_session())")
             res = cur.fetchone()
             self.assertEqual(res[0], 'OAuth')
+    # -------------------------------
+    # TOTP Authentication Test for Vertica-Python Driver
+    # -------------------------------
+    import os
+    import pyotp
+    from io import StringIO
+    import sys
 
 
-exec(AuthenticationTestCase.createPrepStmtClass())
+    # Positive TOTP Test (Like SHA512 format)
+    def totp_positive_scenario(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            cur.execute("DROP USER IF EXISTS totp_user")
+            cur.execute("DROP AUTHENTICATION IF EXISTS totp_auth CASCADE")
+
+            try:
+                # Create user with MFA
+                cur.execute("CREATE USER totp_user IDENTIFIED BY 'password' ENFORCEMFA")
+
+                # Grant authentication
+                # Note: METHOD is 'trusted' or 'password' depending on how MFA is enforced in Vertica
+                cur.execute("CREATE AUTHENTICATION totp_auth METHOD 'password' HOST '0.0.0.0/0'")
+                cur.execute("GRANT AUTHENTICATION totp_auth TO totp_user")
+
+                # Generate TOTP
+                TOTP_SECRET = "O5D7DQICJTM34AZROWHSAO4O53ELRJN3"
+                totp_code = pyotp.TOTP(TOTP_SECRET).now()
+
+                # Set connection info
+                self._conn_info['user'] = 'totp_user'
+                self._conn_info['password'] = 'password'
+                self._conn_info['totp'] = totp_code
+
+                # Try connection
+                with self._connect() as totp_conn:
+                    c = totp_conn.cursor()
+                    c.execute("SELECT 1")
+                    res = c.fetchone()
+                    self.assertEqual(res[0], 1)
+
+            finally:
+                cur.execute("DROP USER IF EXISTS totp_user")
+                cur.execute("DROP AUTHENTICATION IF EXISTS totp_auth CASCADE")
+
+    # Negative Test: Missing TOTP
+    def totp_missing_code_scenario(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            cur.execute("DROP USER IF EXISTS totp_user")
+            cur.execute("DROP AUTHENTICATION IF EXISTS totp_auth CASCADE")
+
+            try:
+                cur.execute("CREATE USER totp_user IDENTIFIED BY 'password' ENFORCEMFA")
+                cur.execute("CREATE AUTHENTICATION totp_auth METHOD 'password' HOST '0.0.0.0/0'")
+                cur.execute("GRANT AUTHENTICATION totp_auth TO totp_user")
+
+                self._conn_info['user'] = 'totp_user'
+                self._conn_info['password'] = 'password'
+                self._conn_info.pop('totp', None)  # No TOTP
+
+                err_msg = "TOTP was requested but not provided"
+                self.assertConnectionFail(err_msg=err_msg)
+
+            finally:
+                cur.execute("DROP USER IF EXISTS totp_user")
+                cur.execute("DROP AUTHENTICATION IF EXISTS totp_auth CASCADE")
+
+    # Negative Test: Invalid TOTP Format
+    def totp_invalid_format_scenario(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            cur.execute("DROP USER IF EXISTS totp_user")
+            cur.execute("DROP AUTHENTICATION IF EXISTS totp_auth CASCADE")
+
+            try:
+                cur.execute("CREATE USER totp_user IDENTIFIED BY 'password' ENFORCEMFA")
+                cur.execute("CREATE AUTHENTICATION totp_auth METHOD 'password' HOST '0.0.0.0/0'")
+                cur.execute("GRANT AUTHENTICATION totp_auth TO totp_user")
+
+                self._conn_info['user'] = 'totp_user'
+                self._conn_info['password'] = 'password'
+                self._conn_info['totp'] = "123"   # Invalid
+
+                err_msg = "Invalid TOTP format"
+                self.assertConnectionFail(err_msg=err_msg)
+
+            finally:
+                cur.execute("DROP USER IF EXISTS totp_user")
+                cur.execute("DROP AUTHENTICATION IF EXISTS totp_auth CASCADE")
+
+    # Negative Test: Wrong TOTP (Valid format, wrong value)
+    def totp_wrong_code_scenario(self):
+        with self._connect() as conn:
+            cur = conn.cursor()
+
+            cur.execute("DROP USER IF EXISTS totp_user")
+            cur.execute("DROP AUTHENTICATION IF EXISTS totp_auth CASCADE")
+
+            try:
+                cur.execute("CREATE USER totp_user IDENTIFIED BY 'password' ENFORCEMFA")
+                cur.execute("CREATE AUTHENTICATION totp_auth METHOD 'password' HOST '0.0.0.0/0'")
+                cur.execute("GRANT AUTHENTICATION totp_auth TO totp_user")
+
+                self._conn_info['user'] = 'totp_user'
+                self._conn_info['password'] = 'password'
+                self._conn_info['totp'] = "999999"   # Wrong OTP
+
+                err_msg = "Invalid TOTP"
+                self.assertConnectionFail(err_msg=err_msg)
+
+            finally:
+                cur.execute("DROP USER IF EXISTS totp_user")
+                cur.execute("DROP AUTHENTICATION IF EXISTS totp_auth CASCADE")
+

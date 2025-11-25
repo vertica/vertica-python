@@ -151,6 +151,7 @@ jobs:
           helm upgrade --install vdb-op vertica-charts/verticadb-operator \
             -n my-verticadb-operator -f operator-values.yaml --wait --timeout 10m
           kubectl -n my-verticadb-operator get pods -o wide || true
+
       - name: Deploy VerticaDB and per-node Services
         run: |
           cat <<'EOF' | kubectl apply -f -
@@ -179,6 +180,9 @@ jobs:
           ---
           # -------------------------------------
           # Per-node Services (needed for LB tests)
+          # Note: node-1 and node-2 pods don't exist yet because subcluster size=1.
+          # These Services are intentional placeholders used when we scale the cluster
+          # for load-balancing and failover tests. Kubernetes allows zero-endpoint Services.
           # -------------------------------------
           apiVersion: v1
           kind: Service
@@ -311,8 +315,8 @@ jobs:
             /opt/keycloak/bin/kcadm.sh create realms -s realm=test -s enabled=true
           kubectl -n keycloak exec deploy/keycloak -- \
             /opt/keycloak/bin/kcadm.sh create clients -r test \
-              -s clientId=vertica -s enabled=true \
-              -s secret=P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs \
+              -s clientId="${CLIENT_ID}" -s enabled=true \
+              -s secret="${CLIENT_SECRET}" \
               -s 'redirectUris=["*"]' \
               -s directAccessGrantsEnabled=true
           kubectl -n keycloak exec deploy/keycloak -- \
@@ -329,8 +333,8 @@ jobs:
           kubectl -n ${NS} exec ${POD} -c server -- bash -c "
             /opt/vertica/bin/vsql -U dbadmin -c \"
               CREATE AUTHENTICATION v_oauth METHOD 'oauth' HOST '0.0.0.0/0';
-              ALTER AUTHENTICATION v_oauth SET client_id = 'vertica';
-              ALTER AUTHENTICATION v_oauth SET client_secret = 'P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs';
+              ALTER AUTHENTICATION v_oauth SET client_id = '${CLIENT_ID}';
+              ALTER AUTHENTICATION v_oauth SET client_secret = '${CLIENT_SECRET}';
               ALTER AUTHENTICATION v_oauth SET discovery_url = 'http://keycloak.keycloak.svc.cluster.local:8080/realms/test/.well-known/openid-configuration';
               ALTER AUTHENTICATION v_oauth SET introspect_url = 'http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect';
               CREATE USER oauth_user;
@@ -400,17 +404,25 @@ jobs:
                   -d "client_secret=${CLIENT_SECRET}"
             ) || true
 
-            # JSON validity check
-            if echo "$RAW" | jq -e . >/dev/null 2>&1; then
-              TOKEN=$(echo "$RAW" | jq -r .access_token)
+            # Keep only the last line (JSON), remove kubectl noise
+            RAW=$(printf "%s" "$RAW" | sed -n '$p')
+
+            # Validate RAW is JSON
+            if ! printf '%s' "$RAW" | python3 -c 'import sys,json; json.load(sys.stdin)' >/dev/null 2>&1; then
+              echo "Token endpoint did not return valid JSON:"
+              printf '%s\n' "$RAW"
+              exit 1
             fi
 
-            if [ -n "${TOKEN}" ] && [ "${TOKEN}" != "null" ]; then
+            # Extract token (without printing it)
+            TOKEN=$(printf '%s' "$RAW" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("access_token", ""))')
+
+            if [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
               echo "Access token retrieved successfully."
               break
             fi
 
-            echo "Token fetch failed: $RAW"
+            echo "Token fetch failed, Keycloak may not be ready yet."
             sleep 5
 
             if [ "$i" -eq 10 ]; then
@@ -504,7 +516,7 @@ jobs:
 
             echo 'Vertica reachable; performing token introspection...'
             INTROSPECT_OUTPUT=\$(curl -s -X POST http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect \
-              -d 'client_id=vertica' \
+              -d 'client_id=${CLIENT_ID}' \
               -d 'client_secret=${CLIENT_SECRET}' \
               -d 'token='\${VP_TEST_OAUTH_ACCESS_TOKEN})
 

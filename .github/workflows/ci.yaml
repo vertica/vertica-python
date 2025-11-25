@@ -1,100 +1,579 @@
-name: CI
+name: Vertica CI
 
 on: [push, pull_request]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13', 'pypy3.10']
+        python-version:
+          - '3.8'
+          - '3.9'
+          - '3.10'
+          - '3.11'
+          - '3.12'
+          - '3.13'
+          - 'pypy3.10'
 
     env:
-      REALM: test
-      USER: oauth_user
-      PASSWORD: password
-      CLIENT_ID: vertica
-      CLIENT_SECRET: P9f8350QQIUhFfK1GF5sMhq4Dm3P6Sbs
+      REALM: ${{ secrets.REALM }}
+      USER: ${{ secrets.USER }}
+      PASSWORD: ${{ secrets.PASSWORD }}
+      CLIENT_ID: ${{ secrets.CLIENT_ID }}
+      CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
 
     steps:
-      - name: Check out repository
+      # ---------------------------
+      # Checkout and setup
+      # ---------------------------
+      - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Set up a Keycloak docker container
-        timeout-minutes: 5
-        run: |
-          docker network create -d bridge my-network
-          docker run -d -p 8080:8080 \
-            --name keycloak --network my-network \
-            -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin \
-            quay.io/keycloak/keycloak:23.0.4 start-dev
-          docker container ls
 
-      - name: Set up a Vertica server docker container
-        timeout-minutes: 15
-        run: |
-          docker run -d -p 5433:5433 -p 5444:5444 \
-            --name vertica_docker --network my-network \
-            opentext/vertica-ce:24.4.0-0
-          echo "Vertica startup ..."
-          until docker exec vertica_docker test -f /data/vertica/VMart/agent_start.out; do \
-            echo "..."; \
-            sleep 3; \
-          done;
-          echo "Vertica is up"
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "\l"
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "select version()"
+      # ---------------------------
+      # Kubernetes (KinD) + Helm setup
+      # ---------------------------
+      - name: Set up Kubernetes (KinD)
+        uses: helm/kind-action@v1.8.0
+        with:
+          cluster_name: vertica-ci
+          node_image: kindest/node:v1.29.0
 
-      - name: Configure Keycloak
-        run: |
-          echo "Wait for keycloak ready ..."
-          bash -c 'while true; do curl -s localhost:8080 &>/dev/null; ret=$?; [[ $ret -eq 0 ]] && break; echo "..."; sleep 3; done'
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: "3.11.3"
 
-          docker exec -i keycloak /bin/bash <<EOF
-            /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user admin --password admin
-            /opt/keycloak/bin/kcadm.sh create realms -s realm=${REALM} -s enabled=true
-            /opt/keycloak/bin/kcadm.sh update realms/${REALM} -s accessTokenLifespan=3600
-            /opt/keycloak/bin/kcadm.sh get realms/${REALM}
-            /opt/keycloak/bin/kcadm.sh create users -r ${REALM} -s username=${USER} -s enabled=true
-            /opt/keycloak/bin/kcadm.sh set-password -r ${REALM} --username ${USER} --new-password ${PASSWORD}
-            /opt/keycloak/bin/kcadm.sh get users -r ${REALM}
-            /opt/keycloak/bin/kcadm.sh create clients -r ${REALM} -s clientId=${CLIENT_ID} -s enabled=true \
-              -s 'redirectUris=["/*"]' -s 'webOrigins=["/*"]' -s secret=${CLIENT_SECRET} -s directAccessGrantsEnabled=true -o
+      - name: Add Helm repositories
+        run: |
+          helm repo add vertica-charts https://vertica.github.io/charts
+          helm repo add bitnami https://charts.bitnami.com/bitnami || true
+          helm repo update
+
+      # ---------------------------
+      # MinIO Setup
+      # ---------------------------
+      - name: Install MinIO
+        run: |
+          kubectl create ns minio
+          cat <<'EOF' > minio.yaml
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: minio
+            namespace: minio
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: minio
+            template:
+              metadata:
+                labels:
+                  app: minio
+              spec:
+                containers:
+                  - name: minio
+                    image: minio/minio:latest
+                    args: ["server", "/data"]
+                    env:
+                      - name: MINIO_ROOT_USER
+                        value: "minioadmin"
+                      - name: MINIO_ROOT_PASSWORD
+                        value: "minioadmin"
+                    ports:
+                      - containerPort: 9000
+                    volumeMounts:
+                      - name: data
+                        mountPath: /data
+                volumes:
+                  - name: data
+                    emptyDir: {}
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: minio
+            namespace: minio
+          spec:
+            selector:
+              app: minio
+            ports:
+              - port: 9000
+                targetPort: 9000
+          EOF
+          kubectl apply -f minio.yaml
+          kubectl -n minio rollout status deployment/minio --timeout=2m
+          kubectl get pods -n minio -o wide || true
+          kubectl get svc -n minio || true
+
+      - name: Ensure MinIO bucket exists
+        run: |
+          kubectl run mc-client --rm -i --restart=Never \
+            --image=minio/mc:latest \
+            -n minio \
+            --command -- bash -c "
+              mc alias set localminio http://minio.minio.svc.cluster.local:9000 minioadmin minioadmin && \
+              mc mb --ignore-existing localminio/vertica-fleeting && \
+              mc ls localminio
+            "
+
+      - name: Create MinIO Secret
+        run: |
+          kubectl create ns my-verticadb-operator
+          kubectl delete secret communal-creds -n my-verticadb-operator --ignore-not-found
+          kubectl create secret generic communal-creds \
+            -n my-verticadb-operator \
+            --from-literal=accesskey="minioadmin" \
+            --from-literal=secretkey="minioadmin"
+          kubectl get secret communal-creds -n my-verticadb-operator -o yaml || true
+
+      # ---------------------------
+      # Vertica Operator + DB Deployment
+      # ---------------------------
+      - name: Install Vertica Operator
+        run: |
+          cat <<'EOF' > operator-values.yaml
+          installCRDs: true
+          controller:
+            extraEnv:
+              - name: AWS_REGION
+                value: "us-east-1"
+              - name: AWS_DEFAULT_REGION
+                value: "us-east-1"
+          EOF
+          helm upgrade --install vdb-op vertica-charts/verticadb-operator \
+            -n my-verticadb-operator -f operator-values.yaml --wait --timeout 10m
+          kubectl -n my-verticadb-operator get pods -o wide || true
+
+      - name: Deploy VerticaDB and per-node Services
+        run: |
+          cat <<'EOF' | kubectl apply -f -
+          apiVersion: vertica.com/v1
+          kind: VerticaDB
+          metadata:
+            name: verticadb-sample
+            namespace: my-verticadb-operator
+            annotations:
+              vertica.com/k-safety: "0"
+          spec:
+            image: opentext/vertica-k8s:latest
+            dbName: vdb
+            initPolicy: Create
+            communal:
+              path: s3://vertica-fleeting/mkottakota/
+              credentialSecret: communal-creds
+              endpoint: http://minio.minio.svc.cluster.local:9000
+              region: us-east-1
+            local:
+              dataPath: /data
+              depotPath: /depot
+            subclusters:
+              - name: defaultsubcluster
+                size: 1
+          ---
+          # -------------------------------------
+          # Per-node Services (needed for LB tests)
+          # Note: node-1 and node-2 pods don't exist yet because subcluster size=1.
+          # These Services are intentional placeholders used when we scale the cluster
+          # for load-balancing and failover tests. Kubernetes allows zero-endpoint Services.
+          # -------------------------------------
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: vertica-node-0
+            namespace: my-verticadb-operator
+          spec:
+            selector:
+              statefulset.kubernetes.io/pod-name: verticadb-sample-defaultsubcluster-0
+            ports:
+              - port: 5433
+                targetPort: 5433
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: vertica-node-1
+            namespace: my-verticadb-operator
+          spec:
+            selector:
+              statefulset.kubernetes.io/pod-name: verticadb-sample-defaultsubcluster-1
+            ports:
+              - port: 5433
+                targetPort: 5433
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: vertica-node-2
+            namespace: my-verticadb-operator
+          spec:
+            selector:
+              statefulset.kubernetes.io/pod-name: verticadb-sample-defaultsubcluster-2
+            ports:
+              - port: 5433
+                targetPort: 5433
           EOF
 
-          # Retrieving an Access Token
-          curl --location --request POST http://`hostname`:8080/realms/${REALM}/protocol/openid-connect/token \
-              --header 'Content-Type: application/x-www-form-urlencoded' \
-              --data-urlencode "username=${USER}" \
-              --data-urlencode "password=${PASSWORD}" \
-              --data-urlencode "client_id=${CLIENT_ID}" \
-              --data-urlencode "client_secret=${CLIENT_SECRET}" \
-              --data-urlencode 'grant_type=password' -o oauth.json
-          cat oauth.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["access_token"])' > access_token.txt
-
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "CREATE AUTHENTICATION v_oauth METHOD 'oauth' HOST '0.0.0.0/0';"
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "ALTER AUTHENTICATION v_oauth SET client_id = '${CLIENT_ID}';"
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "ALTER AUTHENTICATION v_oauth SET client_secret = '${CLIENT_SECRET}';"
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "ALTER AUTHENTICATION v_oauth SET discovery_url = 'http://`hostname`:8080/realms/${REALM}/.well-known/openid-configuration';"
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "ALTER AUTHENTICATION v_oauth SET introspect_url = 'http://`hostname`:8080/realms/${REALM}/protocol/openid-connect/token/introspect';"
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "SELECT * FROM client_auth WHERE auth_name='v_oauth';"
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "CREATE USER ${USER};"
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "GRANT AUTHENTICATION v_oauth TO ${USER};"
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "GRANT ALL ON SCHEMA PUBLIC TO ${USER};"
-          # A dbadmin-specific authentication record (connect remotely) is needed after setting up an OAuth user
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "CREATE AUTHENTICATION v_dbadmin_hash METHOD 'hash' HOST '0.0.0.0/0';"
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "ALTER AUTHENTICATION v_dbadmin_hash PRIORITY 10000;"
-          docker exec -u dbadmin vertica_docker /opt/vertica/bin/vsql -c "GRANT AUTHENTICATION v_dbadmin_hash TO dbadmin;"
-
-      - name: Install dependencies
-        run: pip install tox
-      - name: Run tests
+      - name: Wait for Vertica readiness
         run: |
-          export VP_TEST_USER=dbadmin
-          export VP_TEST_OAUTH_ACCESS_TOKEN=`cat access_token.txt`
-          export VP_TEST_OAUTH_USER=${USER}
-          tox -e py
+          NS=my-verticadb-operator
+          SS=verticadb-sample-defaultsubcluster
+          POD=${SS}-0
+          for i in {1..30}; do
+            kubectl get pod ${POD} -n ${NS} && break || sleep 10
+          done
+          kubectl wait --for=condition=Ready pod/${POD} -n ${NS} --timeout=5m
+
+          echo "🚀 Creating test runner pod..."
+          kubectl -n ${NS} run test-runner --image=python:3.13-slim --restart=Never --command -- sleep infinity
+          kubectl -n ${NS} wait --for=condition=Ready pod/test-runner --timeout=180s
+
+          echo "🩹 Adding Vertica pod entries to /etc/hosts in test pod..."
+          for p in $(kubectl -n $NS get pods -l app.kubernetes.io/instance=verticadb-sample -o jsonpath='{.items[*].metadata.name}'); do
+            IP=$(kubectl -n $NS get pod $p -o jsonpath='{.status.podIP}')
+            echo "$IP $p.$NS.svc.cluster.local $p" | kubectl -n $NS exec -i test-runner -- tee -a /etc/hosts >/dev/null
+            echo "✔ Added $p -> $IP"
+          done
+
+          echo "📂 Copying repository into pod..."
+          kubectl -n ${NS} cp . test-runner:/workspace
+
+
+      # ---------------------------
+      # Keycloak + OAuth setup
+      # ---------------------------
+      - name: Deploy Keycloak
+        run: |
+          kubectl create ns keycloak
+          cat <<'EOF' | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: keycloak
+            namespace: keycloak
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: keycloak
+            template:
+              metadata:
+                labels:
+                  app: keycloak
+              spec:
+                containers:
+                  - name: keycloak
+                    image: quay.io/keycloak/keycloak:23.0.4
+                    args: ["start-dev"]
+                    env:
+                      - name: KEYCLOAK_ADMIN
+                        value: admin
+                      - name: KEYCLOAK_ADMIN_PASSWORD
+                        value: admin
+                    ports:
+                      - containerPort: 8080
+                    readinessProbe:
+                      httpGet:
+                        path: /
+                        port: 8080
+                      initialDelaySeconds: 20
+                      periodSeconds: 5
+                      failureThreshold: 6
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: keycloak
+            namespace: keycloak
+          spec:
+            selector:
+              app: keycloak
+            ports:
+              - port: 8080
+                targetPort: 8080
+          EOF
+
+      - name: Wait for Keycloak readiness
+        run: |
+          kubectl -n keycloak rollout status deploy/keycloak --timeout=2m
+          kubectl -n keycloak get pods -o wide
+
+      - name: Configure Keycloak realm, client, and user
+        run: |
+          kubectl -n keycloak exec deploy/keycloak -- \
+            /opt/keycloak/bin/kcadm.sh config credentials \
+              --server http://localhost:8080 --realm master \
+              --user admin --password admin
+          kubectl -n keycloak exec deploy/keycloak -- \
+            /opt/keycloak/bin/kcadm.sh create realms -s realm=test -s enabled=true
+          kubectl -n keycloak exec deploy/keycloak -- \
+            /opt/keycloak/bin/kcadm.sh create clients -r test \
+              -s clientId="${CLIENT_ID}" -s enabled=true \
+              -s secret="${CLIENT_SECRET}" \
+              -s 'redirectUris=["*"]' \
+              -s directAccessGrantsEnabled=true
+          kubectl -n keycloak exec deploy/keycloak -- \
+            /opt/keycloak/bin/kcadm.sh create users -r test \
+              -s username=oauth_user -s enabled=true
+          kubectl -n keycloak exec deploy/keycloak -- \
+            /opt/keycloak/bin/kcadm.sh set-password -r test \
+              --username oauth_user --new-password password
+
+      - name: Configure Vertica Authentication
+        run: |
+          NS=my-verticadb-operator
+          POD=verticadb-sample-defaultsubcluster-0
+          kubectl -n ${NS} exec ${POD} -c server -- bash -c "
+            /opt/vertica/bin/vsql -U dbadmin -c \"
+              CREATE AUTHENTICATION v_oauth METHOD 'oauth' HOST '0.0.0.0/0';
+              ALTER AUTHENTICATION v_oauth SET client_id = '${CLIENT_ID}';
+              ALTER AUTHENTICATION v_oauth SET client_secret = '${CLIENT_SECRET}';
+              ALTER AUTHENTICATION v_oauth SET discovery_url = 'http://keycloak.keycloak.svc.cluster.local:8080/realms/test/.well-known/openid-configuration';
+              ALTER AUTHENTICATION v_oauth SET introspect_url = 'http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect';
+              CREATE USER oauth_user;
+              GRANT AUTHENTICATION v_oauth TO oauth_user;
+              GRANT ALL ON SCHEMA PUBLIC TO oauth_user;
+              CREATE AUTHENTICATION v_dbadmin_hash METHOD 'hash' HOST '0.0.0.0/0';
+              ALTER AUTHENTICATION v_dbadmin_hash PRIORITY 10000;
+              GRANT AUTHENTICATION v_dbadmin_hash TO dbadmin;
+            \"
+          "
+
+      # ---------------------------
+      # Testing section
+      # ---------------------------
+      - name: Run Python tests in-cluster
+        run: |
+          set -euo pipefail
+          NS=my-verticadb-operator
+          SVC=verticadb-sample-defaultsubcluster
+          LOCATOR="${SVC}.${NS}.svc.cluster.local:5433"
+          POD=py-test-runner
+
+          # Decide image based on matrix value
+          if [[ "${{ matrix.python-version }}" == pypy* ]]; then
+            VERSION="${{ matrix.python-version }}"   # "pypy3.10"
+            IMAGE="pypy:${VERSION#pypy}"             # "pypy:3.10"
+          else
+            IMAGE="python:${{ matrix.python-version }}"
+          fi
+
+          echo "Ensuring namespace ${NS} exists..."
+          kubectl get ns ${NS} >/dev/null 2>&1 || kubectl create ns ${NS}
+
+          echo "Waiting for Vertica service endpoints..."
+          WAIT_TIMEOUT=300
+          INTERVAL=5
+          deadline=$((SECONDS + WAIT_TIMEOUT))
+          while [ $SECONDS -lt $deadline ]; do
+            addrs=$(kubectl -n ${NS} get endpoints ${SVC} \
+              -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null || true)
+            [ -n "$addrs" ] && break || sleep ${INTERVAL}
+          done
+
+          if [ -z "$addrs" ]; then
+            echo "Vertica service endpoints not found"
+            kubectl -n ${NS} get pods -o wide || true
+            kubectl -n ${NS} get endpoints ${SVC} -o yaml || true
+            exit 1
+          fi
+
+          echo "Retrieving access token from Keycloak with retries..."
+          TOKEN=""
+          for i in {1..10}; do
+            echo "Attempt $i..."
+
+            RAW=$(
+              kubectl -n keycloak run curl-client \
+                --image=curlimages/curl:latest \
+                --restart=Never \
+                --rm -i --quiet \
+                --command -- curl -s -X POST \
+                  "http://keycloak.keycloak.svc.cluster.local:8080/realms/${REALM}/protocol/openid-connect/token" \
+                  -d "client_id=${CLIENT_ID}" \
+                  -d "username=${USER}" \
+                  -d "password=${PASSWORD}" \
+                  -d "grant_type=password" \
+                  -d "client_secret=${CLIENT_SECRET}"
+            ) || true
+
+            # Keep only the last line (JSON), remove kubectl noise
+            RAW=$(printf "%s" "$RAW" | sed -n '$p')
+
+            # Validate RAW is JSON
+            if ! printf '%s' "$RAW" | python3 -c 'import sys,json; json.load(sys.stdin)' >/dev/null 2>&1; then
+              echo "Token endpoint did not return valid JSON:"
+              printf '%s\n' "$RAW"
+              exit 1
+            fi
+
+            # Extract token (without printing it)
+            TOKEN=$(printf '%s' "$RAW" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("access_token", ""))')
+
+            if [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
+              echo "Access token retrieved successfully."
+              break
+            fi
+
+            echo "Token fetch failed, Keycloak may not be ready yet."
+            sleep 5
+
+            if [ "$i" -eq 10 ]; then
+              echo "Failed to fetch access token after multiple retries."
+              exit 1
+            fi
+          done
+
+          echo "Access token retrieved (length: ${#TOKEN})"
+
+          echo "Creating Kubernetes Secret with token..."
+          kubectl -n ${NS} delete secret oauth-token --ignore-not-found
+          kubectl -n ${NS} create secret generic oauth-token \
+            --from-literal=access_token="$TOKEN"
+
+          echo "Creating Python test pod with secret mount..."
+          kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: ${POD}
+            namespace: ${NS}
+          spec:
+            restartPolicy: Never
+            containers:
+              - name: tester
+                image: ${IMAGE}
+                command: ["sleep", "infinity"]
+                env:
+                  - name: VP_TEST_OAUTH_ACCESS_TOKEN
+                    valueFrom:
+                      secretKeyRef:
+                        name: oauth-token
+                        key: access_token
+                  - name: VP_TEST_HOST
+                    value: verticadb-sample-defaultsubcluster.my-verticadb-operator.svc.cluster.local
+                  - name: VP_TEST_PORT
+                    value: "5433"
+                  - name: VP_TEST_DATABASE
+                    value: vdb
+                  - name: VP_TEST_OAUTH_USER
+                    value: oauth_user
+                  - name: VP_TEST_USER
+                    value: dbadmin
+                  - name: VP_TEST_PASSWORD
+                    value: ""
+          EOF
+
+          echo "Waiting for test pod readiness..."
+          if ! kubectl -n ${NS} wait --for=condition=Ready pod/${POD} --timeout=180s; then
+            echo "Pod did not become Ready. Collecting debug info..."
+            kubectl -n ${NS} describe pod ${POD} || true
+            kubectl -n ${NS} logs ${POD} || true
+            exit 1
+          fi
+
+          echo "Copying repository into pod..."
+          kubectl -n ${NS} exec -i ${POD} -- mkdir -p /workspace
+          tar cf - . | kubectl -n ${NS} exec -i ${POD} -- tar xf - -C /workspace
+
+          echo "Installing dependencies..."
+          kubectl -n ${NS} exec ${POD} -- bash -lc '
+            set -e
+            apt-get update -qq
+            apt-get install -y -qq build-essential libssl-dev libpq-dev netcat-traditional curl
+            if command -v python >/dev/null 2>&1; then
+              python -m ensurepip || true
+              python -m pip install --upgrade pip
+              python -m pip install tox pytest
+            elif command -v pypy3 >/dev/null 2>&1; then
+              pypy3 -m ensurepip || true
+              pypy3 -m pip install --upgrade pip
+              pypy3 -m pip install tox pytest
+            fi
+            if command -v pypy3 >/dev/null 2>&1; then
+              export PATH=$PATH:/opt/pypy/bin
+            else
+              export PATH=$PATH:/root/.local/bin
+            fi
+            which tox && tox --version
+          '
+
+          echo "Running Python tests inside pod..."
+          kubectl -n ${NS} exec -i ${POD} -- bash -lc "
+            set -euo pipefail
+            cd /workspace
+
+            echo 'Checking connectivity to Vertica...'
+            nc -zv \${VP_TEST_HOST} \${VP_TEST_PORT} || { echo 'Cannot reach Vertica host'; exit 1; }
+
+            echo 'Vertica reachable; performing token introspection...'
+            INTROSPECT_OUTPUT=\$(curl -s -X POST http://keycloak.keycloak.svc.cluster.local:8080/realms/test/protocol/openid-connect/token/introspect \
+              -d 'client_id=${CLIENT_ID}' \
+              -d 'client_secret=${CLIENT_SECRET}' \
+              -d 'token='\${VP_TEST_OAUTH_ACCESS_TOKEN})
+
+            if echo \"\$INTROSPECT_OUTPUT\" | grep -q '\"active\":true'; then
+              echo 'Token introspection successful (active=true)'
+            else
+              echo 'Token introspection failed:'; echo \"\$INTROSPECT_OUTPUT\"; exit 1
+            fi
+
+            if command -v pypy3 >/dev/null 2>&1; then
+              export PATH=\$PATH:/opt/pypy/bin
+            fi
+
+            echo 'Running pytest suite via tox...'
+            tox -e py
+          "
+
+          echo "Cleaning up test pod..."
+          kubectl -n ${NS} delete pod ${POD} --ignore-not-found || true
+
+      # ---------------------------
+      # Final Teardown (K8s + KinD)
+      # ---------------------------
+      - name: Cleanup Kubernetes resources
+        if: always()
+        run: |
+          echo "Starting cleanup..."
+
+          echo "Deleting Python test runner pods..."
+          kubectl -n my-verticadb-operator delete pod test-runner --ignore-not-found || true
+          kubectl -n my-verticadb-operator delete pod py-test-runner --ignore-not-found || true
+
+          echo "Deleting Keycloak pods & services..."
+          kubectl delete deployment keycloak -n keycloak --ignore-not-found || true
+          kubectl delete service keycloak -n keycloak --ignore-not-found || true
+          kubectl delete ns keycloak --ignore-not-found || true
+
+          echo "Deleting VerticaDB and Operator..."
+          kubectl delete verticadb verticadb-sample -n my-verticadb-operator --ignore-not-found || true
+          helm uninstall vdb-op -n my-verticadb-operator || true
+          kubectl delete ns my-verticadb-operator --ignore-not-found || true
+
+          echo "Deleting MinIO..."
+          kubectl delete -f minio.yaml --ignore-not-found || true
+          kubectl delete ns minio --ignore-not-found || true
+
+          echo "Deleting leftover services..."
+          kubectl delete svc vertica-node-0 -n my-verticadb-operator --ignore-not-found || true
+          kubectl delete svc vertica-node-1 -n my-verticadb-operator --ignore-not-found || true
+          kubectl delete svc vertica-node-2 -n my-verticadb-operator --ignore-not-found || true
+
+          echo "Kubernetes resources cleanup done."
+
+
+      - name: Delete KinD cluster
+        if: always()
+        run: |
+          echo "Deleting KinD cluster..."
+          kind delete cluster --name vertica-ci || true
+          echo "KinD cluster removed successfully"

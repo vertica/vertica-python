@@ -408,14 +408,14 @@ jobs:
             RAW=$(printf "%s" "$RAW" | sed -n '$p')
 
             # Validate RAW is JSON
+            # Validate JSON; do NOT exit — allow retry
             if ! printf '%s' "$RAW" | python3 -c 'import sys,json; json.load(sys.stdin)' >/dev/null 2>&1; then
-              echo "Token endpoint did not return valid JSON:"
-              printf '%s\n' "$RAW"
-              exit 1
+              echo "Token endpoint did not return valid JSON, retrying..."
+              TOKEN=""
+            else
+            # Extract token only if JSON is valid
+              TOKEN=$(printf '%s' "$RAW" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("access_token", ""))')
             fi
-
-            # Extract token (without printing it)
-            TOKEN=$(printf '%s' "$RAW" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("access_token", ""))')
 
             if [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
               echo "Access token retrieved successfully."

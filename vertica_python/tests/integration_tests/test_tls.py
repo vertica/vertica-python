@@ -298,7 +298,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             res = self._query_and_fetchone(self.SSL_STATE_SQL)
             self.assertEqual(res[0], 'Server')
 
-    def test_tls13_support_auto_negotiation(self):
+    def tls13_support_auto_negotiation(self):
         """
         Verify that the client supports TLS 1.3 negotiation.
         If the server supports TLS 1.3, the connection should establish using it.

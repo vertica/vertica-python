@@ -59,7 +59,7 @@ class Startup(BulkFrontendMessage):
 
     def __init__(self, user, database, session_label, os_user_name, autocommit,
                  binary_transfer, request_complex_types, oauth_access_token,
-                 workload, auth_category):
+                 workload, auth_category, totp=None):
         BulkFrontendMessage.__init__(self)
 
         try:
@@ -103,7 +103,8 @@ class Startup(BulkFrontendMessage):
         if len(oauth_access_token) > 0:
             # compatibility for protocol version 3.11
             self.parameters[b'oauth_access_token'] = oauth_access_token
-
+        if totp is not None:
+            self.parameters[b'totp'] = totp
     def read_bytes(self):
         # The fixed protocol version is followed by pairs of parameter name and value strings.
         # A zero byte is required as a terminator after the last name/value pair.

@@ -313,45 +313,45 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         return None
 
     def test_tls13_support_auto_negotiation(self):
-    """
-    Verify that the client supports TLS 1.3 negotiation.
-    If the server supports TLS 1.3, the connection should establish using it.
-    If the server supports only TLS 1.2, the connection should still succeed.
-    """
+        """
+        Verify that the client supports TLS 1.3 negotiation.
+        If the server supports TLS 1.3, the connection should establish using it.
+        If the server supports only TLS 1.2, the connection should still succeed.
+        """
 
-    # Set up server certificates and enable TLS
-    CA_cert = self._generate_and_set_certificates()
+        # Set up server certificates and enable TLS
+        CA_cert = self._generate_and_set_certificates()
 
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ssl_context.verify_mode = ssl.CERT_REQUIRED
-    ssl_context.check_hostname = True
-    ssl_context.load_verify_locations(cadata=CA_cert)
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
+        ssl_context.check_hostname = True
+        ssl_context.load_verify_locations(cadata=CA_cert)
 
-    self._conn_info['ssl'] = ssl_context
+        self._conn_info['ssl'] = ssl_context
 
-    with self._connect() as conn:
-        # First ensure TLS really got enabled on server
-        res = self._query_and_fetchone(self.SSL_STATE_SQL)
-        if res[0] != 'Server':
-            self.skipTest("TLS is not configured on server")
+        with self._connect() as conn:
+            # First ensure TLS really got enabled on server
+            res = self._query_and_fetchone(self.SSL_STATE_SQL)
+            if res[0] != 'Server':
+                self.skipTest("TLS is not configured on server")
 
-        # Prefer public API, fall back only if needed
-        tls_version = self._get_tls_version(conn)
+            # Prefer public API, fall back only if needed
+            tls_version = self._get_tls_version(conn)
 
-        self.assertIsNotNone(
-            tls_version,
-            "Could not determine negotiated TLS version"
-        )
+            self.assertIsNotNone(
+                tls_version,
+                "Could not determine negotiated TLS version"
+            )
 
-        self.assertIn(
-            tls_version,
-            ("TLSv1.2", "TLSv1.3"),
-            msg=f"Unexpected TLS version negotiated: {tls_version}"
-        )
+            self.assertIn(
+                tls_version,
+                ("TLSv1.2", "TLSv1.3"),
+                msg=f"Unexpected TLS version negotiated: {tls_version}"
+            )
 
     def test_sslcontext_mutual_TLS(self):
         # Setting certificates with TLS configuration
-        CA_cert = self._generate_and_set_certificates(mutual_mode=True)
+
 
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_context.verify_mode = ssl.CERT_REQUIRED

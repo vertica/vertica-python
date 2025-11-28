@@ -353,7 +353,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
 
     def test_sslcontext_mutual_TLS(self):
         # Setting certificates with TLS configuration
-
+        CA_cert = self._generate_and_set_certificates(mutual_mode=True)
 
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_context.verify_mode = ssl.CERT_REQUIRED

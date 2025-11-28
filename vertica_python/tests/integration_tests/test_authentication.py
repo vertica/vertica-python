@@ -240,4 +240,3 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
             finally:
                 cur.execute("DROP USER IF EXISTS totp_user")
                 cur.execute("DROP AUTHENTICATION IF EXISTS totp_auth CASCADE")
-

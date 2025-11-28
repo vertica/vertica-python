@@ -57,6 +57,7 @@ class Authentication(BackendMessage):
     PASSWORD_CHANGED = 10  # client doesn't do password changing, this should never be seen
     PASSWORD_GRACE = 11
     OAUTH = 12
+    TOTP = 14
     HASH = 65536
     HASH_MD5 = 65536 + 5
     HASH_SHA512 = 65536 + 512

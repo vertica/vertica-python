@@ -360,6 +360,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
         ssl_context.load_cert_chain(certfile=self.client_cert.name, keyfile=self.client_key.name)
 
         self._conn_info['ssl'] = ssl_context
+        self._conn_info['tlsmode'] = 'require'
         with self._connect() as conn:
             cur = conn.cursor()
             res = self._query_and_fetchone(self.SSL_STATE_SQL)

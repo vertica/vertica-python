@@ -343,7 +343,7 @@ class TlsTestCase(VerticaPythonIntegrationTestCase):
             tls_version = self._get_tls_version(conn)
 
             if tls_version is None:
-                self.skipTest("Could not determine negotiated TLS version")
+                self.skipTest("Could not determine negotiated TLS version.")
 
             self.assertIn(
                 tls_version,

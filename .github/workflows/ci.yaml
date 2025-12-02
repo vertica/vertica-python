@@ -190,6 +190,7 @@ jobs:
             name: vertica-node-0
             namespace: my-verticadb-operator
           spec:
+            clusterIP: None
             selector:
               statefulset.kubernetes.io/pod-name: verticadb-sample-defaultsubcluster-0
             ports:
@@ -202,6 +203,7 @@ jobs:
             name: vertica-node-1
             namespace: my-verticadb-operator
           spec:
+            clusterIP: None
             selector:
               statefulset.kubernetes.io/pod-name: verticadb-sample-defaultsubcluster-1
             ports:

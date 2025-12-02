@@ -56,6 +56,11 @@ default_configs = {
     'database': '',
     'oauth_access_token': '',
     'oauth_user': '',
+    'backup_server_node': [
+        'vertica-node-0.my-verticadb-operator.svc.cluster.local',
+        'vertica-node-1.my-verticadb-operator.svc.cluster.local',
+        'vertica-node-2.my-verticadb-operator.svc.cluster.local'
+]
 }
 
 

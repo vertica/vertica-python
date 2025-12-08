@@ -313,6 +313,13 @@ class Connection:
         if self.totp is not None:
             if not isinstance(self.totp, str):
                 raise TypeError('The value of connection option "totp" should be a string')
+            # Validate TOTP format: must be 6 numeric digits, with explicit non-numeric error
+            if not self.totp.isdigit():
+                self._logger.error('Invalid TOTP: contains non-numeric characters')
+                raise errors.ConnectionError('Invalid TOTP: contains non-numeric characters')
+            if len(self.totp) != 6:
+                self._logger.error('Invalid TOTP format in connection options. Must be a 6-digit number.')
+                raise errors.ConnectionError('Invalid TOTP format: Must be a 6-digit number.')
             self._logger.info('TOTP received in connection options')
 
         # OAuth authentication setup
@@ -1005,8 +1012,11 @@ class Connection:
                                     self._logger.error("Invalid TOTP: Cannot be empty.")
                                     raise errors.ConnectionError("Invalid TOTP: Cannot be empty.")
 
-                                # ❌ Validate TOTP format (must be 6 digits)
-                                if not totp_input.isdigit() or len(totp_input) != 6:
+                                # ❌ Validate TOTP format: explicit non-numeric error, then length check
+                                if not totp_input.isdigit():
+                                    self._logger.error("Invalid TOTP: contains non-numeric characters")
+                                    raise errors.ConnectionError("Invalid TOTP: contains non-numeric characters")
+                                if len(totp_input) != 6:
                                     print("Invalid TOTP format. Please enter a 6-digit code.")
                                     self._logger.error("Invalid TOTP format entered.")
                                     raise errors.ConnectionError("Invalid TOTP format: Must be a 6-digit number.")

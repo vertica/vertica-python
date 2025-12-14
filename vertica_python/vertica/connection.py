@@ -313,15 +313,31 @@ class Connection:
         if self.totp is not None:
             if not isinstance(self.totp, str):
                 raise TypeError('The value of connection option "totp" should be a string')
-            # Normalize: trim surrounding whitespace
-            self.totp = self.totp.strip()
-            # Validate TOTP format: must be 6 numeric digits, with explicit non-numeric error
-            if not self.totp.isdigit():
-                self._logger.error('Authentication failed: Invalid TOTP: contains non-numeric characters')
-                raise errors.ConnectionError('Authentication failed: Invalid TOTP: contains non-numeric characters')
-            if len(self.totp) != 6:
-                self._logger.error('Authentication failed: Invalid TOTP: must be 6 digits')
-                raise errors.ConnectionError('Authentication failed: Invalid TOTP: must be 6 digits')
+            # Use shared TOTP validator for normalization and precedence checks
+            try:
+                from .totp_validation import validate_totp_code, INVALID_TOTP_MSG
+            except Exception:
+                validate_totp_code = None
+                INVALID_TOTP_MSG = 'Invalid TOTP: Please enter a valid 6-digit numeric code.'
+
+            if validate_totp_code is not None:
+                result = validate_totp_code(self.totp, totp_is_valid=None)
+                if not result.ok:
+                    msg = result.message or INVALID_TOTP_MSG
+                    self._logger.error(f'Authentication failed: {msg}')
+                    raise errors.ConnectionError(f'Authentication failed: {msg}')
+                # normalized digits-only code
+                self.totp = result.code
+            else:
+                # Fallback minimal validation
+                s = self.totp.strip()
+                if not s.isdigit():
+                    self._logger.error(INVALID_TOTP_MSG)
+                    raise errors.ConnectionError(INVALID_TOTP_MSG)
+                if len(s) != 6:
+                    self._logger.error(INVALID_TOTP_MSG)
+                    raise errors.ConnectionError(INVALID_TOTP_MSG)
+                self.totp = s
             self._logger.info('TOTP received in connection options')
 
         # OAuth authentication setup
@@ -983,10 +999,14 @@ class Connection:
                             short_msg = match.group(1).strip() if match else error_msg.strip()
 
                             if "Invalid TOTP" in short_msg:
-                                print("Authentication failed: Invalid TOTP")
-                                self._logger.error("Authentication failed: Invalid TOTP")
+                                try:
+                                    from .totp_validation import INVALID_TOTP_MSG
+                                except Exception:
+                                    INVALID_TOTP_MSG = "Invalid TOTP: Please enter a valid 6-digit numeric code."
+                                print(f"Authentication failed: {INVALID_TOTP_MSG}")
+                                self._logger.error(f"Authentication failed: {INVALID_TOTP_MSG}")
                                 self.close_socket()
-                                raise errors.ConnectionError("Authentication failed: Invalid TOTP")
+                                raise errors.ConnectionError(f"Authentication failed: {INVALID_TOTP_MSG}")
 
                             # Generic error fallback
                             print(f"Authentication failed: {short_msg}")
@@ -1009,21 +1029,28 @@ class Connection:
                             if ready:
                                 totp_input = sys.stdin.readline().strip()
 
-                                # ❌ Blank TOTP entered
-                                if not totp_input:
-                                    self._logger.error("Invalid TOTP: Cannot be empty.")
-                                    raise errors.ConnectionError("Invalid TOTP: Cannot be empty.")
+                                # Validate using shared precedence
+                                try:
+                                    from .totp_validation import validate_totp_code, INVALID_TOTP_MSG
+                                except Exception:
+                                    validate_totp_code = None
+                                    INVALID_TOTP_MSG = "Invalid TOTP: Please enter a valid 6-digit numeric code."
 
-                                # ❌ Normalize: trim whitespace
-                                totp_input = totp_input.strip()
-                                # ❌ Validate TOTP format: explicit non-numeric error, then length check
-                                if not totp_input.isdigit():
-                                    self._logger.error("Authentication failed: Invalid TOTP: contains non-numeric characters")
-                                    raise errors.ConnectionError("Authentication failed: Invalid TOTP: contains non-numeric characters")
-                                if len(totp_input) != 6:
-                                    print("Invalid TOTP format. Please enter a 6-digit code.")
-                                    self._logger.error("Authentication failed: Invalid TOTP: must be 6 digits")
-                                    raise errors.ConnectionError("Authentication failed: Invalid TOTP: must be 6 digits")
+                                if validate_totp_code is not None:
+                                    result = validate_totp_code(totp_input, totp_is_valid=None)
+                                    if not result.ok:
+                                        msg = result.message or INVALID_TOTP_MSG
+                                        print(msg)
+                                        self._logger.error(msg)
+                                        raise errors.ConnectionError(msg)
+                                    totp_input = result.code
+                                else:
+                                    s = totp_input.strip()
+                                    if not s.isdigit() or len(s) != 6:
+                                        print(INVALID_TOTP_MSG)
+                                        self._logger.error(INVALID_TOTP_MSG)
+                                        raise errors.ConnectionError(INVALID_TOTP_MSG)
+                                    totp_input = s
                                 # ✅ Valid TOTP — retry connection
                                 totp = totp_input
                                 self.close_socket()

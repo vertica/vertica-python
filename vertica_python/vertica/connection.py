@@ -104,11 +104,11 @@ def validate_totp_code(raw_code: str, totp_is_valid=None) -> TotpValidationResul
 
     Precedence:
     1) Trim & normalize input (strip spaces and separators; normalize full-width digits)
-    2) Empty check -> "Enter your 6-digit code"
-    3) Length check -> "Code must be 6 digits"
-    4) Numeric-only check -> "Code can contain digits only"
+    2) Check emptiness, length == 6, and numeric-only
 
-    Returns TotpValidationResult(ok, code, message). On success, `code` is a 6-digit ASCII string.
+    Returns TotpValidationResult(ok, code, message).
+    - Success: `ok=True`, `code` is a 6-digit ASCII string, `message=''`.
+    - Failure: `ok=False`, `code=''`, `message` is always the generic INVALID_TOTP_MSG.
     `totp_is_valid` is reserved for optional server-side checks and ignored here.
     """
     try:
@@ -125,17 +125,9 @@ def validate_totp_code(raw_code: str, totp_is_valid=None) -> TotpValidationResul
         for sep in list(separators):
             s = s.replace(sep, '')
 
-        # Empty check
-        if s == '':
-            return TotpValidationResult(False, '', 'Enter your 6-digit code')
-
-        # Length check
-        if len(s) != 6:
-            return TotpValidationResult(False, '', 'Code must be 6 digits')
-
-        # Numeric-only check
-        if not s.isdigit():
-            return TotpValidationResult(False, '', 'Code can contain digits only')
+        # Empty / length / numeric checks
+        if s == '' or len(s) != 6 or not s.isdigit():
+            return TotpValidationResult(False, '', INVALID_TOTP_MSG)
 
         # All good
         return TotpValidationResult(True, s, '')

@@ -1030,13 +1030,11 @@ class Connection:
                             short_msg = match.group(1).strip() if match else error_msg.strip()
 
                             if "Invalid TOTP" in short_msg:
-                                print(f"Authentication failed: {INVALID_TOTP_MSG}")
                                 self._logger.error(f"Authentication failed: {INVALID_TOTP_MSG}")
                                 self.close_socket()
                                 raise errors.ConnectionError(f"Authentication failed: {INVALID_TOTP_MSG}")
 
                             # Generic error fallback
-                            print(f"Authentication failed: {short_msg}")
                             self._logger.error(short_msg)
                             raise errors.ConnectionError(f"Authentication failed: {short_msg}")
                         else:
@@ -1059,9 +1057,9 @@ class Connection:
                                 # Validate using local precedence-based validator
                                 result = validate_totp_code(totp_input, totp_is_valid=None)
                                 if not result.ok:
-                                    msg = result.message or INVALID_TOTP_MSG
-                                    self._logger.error(msg)
-                                    raise errors.ConnectionError(msg)
+                                    msg = INVALID_TOTP_MSG
+                                    self._logger.error(f"Authentication failed: {msg}")
+                                    raise errors.ConnectionError(f"Authentication failed: {msg}")
                                 totp_input = result.code
                                 # ✅ Valid TOTP — retry connection
                                 totp = totp_input

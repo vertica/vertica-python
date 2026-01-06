@@ -99,17 +99,18 @@ class TotpValidationResult(NamedTuple):
 INVALID_TOTP_MSG = 'Invalid TOTP: Please enter a valid 6-digit numeric code.'
 
 
-def validate_totp_code(raw_code: str, totp_is_valid=None) -> TotpValidationResult:
+def validate_totp_code(raw_code: str) -> TotpValidationResult:
     """Validate and normalize a user-supplied TOTP value.
 
     Precedence:
-    1) Trim & normalize input (strip spaces and separators; normalize full-width digits)
-    2) Check emptiness, length == 6, and numeric-only
+    1) Trim & normalize input (normalize full-width digits; strip leading/trailing whitespace only)
+    2) Empty check
+    3) Length check (must be exactly 6)
+    4) Numeric-only check (digits 0–9 only; do not remove internal separators)
 
     Returns TotpValidationResult(ok, code, message).
     - Success: `ok=True`, `code` is a 6-digit ASCII string, `message=''`.
     - Failure: `ok=False`, `code=''`, `message` is always the generic INVALID_TOTP_MSG.
-    `totp_is_valid` is reserved for optional server-side checks and ignored here.
     """
     try:
         s = raw_code if raw_code is not None else ''
@@ -117,16 +118,12 @@ def validate_totp_code(raw_code: str, totp_is_valid=None) -> TotpValidationResul
         s = unicodedata.normalize('NFKC', s)
         # Strip leading/trailing whitespace
         s = s.strip()
-        # Remove common separators inside the code
-        # Spaces, hyphens, underscores, dots, and common dash-like characters
-        separators = {' ', '\t', '\n', '\r', '\f', '\v', '-', '_', '.',
-                      '\u2012', '\u2013', '\u2014', '\u2212', '\u00B7', '\u2027', '\u30FB'}
-        # Replace all occurrences of separators
-        for sep in list(separators):
-            s = s.replace(sep, '')
-
-        # Empty / length / numeric checks
-        if s == '' or len(s) != 6 or not s.isdigit():
+        # Empty / length / numeric checks (do not remove internal separators)
+        if s == '':
+            return TotpValidationResult(False, '', INVALID_TOTP_MSG)
+        if len(s) != 6:
+            return TotpValidationResult(False, '', INVALID_TOTP_MSG)
+        if not s.isdigit():
             return TotpValidationResult(False, '', INVALID_TOTP_MSG)
 
         # All good
@@ -362,11 +359,11 @@ class Connection:
             if not isinstance(self.totp, str):
                 raise TypeError('The value of connection option "totp" should be a string')
             # Validate using local validator
-            result = validate_totp_code(self.totp, totp_is_valid=None)
+            result = validate_totp_code(self.totp)
             if not result.ok:
-                msg = result.message or INVALID_TOTP_MSG
-                self._logger.error(f'Authentication failed: {msg}')
-                raise errors.ConnectionError(f'Authentication failed: {msg}')
+                msg = INVALID_TOTP_MSG
+                self._logger.error(msg)
+                raise errors.ConnectionError(msg)
             # normalized digits-only code
             self.totp = result.code
             self._logger.info('TOTP received in connection options')
@@ -1030,9 +1027,9 @@ class Connection:
                             short_msg = match.group(1).strip() if match else error_msg.strip()
 
                             if "Invalid TOTP" in short_msg:
-                                self._logger.error(f"Authentication failed: {INVALID_TOTP_MSG}")
+                                self._logger.error(INVALID_TOTP_MSG)
                                 self.close_socket()
-                                raise errors.ConnectionError(f"Authentication failed: {INVALID_TOTP_MSG}")
+                                raise errors.ConnectionError(INVALID_TOTP_MSG)
 
                             # Generic error fallback
                             self._logger.error(short_msg)
@@ -1055,11 +1052,11 @@ class Connection:
                                 totp_input = sys.stdin.readline().strip()
 
                                 # Validate using local precedence-based validator
-                                result = validate_totp_code(totp_input, totp_is_valid=None)
+                                result = validate_totp_code(totp_input)
                                 if not result.ok:
                                     msg = INVALID_TOTP_MSG
-                                    self._logger.error(f"Authentication failed: {msg}")
-                                    raise errors.ConnectionError(f"Authentication failed: {msg}")
+                                    self._logger.error(msg)
+                                    raise errors.ConnectionError(msg)
                                 totp_input = result.code
                                 # ✅ Valid TOTP — retry connection
                                 totp = totp_input

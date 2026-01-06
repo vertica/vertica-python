@@ -218,29 +218,15 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
                 cur.execute("DROP AUTHENTICATION IF EXISTS totp_auth CASCADE")
 
     def test_totp_invalid_alphanumeric_code(self):
-        # Verify alphanumeric TOTP inputs return the explicit validation error
-        with self._connect() as conn:
-            cur = conn.cursor()
-
-            cur.execute("DROP USER IF EXISTS totp_user")
-            cur.execute("DROP AUTHENTICATION IF EXISTS totp_auth CASCADE")
-
-            try:
-                cur.execute("CREATE USER totp_user IDENTIFIED BY 'password' ENFORCEMFA")
-                cur.execute("CREATE AUTHENTICATION totp_auth METHOD 'password' HOST '0.0.0.0/0'")
-                cur.execute("GRANT AUTHENTICATION totp_auth TO totp_user")
-
-                self._conn_info['user'] = 'totp_user'
-                self._conn_info['password'] = 'password'
-                # Alphanumeric TOTP provided via driver parameter
-                self._conn_info['totp'] = "ot123"
-
-                err_msg = "Invalid TOTP: Please enter a valid 6-digit numeric code"
-                self.assertConnectionFail(err_msg=err_msg)
-
-            finally:
-                cur.execute("DROP USER IF EXISTS totp_user")
-                cur.execute("DROP AUTHENTICATION IF EXISTS totp_auth CASCADE")
+        # Verify alphanumeric TOTP inputs return explicit client-side validation error
+        try:
+            # Provide alphanumeric TOTP via connection options; should fail locally
+            self._conn_info['totp'] = "ot123"
+            err_msg = "Invalid TOTP: Please enter a valid 6-digit numeric code."
+            self.assertConnectionFail(err_msg=err_msg)
+        finally:
+            # Clean up connection options
+            self._conn_info.pop('totp', None)
 
     # Negative Test: Wrong TOTP (Valid format, wrong value)
     def totp_wrong_code_scenario(self):

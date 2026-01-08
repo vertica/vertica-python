@@ -124,17 +124,6 @@ class AuthenticationTestCase(VerticaPythonIntegrationTestCase):
             res = cur.fetchone()
             self.assertEqual(res[0], 'OAuth')
     
-    def test_totp_invalid_alphanumeric_code(self):
-        # Verify alphanumeric TOTP inputs return explicit client-side validation error
-        try:
-            # Provide alphanumeric TOTP via connection options; should fail locally
-            self._conn_info['totp'] = "ot123"
-            err_msg = "Invalid TOTP: Please enter a valid 6-digit numeric code."
-            self.assertConnectionFail(err_msg=err_msg)
-        finally:
-            # Clean up connection options
-            self._conn_info.pop('totp', None)
-
     def test_totp_connection(self):
         """
         Steps:

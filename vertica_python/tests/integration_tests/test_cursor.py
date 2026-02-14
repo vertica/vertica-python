@@ -1193,6 +1193,8 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
     def setUp(self):
         super(PreparedStatementTestCase, self).setUp()
         self._table = 'preparedstmt_test'
+        self._user = 'test_user'
+        self._password = 'TestPassword123'
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute("DROP TABLE IF EXISTS {0}".format(self._table))
@@ -1472,3 +1474,27 @@ class PreparedStatementTestCase(VerticaPythonIntegrationTestCase):
 
             self.assertEqual(cur.description[0].display_size, 10000)
             self.assertEqual(cur.description[1].display_size, 1000)
+
+    def test_multiple_permission_error(self):
+        with self._connect() as conn:
+            try:
+                cur = conn.cursor()
+                cur.execute("CREATE TABLE {} (id INT)"
+                            .format(self._table))
+
+                try:
+                    cur.execute("CREATE USER {} IDENTIFIED BY '{}'".format(self._user, self._password), use_prepared_statements=False)
+                except errors.QueryError:
+                    pass  # User already exists
+                conn.commit()
+
+                with self._connect_user_pass(self._user, self._password) as conn_2:
+                    cur_2 = conn_2.cursor()
+                    for i in range(1, 5):
+                        with pytest.raises(errors.DatabaseError, match='Permission denied for relation {}'.format(self._table)):
+                            cur_2.execute("SELECT * FROM {} LIMIT 1".format(self._table))
+            finally:
+                try:
+                    cur.execute("DROP USER {}".format(self._user))
+                except errors.QueryError:
+                    pass  # User did not exist

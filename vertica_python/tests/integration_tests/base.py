@@ -94,6 +94,17 @@ class VerticaPythonIntegrationTestCase(VerticaPythonTestCase):
         return connect(**cls._conn_info)
 
     @classmethod
+    def _connect_user_pass(cls, user: str, password: str):
+        """Connects to vertica with an overridden user/pass.
+
+        :return: a connection to vertica.
+        """
+        conn_info = cls._conn_info.copy()
+        conn_info['user'] = user
+        conn_info['password'] = password
+        return connect(**conn_info)
+
+    @classmethod
     def _get_node_num(cls):
         """Executes a query to get the number of nodes in the database
 

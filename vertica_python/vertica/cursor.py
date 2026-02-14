@@ -945,6 +945,10 @@ class Cursor:
         self.connection.write(messages.Sync())
         raise errors.QueryError.from_error_response(msg, self.operation)
 
+    def _prepared_statement_error_handler(self, msg: BackendMessage) -> NoReturn:
+        self._message = msg
+        raise errors.DatabaseError(msg.error_message())
+
     def _prepare(self, query: str) -> None:
         """
         Send the query to be prepared to the server. The server will parse the
@@ -1024,7 +1028,7 @@ class Cursor:
         self.connection.write(messages.Flush())
 
         # Read expected message: BindComplete
-        self.connection.read_expected_message(messages.BindComplete)
+        self.connection.read_expected_message(messages.BindComplete, self._prepared_statement_error_handler)
 
         self._message = self.connection.read_message()
         if isinstance(self._message, messages.ErrorResponse):

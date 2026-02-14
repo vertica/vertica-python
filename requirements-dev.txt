@@ -2,4 +2,5 @@ pytest
 pytest-timeout
 python-dateutil
 tox
+parameterized
 #kerberos
